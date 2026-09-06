@@ -5,6 +5,12 @@ const llm = require('../llm/client');
 const router = express.Router();
 
 const PRESETS = {
+  google: {
+    label: 'Google AI Studio (free API key)',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    model: 'gemini-3.5-flash-lite',
+    note: 'Free API key from https://aistudio.google.com — paste it as the API key. Fast cloud models, no GPU needed. Test Connection lists the models your key can use.'
+  },
   ollama: { label: 'Ollama', baseUrl: 'http://host.docker.internal:11434/v1', model: 'llama3.1:8b', note: 'Run Ollama on your computer; pull a model first (e.g. `ollama pull llama3.1:8b`).' },
   lmstudio: { label: 'LM Studio', baseUrl: 'http://host.docker.internal:1234/v1', model: 'local-model', note: 'In LM Studio, start the local server (Developer tab).' },
   llama_cpp: { label: 'llama.cpp server', baseUrl: 'http://host.docker.internal:8080/v1', model: 'local-model', note: 'Start llama-server with --host 0.0.0.0.' },

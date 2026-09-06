@@ -81,12 +81,13 @@ engine decided**, so it can't cheat or break the game. Three uses:
 
 Without an LLM the game is fully playable with built-in text.
 
-### Connecting your local LLM
+### Connecting your local (or cloud) LLM
 
 Open **DM Settings** in the app. Pick a preset, save, and hit **Test Connection**:
 
-| Server | Base URL (from Docker) | Notes |
+| Server | Base URL | Notes |
 |---|---|---|
+| Google AI Studio | `https://generativelanguage.googleapis.com/v1beta/openai` | Free API key from [aistudio.google.com](https://aistudio.google.com) — no GPU needed, very fast (e.g. `gemini-3.5-flash-lite`) |
 | Ollama | `http://host.docker.internal:11434/v1` | `ollama pull llama3.1:8b` first |
 | LM Studio | `http://host.docker.internal:1234/v1` | start the local server in the Developer tab |
 | llama.cpp | `http://host.docker.internal:8080/v1` | run `llama-server --host 0.0.0.0` |
@@ -94,6 +95,7 @@ Open **DM Settings** in the app. Pick a preset, save, and hit **Test Connection*
 
 > Running without Docker? Use `http://localhost:11434/v1` etc. instead.
 > On Linux, the included `docker-compose.yml` adds `host.docker.internal:host-gateway` for you.
+> Free-tier cloud models occasionally return 429/503 — the game retries once and falls back to built-in text, so play never blocks.
 
 Any model works; small 7–8B models are great for narration and fast. When the AI DM writes, the log
 shows its prose (serif font, gold bar); dice results appear underneath.

@@ -6,13 +6,16 @@ const router = express.Router();
 
 router.get('/export', (req, res) => {
   const saves = store.listSaves().map(s => store.getSave(s.id)).filter(Boolean);
+  const settings = store.getSettings();
+  // never write the API key into a shareable backup file
+  if (settings.llm) { delete settings.llm.apiKey; }
   res.json({
     format: 'ai-dnd-backup',
     version: 1,
     exportedAt: Date.now(),
     characters: store.getCharacters(),
     saves,
-    settings: store.getSettings()
+    settings
   });
 });
 

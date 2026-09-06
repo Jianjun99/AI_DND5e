@@ -7,11 +7,7 @@ function normalizeBase(baseUrl) {
   return u;
 }
 
-async function chat(messages, overrides = {}) {
-  const cfg = overrides.config || store.getSettings().llm;
-  if (!cfg.enabled) throw new Error('LLM disabled');
-  const base = normalizeBase(cfg.baseUrl);
-  const url = base.endsWith('/chat/completions') ? base : base + '/chat/completions';
+async function chatOnce(url, model, messages, cfg) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Math.min(60000, cfg.timeoutMs || 25000));
   try {
@@ -21,7 +17,7 @@ async function chat(messages, overrides = {}) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        model: cfg.model,
+        model,
         messages,
         temperature: cfg.temperature ?? 0.8,
         max_tokens: cfg.maxTokens ?? 300,
@@ -31,7 +27,9 @@ async function chat(messages, overrides = {}) {
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new Error(`LLM HTTP ${res.status}: ${body.slice(0, 200)}`);
+      const err = new Error(`LLM HTTP ${res.status}: ${body.slice(0, 200)}`);
+      err.status = res.status;
+      throw err;
     }
     const data = await res.json();
     let text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
@@ -41,9 +39,29 @@ async function chat(messages, overrides = {}) {
       text = m.reasoning_content || m.reasoning || '';
     }
     if (!text) throw new Error('LLM returned empty response');
-    return String(text).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    // strip reasoning blocks some models inline in the content (gemma: <thought>, others: <think>)
+    return String(text).replace(/<(think|thought)>[\s\S]*?<\/\1>/g, '').trim();
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function chat(messages, overrides = {}) {
+  const cfg = overrides.config || store.getSettings().llm;
+  if (!cfg.enabled) throw new Error('LLM disabled');
+  const base = normalizeBase(cfg.baseUrl);
+  const url = base.endsWith('/chat/completions') ? base : base + '/chat/completions';
+  // Google's OpenAI-compat layer lists models as "models/gemini-..." — accept either form
+  const model = String(cfg.model || '').replace(/^models\//, '');
+  try {
+    return await chatOnce(url, model, messages, cfg);
+  } catch (e) {
+    // free-tier cloud models occasionally return 429/5xx — one quick retry smooths it over
+    if (e.status && [429, 500, 502, 503].includes(e.status)) {
+      await new Promise(r => setTimeout(r, 2000));
+      return await chatOnce(url, model, messages, cfg);
+    }
+    throw e;
   }
 }
 
@@ -59,7 +77,7 @@ async function testConnection(cfg) {
     clearTimeout(timeout);
     if (res.ok) {
       const data = await res.json();
-      out.models = (data.data || []).map(m => m.id).slice(0, 30);
+      out.models = (data.data || []).map(m => String(m.id || '').replace(/^models\//, '')).slice(0, 40);
     }
   } catch (e) {
     out.error = 'Could not list models: ' + e.message;
