@@ -1,5 +1,8 @@
 # 🐉 AI Dungeon — a solo D&D 2024 game with a local LLM Dungeon Master
 
+[![CI](https://github.com/Jianjun99/AI_DND5e/actions/workflows/ci.yml/badge.svg)](https://github.com/Jianjun99/AI_DND5e/actions/workflows/ci.yml)
+[![Docker image](https://github.com/Jianjun99/AI_DND5e/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Jianjun99/AI_DND5e/pkgs/container/ai_dnd5e)
+
 A self-contained, offline-capable D&D (2024 rules) dungeon crawler that runs on your own computer.
 Create a hero, delve into **The Sunless Crypt** with grid-based tactical combat, and — optionally —
 plug in your own local LLM (Ollama, LM Studio, …) to give the Dungeon Master a living voice that
@@ -10,6 +13,14 @@ Packaged for Docker, so anyone can download it and play offline.
 ---
 
 ## Quick start (Docker)
+
+**Easiest — pull the ready-made image** (published automatically by GitHub Actions):
+
+```bash
+docker run -d --name ai-dnd -p 3000:3000 -v ai-dnd-data:/app/data ghcr.io/jianjun99/ai_dnd5e:latest
+```
+
+**Or build it yourself** from this repository:
 
 ```bash
 # 1. Build the image
@@ -99,6 +110,8 @@ shows its prose (serif font, gold bar); dice results appear underneath.
 ├── shared/            D&D 2024 content: species, classes, backgrounds, equipment,
 │                      spells, monsters, and the crypt map
 ├── public/            vanilla-JS single-page frontend (canvas map renderer)
+├── scripts/           smoke-test used by CI (health → character → delve → combat)
+├── .github/workflows  CI smoke test + automatic Docker image publishing to ghcr.io
 ├── Dockerfile         node:20-alpine, non-root, healthcheck
 └── docker-compose.yml volume + host.docker.internal wiring
 ```
