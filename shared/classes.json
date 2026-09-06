@@ -1,0 +1,233 @@
+{
+  "classes": [
+    {
+      "id": "barbarian", "name": "Barbarian", "hitDie": 12, "primary": "str",
+      "blurb": "A fierce warrior of primal fury who shrugs off wounds that would fell lesser folk.",
+      "saves": ["str", "con"],
+      "skillPicks": 2,
+      "skillList": ["animal_handling", "athletics", "intimidation", "nature", "perception", "survival"],
+      "armorProf": ["light", "medium", "shields"], "weaponProf": ["simple", "martial"],
+      "armorOptions": [{ "id": "none", "label": "No armor (Unarmored Defense: 10 + DEX + CON)", "items": [] }],
+      "weaponOptions": [
+        { "id": "greataxe", "label": "Greataxe", "items": [{ "id": "greataxe", "qty": 1 }] },
+        { "id": "martial_pack", "label": "Battleaxe + 2 Handaxes", "items": [{ "id": "battleaxe", "qty": 1 }, { "id": "handaxe", "qty": 2 }] }
+      ],
+      "features": [
+        { "level": 1, "id": "rage", "name": "Rage", "desc": "Bonus action: +2 damage to STR melee attacks, resistance to bludgeoning/piercing/slashing, advantage on STR checks and saves. Lasts 10 minutes. 2 uses per Short Rest.", "button": true, "kind": "bonus", "uses": "2/short", "mech": "rage" },
+        { "level": 1, "id": "unarmored_defense_barb", "name": "Unarmored Defense", "desc": "While not wearing armor, your AC = 10 + DEX mod + CON mod.", "mech": "ac_unarmored_con" },
+        { "level": 1, "id": "weapon_mastery_barb", "name": "Weapon Mastery", "desc": "You can use the mastery properties of 2 kinds of weapons.", "mech": null },
+        { "level": 2, "id": "danger_sense", "name": "Danger Sense", "desc": "Advantage on DEX saving throws unless Incapacitated.", "mech": "dex_save_adv" },
+        { "level": 2, "id": "reckless_attack", "name": "Reckless Attack", "desc": "Gain advantage on STR melee attacks, but attacks against you have advantage.", "button": true, "kind": "free", "mech": "reckless_toggle" }
+      ]
+    },
+    {
+      "id": "bard", "name": "Bard", "hitDie": 8, "primary": "cha",
+      "blurb": "An inspiring magician whose performance weaves song into magic.",
+      "saves": ["dex", "cha"],
+      "skillPicks": 3, "skillList": "any",
+      "armorProf": ["light"], "weaponProf": ["simple"],
+      "spellcasting": { "ability": "cha", "type": "known", "cantrips": 2, "spellsKnown": 4, "slots": "full" },
+      "armorOptions": [{ "id": "leather", "label": "Leather armor", "items": [{ "id": "leather", "qty": 1 }] }],
+      "weaponOptions": [
+        { "id": "rapier", "label": "Rapier", "items": [{ "id": "rapier", "qty": 1 }] },
+        { "id": "longsword", "label": "Longsword", "items": [{ "id": "longsword", "qty": 1 }] }
+      ],
+      "features": [
+        { "level": 1, "id": "bardic_inspiration", "name": "Bardic Inspiration", "desc": "Bonus action: grant yourself a d6 to add to one attack roll, ability check, or saving throw within 10 minutes. CHA mod uses per Short Rest.", "button": true, "kind": "bonus", "uses": "cha/short", "mech": "bardic_inspiration" },
+        { "level": 2, "id": "expertise_bard", "name": "Expertise", "desc": "Double your proficiency bonus on two of your skill proficiencies.", "mech": "expertise_auto" }
+      ]
+    },
+    {
+      "id": "cleric", "name": "Cleric", "hitDie": 8, "primary": "wis",
+      "blurb": "A divine conduit wielding the power of their god to smite and to heal.",
+      "saves": ["wis", "cha"],
+      "skillPicks": 2, "skillList": ["history", "insight", "medicine", "persuasion", "religion"],
+      "armorProf": ["light", "medium", "shields"], "weaponProf": ["simple"],
+      "spellcasting": { "ability": "wis", "type": "prepared", "cantrips": 3, "slots": "full" },
+      "armorOptions": [
+        { "id": "chain_shirt", "label": "Chain shirt + shield", "items": [{ "id": "chain_shirt", "qty": 1 }, { "id": "shield", "qty": 1 }] },
+        { "id": "scale", "label": "Scale mail", "items": [{ "id": "scale_mail", "qty": 1 }] }
+      ],
+      "weaponOptions": [
+        { "id": "warhammer", "label": "Warhammer", "items": [{ "id": "warhammer", "qty": 1 }] },
+        { "id": "mace", "label": "Mace", "items": [{ "id": "mace", "qty": 1 }] }
+      ],
+      "features": [
+        { "level": 1, "id": "divine_spark", "name": "Channel Divinity: Divine Spark", "desc": "Action: 1d8 + WIS mod radiant damage (ranged 30 ft) or healing (touch). 2 uses per Short Rest.", "button": true, "kind": "action", "uses": "2/short", "mech": "divine_spark" },
+        { "level": 1, "id": "divine_order", "name": "Divine Order", "desc": "You are blessed with martial training: you may wear medium armor and use martial weapons.", "mech": null }
+      ]
+    },
+    {
+      "id": "druid", "name": "Druid", "hitDie": 8, "primary": "wis",
+      "blurb": "A priest of the Old Faith, wielding nature's power and beast shapes.",
+      "saves": ["int", "wis"],
+      "skillPicks": 2, "skillList": ["arcana", "animal_handling", "insight", "medicine", "nature", "perception", "religion", "survival"],
+      "armorProf": ["light", "medium", "shields"], "weaponProf": ["simple"],
+      "spellcasting": { "ability": "wis", "type": "prepared", "cantrips": 2, "slots": "full" },
+      "armorOptions": [{ "id": "leather_shield", "label": "Leather armor + wooden shield", "items": [{ "id": "leather", "qty": 1 }, { "id": "shield", "qty": 1 }] }],
+      "weaponOptions": [
+        { "id": "quarterstaff", "label": "Quarterstaff", "items": [{ "id": "quarterstaff", "qty": 1 }] },
+        { "id": "club", "label": "Club + dagger", "items": [{ "id": "club", "qty": 1 }, { "id": "dagger", "qty": 1 }] }
+      ],
+      "features": [
+        { "level": 1, "id": "wild_shape", "name": "Wild Shape (simplified)", "desc": "Bonus action: take Wolf form for 10 rounds — AC 12, speed 40 ft, Bite attack (+PB+WIS, 1d8+WIS piercing). You keep your HP. Ends on Long Rest. 2 uses per Short Rest.", "button": true, "kind": "bonus", "uses": "2/short", "mech": "wild_shape" },
+        { "level": 1, "id": "primal_order", "name": "Primal Order (Magical)", "desc": "You gain one extra Druid cantrip and proficiency in Nature.", "mech": "extra_cantrip" }
+      ]
+    },
+    {
+      "id": "fighter", "name": "Fighter", "hitDie": 10, "primary": "str",
+      "blurb": "A master of weapons and tactics, equally deadly up close or at range.",
+      "saves": ["str", "con"],
+      "skillPicks": 2, "skillList": ["acrobatics", "animal_handling", "athletics", "history", "insight", "intimidation", "persuasion", "perception", "survival"],
+      "armorProf": ["light", "medium", "heavy", "shields"], "weaponProf": ["simple", "martial"],
+      "fightingStyles": ["archery", "defense", "dueling", "great_weapon", "two_weapon"],
+      "armorOptions": [{ "id": "chain_mail", "label": "Chain mail", "items": [{ "id": "chain_mail", "qty": 1 }] }],
+      "weaponOptions": [
+        { "id": "sword_board", "label": "Longsword + shield", "items": [{ "id": "longsword", "qty": 1 }, { "id": "shield", "qty": 1 }] },
+        { "id": "great", "label": "Greatsword", "items": [{ "id": "greatsword", "qty": 1 }] },
+        { "id": "archer", "label": "Longbow, arrows + shortsword", "items": [{ "id": "longbow", "qty": 1 }, { "id": "shortsword", "qty": 1 }] }
+      ],
+      "features": [
+        { "level": 1, "id": "second_wind", "name": "Second Wind", "desc": "Bonus action: regain 1d10 + Fighter level HP. 2 uses per Short Rest.", "button": true, "kind": "bonus", "uses": "2/short", "mech": "second_wind" },
+        { "level": 1, "id": "weapon_mastery_ftr", "name": "Weapon Mastery", "desc": "You can use the mastery properties of 2 kinds of weapons.", "mech": null },
+        { "level": 2, "id": "action_surge", "name": "Action Surge", "desc": "Take one additional Action on your turn. Once per Short Rest.", "button": true, "kind": "free", "uses": "1/short", "mech": "action_surge" }
+      ]
+    },
+    {
+      "id": "monk", "name": "Monk", "hitDie": 8, "primary": "dex",
+      "blurb": "A martial artist who channels ki — focusing body and mind into a living weapon.",
+      "saves": ["str", "dex"],
+      "skillPicks": 2, "skillList": ["acrobatics", "athletics", "history", "insight", "religion", "stealth"],
+      "armorProf": [], "weaponProf": ["simple"],
+      "armorOptions": [{ "id": "none", "label": "No armor (Unarmored Defense: 10 + DEX + WIS)", "items": [] }],
+      "weaponOptions": [
+        { "id": "quarterstaff", "label": "Quarterstaff", "items": [{ "id": "quarterstaff", "qty": 1 }] },
+        { "id": "shortsword", "label": "Shortsword", "items": [{ "id": "shortsword", "qty": 1 }] }
+      ],
+      "features": [
+        { "level": 1, "id": "martial_arts", "name": "Martial Arts", "desc": "DEX for unarmed/monk weapon attacks; unarmed strikes deal 1d6; Bonus action unarmed strike after the Attack action.", "mech": "martial_arts" },
+        { "level": 1, "id": "unarmored_defense_monk", "name": "Unarmored Defense", "desc": "While not wearing armor, your AC = 10 + DEX mod + WIS mod.", "mech": "ac_unarmored_wis" },
+        { "level": 2, "id": "focus", "name": "Focus Points", "desc": "You have Focus Points equal to your level (refresh on Short Rest) to power your Monk abilities.", "mech": "focus_points" },
+        { "level": 2, "id": "flurry_of_blows", "name": "Flurry of Blows", "desc": "Bonus action, 1 Focus: make two unarmed strikes.", "button": true, "kind": "bonus", "mech": "flurry" },
+        { "level": 2, "id": "patient_defense", "name": "Patient Defense", "desc": "Bonus action, 1 Focus: attacks against you have disadvantage until your next turn.", "button": true, "kind": "bonus", "mech": "patient_defense" },
+        { "level": 2, "id": "step_of_wind", "name": "Step of the Wind", "desc": "Bonus action, 1 Focus: take the Dash or Disengage action.", "button": true, "kind": "bonus", "mech": "step_of_wind" },
+        { "level": 2, "id": "unarmored_movement", "name": "Unarmored Movement", "desc": "+10 ft speed while unarmored.", "mech": "unarmored_movement" }
+      ]
+    },
+    {
+      "id": "paladin", "name": "Paladin", "hitDie": 10, "primary": "str",
+      "blurb": "A holy warrior bound by an oath, wielding divine power in battle.",
+      "saves": ["wis", "cha"],
+      "skillPicks": 2, "skillList": ["athletics", "insight", "intimidation", "persuasion", "religion"],
+      "armorProf": ["light", "medium", "heavy", "shields"], "weaponProf": ["simple", "martial"],
+      "fightingStyles": ["archery", "defense", "dueling", "great_weapon"],
+      "spellcasting": { "ability": "cha", "type": "prepared", "cantrips": 0, "slots": "half" },
+      "armorOptions": [{ "id": "chain_mail", "label": "Chain mail", "items": [{ "id": "chain_mail", "qty": 1 }] }],
+      "weaponOptions": [
+        { "id": "sword_board", "label": "Longsword + shield", "items": [{ "id": "longsword", "qty": 1 }, { "id": "shield", "qty": 1 }] },
+        { "id": "great", "label": "Greatsword", "items": [{ "id": "greatsword", "qty": 1 }] }
+      ],
+      "features": [
+        { "level": 1, "id": "lay_on_hands", "name": "Lay On Hands", "desc": "Bonus action (touch): heal from a pool of 5 HP × Paladin level. Heals can be split across uses. Pool refreshes on Long Rest.", "button": true, "kind": "bonus", "uses": "pool5xlevel/long", "mech": "lay_on_hands" },
+        { "level": 1, "id": "weapon_mastery_pal", "name": "Weapon Mastery", "desc": "You can use the mastery properties of 2 kinds of weapons.", "mech": null },
+        { "level": 2, "id": "fighting_style_pal", "name": "Fighting Style", "desc": "Gain a Fighting Style feat.", "mech": "fighting_style" },
+        { "level": 2, "id": "divine_smite", "name": "Divine Smite", "desc": "Bonus action + 1 spell slot: your next weapon hit this turn deals +2d8 radiant damage.", "button": true, "kind": "bonus", "mech": "divine_smite" }
+      ]
+    },
+    {
+      "id": "ranger", "name": "Ranger", "hitDie": 10, "primary": "dex",
+      "blurb": "A wilderness hunter who tracks their quarry and strikes from afar.",
+      "saves": ["str", "dex"],
+      "skillPicks": 2, "skillList": ["animal_handling", "athletics", "insight", "investigation", "nature", "perception", "stealth", "survival"],
+      "armorProf": ["light", "medium", "shields"], "weaponProf": ["simple", "martial"],
+      "fightingStyles": ["archery", "defense", "dueling", "two_weapon"],
+      "spellcasting": { "ability": "wis", "type": "known", "cantrips": 0, "spellsKnown": 2, "slots": "half" },
+      "armorOptions": [{ "id": "studded", "label": "Studded leather armor", "items": [{ "id": "studded_leather", "qty": 1 }] }],
+      "weaponOptions": [
+        { "id": "bow_sword", "label": "Longbow + shortsword", "items": [{ "id": "longbow", "qty": 1 }, { "id": "shortsword", "qty": 1 }] },
+        { "id": "dual", "label": "2 Shortswords", "items": [{ "id": "shortsword", "qty": 2 }] }
+      ],
+      "features": [
+        { "level": 1, "id": "expertise_ranger", "name": "Expertise", "desc": "Double your proficiency bonus on one skill (auto: Perception, or your first class skill).", "mech": "expertise_auto" },
+        { "level": 1, "id": "weapon_mastery_rng", "name": "Weapon Mastery", "desc": "You can use the mastery properties of 2 kinds of weapons.", "mech": null },
+        { "level": 2, "id": "fighting_style_rng", "name": "Fighting Style", "desc": "Gain a Fighting Style feat.", "mech": "fighting_style" },
+        { "level": 2, "id": "hunters_mark", "name": "Hunter's Mark (free casts)", "desc": "Hunter's Mark is always prepared; cast it without a slot twice per Long Rest.", "mech": "hunters_mark_free" }
+      ]
+    },
+    {
+      "id": "rogue", "name": "Rogue", "hitDie": 8, "primary": "dex",
+      "blurb": "A skilled striker of shadows who deals devastating precise blows.",
+      "saves": ["dex", "int"],
+      "skillPicks": 4, "skillList": ["acrobatics", "athletics", "deception", "insight", "intimidation", "investigation", "perception", "performance", "persuasion", "sleight_of_hand", "stealth"],
+      "armorProf": ["light"], "weaponProf": ["simple", "martial_finesse"],
+      "armorOptions": [{ "id": "leather", "label": "Leather armor", "items": [{ "id": "leather", "qty": 1 }] }],
+      "weaponOptions": [
+        { "id": "short_dagger", "label": "Shortsword + dagger + thieves' tools", "items": [{ "id": "shortsword", "qty": 1 }, { "id": "dagger", "qty": 1 }, { "id": "thieves_tools", "qty": 1 }] },
+        { "id": "rapier", "label": "Rapier + thieves' tools", "items": [{ "id": "rapier", "qty": 1 }, { "id": "thieves_tools", "qty": 1 }] }
+      ],
+      "features": [
+        { "level": 1, "id": "sneak_attack", "name": "Sneak Attack", "desc": "Once per turn, deal +1d6 extra damage when you have advantage on the attack or an ally is within 5 ft of the target.", "mech": "sneak_attack" },
+        { "level": 1, "id": "expertise_rogue", "name": "Expertise", "desc": "Double proficiency bonus on two skills (auto: Stealth and one more you know).", "mech": "expertise_auto" },
+        { "level": 1, "id": "thieves_cant", "name": "Thieves' Cant", "desc": "You understand thieves' cant and can read hidden messages.", "mech": null },
+        { "level": 2, "id": "cunning_action", "name": "Cunning Action", "desc": "Bonus action: Dash, Disengage, or Hide.", "button": true, "kind": "bonus", "mech": "cunning_action" },
+        { "level": 2, "id": "steady_aim", "name": "Steady Aim", "desc": "Bonus action: advantage on your next attack this turn; your speed becomes 0.", "button": true, "kind": "bonus", "mech": "steady_aim" }
+      ]
+    },
+    {
+      "id": "sorcerer", "name": "Sorcerer", "hitDie": 6, "primary": "cha",
+      "blurb": "Magic flows innately through your blood, shaped by will alone.",
+      "saves": ["con", "cha"],
+      "skillPicks": 2, "skillList": ["arcana", "deception", "insight", "intimidation", "persuasion", "religion"],
+      "armorProf": [], "weaponProf": ["simple", "daggers"],
+      "armorOptions": [{ "id": "none", "label": "No armor", "items": [] }],
+      "weaponOptions": [
+        { "id": "dagger", "label": "Dagger", "items": [{ "id": "dagger", "qty": 1 }] },
+        { "id": "quarterstaff", "label": "Quarterstaff", "items": [{ "id": "quarterstaff", "qty": 1 }] }
+      ],
+      "spellcasting": { "ability": "cha", "type": "known", "cantrips": 4, "spellsKnown": 2, "slots": "full" },
+      "features": [
+        { "level": 1, "id": "innate_sorcery", "name": "Innate Sorcery", "desc": "Bonus action: for 1 minute, spell attack rolls have advantage and your spell save DC is +1. Once per Long Rest.", "button": true, "kind": "bonus", "uses": "1/long", "mech": "innate_sorcery" }
+      ]
+    },
+    {
+      "id": "warlock", "name": "Warlock", "hitDie": 8, "primary": "cha",
+      "blurb": "A pact-sworn spellcaster drawing power from an otherworldly patron.",
+      "saves": ["wis", "cha"],
+      "skillPicks": 2, "skillList": ["arcana", "deception", "history", "intimidation", "investigation", "nature", "religion"],
+      "armorProf": ["light"], "weaponProf": ["simple"],
+      "spellcasting": { "ability": "cha", "type": "pact", "cantrips": 2, "spellsKnown": 2, "slots": "pact" },
+      "invocations": [
+        { "id": "agonizing_blast", "name": "Agonizing Blast", "desc": "Add your CHA modifier to Eldritch Blast damage." },
+        { "id": "repelling_blast", "name": "Repelling Blast", "desc": "When you hit with Eldritch Blast, push the target 10 ft away." },
+        { "id": "devils_sight", "name": "Devil's Sight", "desc": "See normally in darkness out to 120 ft." },
+        { "id": "armor_of_shadows", "name": "Armor of Shadows", "desc": "Your AC becomes 13 + DEX mod while unarmored." }
+      ],
+      "armorOptions": [{ "id": "leather", "label": "Leather armor", "items": [{ "id": "leather", "qty": 1 }] }],
+      "weaponOptions": [
+        { "id": "dagger", "label": "2 Daggers", "items": [{ "id": "dagger", "qty": 2 }] },
+        { "id": "quarterstaff", "label": "Quarterstaff", "items": [{ "id": "quarterstaff", "qty": 1 }] }
+      ],
+      "features": [
+        { "level": 1, "id": "pact_magic", "name": "Pact Magic", "desc": "Your spell slots refresh on a Short Rest (2 slots per rest in this build).", "mech": "pact_magic" },
+        { "level": 2, "id": "magical_cunning", "name": "Magical Cunning", "desc": "Restore your expended Pact Magic slots. Once per Long Rest (also usable on a Short Rest).", "button": true, "kind": "free", "uses": "1/long", "mech": "magical_cunning" }
+      ]
+    },
+    {
+      "id": "wizard", "name": "Wizard", "hitDie": 6, "primary": "int",
+      "blurb": "A scholar of the arcane who bends reality through rigorous study.",
+      "saves": ["int", "wis"],
+      "skillPicks": 2, "skillList": ["arcana", "history", "insight", "investigation", "medicine", "nature", "religion"],
+      "armorProf": [], "weaponProf": ["simple", "daggers"],
+      "armorOptions": [{ "id": "none", "label": "No armor", "items": [] }],
+      "weaponOptions": [
+        { "id": "quarterstaff", "label": "Quarterstaff", "items": [{ "id": "quarterstaff", "qty": 1 }] },
+        { "id": "dagger", "label": "Dagger", "items": [{ "id": "dagger", "qty": 1 }] }
+      ],
+      "spellcasting": { "ability": "int", "type": "prepared", "cantrips": 3, "slots": "full" },
+      "features": [
+        { "level": 1, "id": "arcane_recovery", "name": "Arcane Recovery", "desc": "On a Short Rest, regain spell slots totalling half your level (rounded up). Once per Long Rest.", "button": false, "mech": "arcane_recovery" },
+        { "level": 2, "id": "scholar", "name": "Scholar", "desc": "Expertise in two of Arcana, History, Nature, or Religion (auto-granted where proficient).", "mech": "expertise_auto" }
+      ]
+    }
+  ]
+}

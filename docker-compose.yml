@@ -1,0 +1,18 @@
+services:
+  ai-dnd:
+    build: .
+    image: ai-dnd:latest
+    container_name: ai-dnd
+    ports:
+      - "3000:3000"
+    volumes:
+      - ai-dnd-data:/app/data
+    restart: unless-stopped
+    # Lets the container reach an LLM running on your own computer
+    # (Ollama, LM Studio, llama.cpp...). Native on Docker Desktop
+    # (Windows/macOS); the extra_hosts line covers Linux too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  ai-dnd-data:

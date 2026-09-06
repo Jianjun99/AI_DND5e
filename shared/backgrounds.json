@@ -1,0 +1,162 @@
+{
+  "backgrounds": [
+    {
+      "id": "acolyte", "name": "Acolyte",
+      "blurb": "You devoted yourself to service in a temple, learning rites and dogma.",
+      "abilities": ["int", "wis", "cha"],
+      "feat": "magic_initiate_cleric",
+      "skills": ["insight", "religion"],
+      "tools": "Calligrapher's Tools",
+      "featNote": "Magic Initiate (Cleric): 2 cleric cantrips + 1 first-level cleric spell (1/Long Rest)."
+    },
+    {
+      "id": "artisan", "name": "Artisan",
+      "blurb": "You spent years learning a craft, gaining expertise with tools of the trade.",
+      "abilities": ["str", "dex", "int"],
+      "feat": "crafter",
+      "skills": ["investigation", "persuasion"],
+      "tools": "Artisan's Tools",
+      "featNote": "Crafter: You begin with two extra healing potions and a knack for quick repairs."
+    },
+    {
+      "id": "charlatan", "name": "Charlatan",
+      "blurb": "You learned to read people and lie with a smile — a silver tongue is a weapon.",
+      "abilities": ["dex", "con", "cha"],
+      "feat": "skilled",
+      "skills": ["deception", "sleight_of_hand"],
+      "tools": "Disguise Kit",
+      "featNote": "Skilled: Gain proficiency in two additional skills of your choice."
+    },
+    {
+      "id": "criminal", "name": "Criminal",
+      "blurb": "You lived a life of burglary and quiet footsteps in the city's underbelly.",
+      "abilities": ["dex", "con", "int"],
+      "feat": "alert",
+      "skills": ["sleight_of_hand", "stealth"],
+      "tools": "Thieves' Tools",
+      "featNote": "Alert: +3 to Initiative."
+    },
+    {
+      "id": "entertainer", "name": "Entertainer",
+      "blurb": "You performed for crowds — songs, acrobatics, and glittering showmanship.",
+      "abilities": ["str", "dex", "cha"],
+      "feat": "musician",
+      "skills": ["acrobatics", "performance"],
+      "tools": "Musical Instrument",
+      "featNote": "Musician: Heroic Inspiration — reroll one d20 per Short Rest."
+    },
+    {
+      "id": "farmer", "name": "Farmer",
+      "blurb": "You worked the land, tougher than the soil and sturdier than the storms.",
+      "abilities": ["str", "con", "wis"],
+      "feat": "tough",
+      "skills": ["animal_handling", "nature"],
+      "tools": "Carpenter's Tools",
+      "featNote": "Tough: +2 Hit Points per level."
+    },
+    {
+      "id": "guard", "name": "Guard",
+      "blurb": "You watched city walls and tavern doors, ever alert for trouble.",
+      "abilities": ["str", "con", "wis"],
+      "feat": "alert",
+      "skills": ["athletics", "perception"],
+      "tools": "Gaming Set",
+      "featNote": "Alert: +3 to Initiative."
+    },
+    {
+      "id": "guide", "name": "Guide",
+      "blurb": "You led travelers through wild places, reading land and weather alike.",
+      "abilities": ["dex", "con", "wis"],
+      "feat": "magic_initiate_druid",
+      "skills": ["stealth", "survival"],
+      "tools": "Navigator's Tools",
+      "featNote": "Magic Initiate (Druid): 2 druid cantrips + 1 first-level druid spell (1/Long Rest)."
+    },
+    {
+      "id": "hermit", "name": "Hermit",
+      "blurb": "You lived apart from society, seeking wisdom in solitude and study.",
+      "abilities": ["con", "wis", "int"],
+      "feat": "healer",
+      "skills": ["medicine", "religion"],
+      "tools": "Herbalism Kit",
+      "featNote": "Healer: Use Healer's Kits (start with 3) to mend wounds: heal 1d4 + 2 + level."
+    },
+    {
+      "id": "merchant", "name": "Merchant",
+      "blurb": "You traded goods along lonely roads, weighing every word like coin.",
+      "abilities": ["con", "int", "cha"],
+      "feat": "lucky",
+      "skills": ["animal_handling", "persuasion"],
+      "tools": "Navigator's Tools",
+      "featNote": "Lucky: Reroll a d20 twice per Short Rest."
+    },
+    {
+      "id": "noble", "name": "Noble",
+      "blurb": "Raised in halls of privilege, you carry a name that opens doors — or closes them.",
+      "abilities": ["str", "int", "cha"],
+      "feat": "skilled",
+      "skills": ["history", "persuasion"],
+      "tools": "Gaming Set",
+      "featNote": "Skilled: Gain proficiency in two additional skills of your choice."
+    },
+    {
+      "id": "sage", "name": "Sage",
+      "blurb": "You spent decades among books and scrolls, unlocking lore's deepest secrets.",
+      "abilities": ["con", "int", "wis"],
+      "feat": "magic_initiate_wizard",
+      "skills": ["arcana", "history"],
+      "tools": "Calligrapher's Tools",
+      "featNote": "Magic Initiate (Wizard): 2 wizard cantrips + 1 first-level wizard spell (1/Long Rest)."
+    },
+    {
+      "id": "sailor", "name": "Sailor",
+      "blurb": "You worked rigging and decks on long voyages, thriving on salt and brawls.",
+      "abilities": ["str", "dex", "wis"],
+      "feat": "tavern_brawler",
+      "skills": ["acrobatics", "perception"],
+      "tools": "Navigator's Tools",
+      "featNote": "Tavern Brawler: Reroll 1s on unarmed damage; on a hit, shove the target 5 ft."
+    },
+    {
+      "id": "scribe", "name": "Scribe",
+      "blurb": "You copied documents and found the truth hidden between their lines.",
+      "abilities": ["dex", "int", "wis"],
+      "feat": "skilled",
+      "skills": ["investigation", "perception"],
+      "tools": "Calligrapher's Tools",
+      "featNote": "Skilled: Gain proficiency in two additional skills of your choice."
+    },
+    {
+      "id": "soldier", "name": "Soldier",
+      "blurb": "Trained in a militia or army, you know discipline, ranks, and warfare.",
+      "abilities": ["str", "dex", "con"],
+      "feat": "savage_attacker",
+      "skills": ["athletics", "intimidation"],
+      "tools": "Gaming Set",
+      "featNote": "Savage Attacker: Once per turn, reroll weapon damage dice and use the higher total."
+    },
+    {
+      "id": "wayfarer", "name": "Wayfarer",
+      "blurb": "You survived the streets or the wilds alone, trusting luck and sharp eyes.",
+      "abilities": ["dex", "wis", "cha"],
+      "feat": "lucky",
+      "skills": ["insight", "stealth"],
+      "tools": "Thieves' Tools",
+      "featNote": "Lucky: Reroll a d20 twice per Short Rest."
+    }
+  ],
+  "feats": {
+    "magic_initiate_cleric": { "name": "Magic Initiate (Cleric)", "type": "magic" },
+    "magic_initiate_druid": { "name": "Magic Initiate (Druid)", "type": "magic" },
+    "magic_initiate_wizard": { "name": "Magic Initiate (Wizard)", "type": "magic" },
+    "crafter": { "name": "Crafter", "type": "passive" },
+    "alert": { "name": "Alert", "type": "passive", "initBonus": 3 },
+    "healer": { "name": "Healer", "type": "button", "desc": "Action: use a Healer's Kit to heal 1d4 + 2 + level HP." },
+    "lucky": { "name": "Lucky", "type": "passive", "rerollsPerRest": 2 },
+    "musician": { "name": "Musician", "type": "passive", "rerollsPerRest": 1 },
+    "savage_attacker": { "name": "Savage Attacker", "type": "passive", "rerollDamage": true },
+    "skilled": { "name": "Skilled", "type": "passive", "extraSkillPicks": 2 },
+    "tavern_brawler": { "name": "Tavern Brawler", "type": "passive", "tavernBrawler": true },
+    "tough": { "name": "Tough", "type": "passive", "hpPerLevel": 2 }
+  }
+}

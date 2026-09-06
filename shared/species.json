@@ -1,0 +1,114 @@
+{
+  "species": [
+    {
+      "id": "aasimar", "name": "Aasimar", "speed": 30,
+      "blurb": "Mortals touched by the Upper Planes, carrying a spark of celestial light.",
+      "traits": [
+        { "name": "Celestial Resistance", "desc": "Resistance to radiant and necrotic damage." },
+        { "name": "Darkvision 60 ft", "desc": "See in dim light within 60 ft as if bright." },
+        { "name": "Light Bearer", "desc": "You know the Light cantrip." },
+        { "name": "Healing Hands", "desc": "Action: magically heal yourself or a touched creature for HP equal to your level + Proficiency Bonus. Once per Long Rest." }
+      ],
+      "effect": { "darkvision": 60, "resistances": ["radiant", "necrotic"], "cantrip": "light", "healingHands": true }
+    },
+    {
+      "id": "dragonborn", "name": "Dragonborn", "speed": 30,
+      "blurb": "Proud draconic humanoids whose blood carries the fury of a dragon ancestor.",
+      "choices": [{ "id": "ancestry", "label": "Draconic Ancestry", "type": "options", "options": ["fire", "cold", "acid", "lightning", "poison"] }],
+      "traits": [
+        { "name": "Draconic Ancestry", "desc": "Choose a damage type; you gain resistance to it." },
+        { "name": "Breath Weapon", "desc": "Action: exhale a 15-ft cone, 2d6 damage of your ancestry type. DEX save DC 8 + CON mod + PB halves it. Twice per Short Rest." },
+        { "name": "Darkvision 60 ft", "desc": "See in dim light within 60 ft as if bright." }
+      ],
+      "effect": { "darkvision": 60, "breathWeapon": true }
+    },
+    {
+      "id": "dwarf", "name": "Dwarf", "speed": 30,
+      "blurb": "Stout kin of stone and forge, as enduring as the mountains themselves.",
+      "traits": [
+        { "name": "Dwarven Resilience", "desc": "Advantage on saves against poison; resistance to poison damage." },
+        { "name": "Dwarven Toughness", "desc": "+1 Hit Point per level." },
+        { "name": "Darkvision 120 ft", "desc": "See in dim light within 120 ft as if bright." },
+        { "name": "Stonecunning", "desc": "Advantage on History checks about stonework." }
+      ],
+      "effect": { "darkvision": 120, "poisonAdv": true, "resistances": ["poison"], "hpPerLevel": 1 }
+    },
+    {
+      "id": "elf", "name": "Elf", "speed": 30,
+      "blurb": "Ageless folk of grace and keen senses, attuned to magic and moonlight.",
+      "choices": [{ "id": "keen_senses", "label": "Keen Senses", "type": "skills", "count": 1, "options": ["insight", "perception", "survival"] }],
+      "traits": [
+        { "name": "Darkvision 60 ft", "desc": "See in dim light within 60 ft as if bright." },
+        { "name": "Fey Ancestry", "desc": "Advantage on saving throws against being Charmed." },
+        { "name": "Keen Senses", "desc": "Proficiency in Insight, Perception, or Survival." }
+      ],
+      "effect": { "darkvision": 60, "saveAdvConditions": ["charmed"], "extraSkillPicks": 1, "skillPicksFrom": ["insight", "perception", "survival"] }
+    },
+    {
+      "id": "gnome", "name": "Gnome", "speed": 30,
+      "blurb": "Small, endlessly curious tricksters shielded by a gift of fey cunning.",
+      "traits": [
+        { "name": "Gnomish Cunning", "desc": "Advantage on Intelligence, Wisdom, and Charisma saving throws." },
+        { "name": "Darkvision 60 ft", "desc": "See in dim light within 60 ft as if bright." }
+      ],
+      "effect": { "darkvision": 60, "saveAdvAbilities": ["int", "wis", "cha"] }
+    },
+    {
+      "id": "goliath", "name": "Goliath", "speed": 35,
+      "blurb": "Towering giants-blooded competitors carved from the peaks.",
+      "traits": [
+        { "name": "Little Giant", "desc": "Proficiency in Athletics; your speed is 35 ft." },
+        { "name": "Stone's Endurance", "desc": "Reaction when you take damage: reduce it by 1d12 + CON modifier. Once per Short Rest." },
+        { "name": "Powerful Build", "desc": "You count as one size larger for carrying capacity." }
+      ],
+      "effect": { "speed": 35, "athleticsProf": true, "reactionStonesEndurance": true }
+    },
+    {
+      "id": "halfling", "name": "Halfling", "speed": 30,
+      "blurb": "Cheerful small folk with uncanny luck and unshakable courage.",
+      "traits": [
+        { "name": "Luck", "desc": "When you roll a 1 on a d20, you reroll the die." },
+        { "name": "Brave", "desc": "Advantage on saving throws against being Frightened." },
+        { "name": "Halfling Nimbleness", "desc": "You can move through the space of larger creatures." }
+      ],
+      "effect": { "rerollNat1": true, "saveAdvConditions": ["frightened"] }
+    },
+    {
+      "id": "human", "name": "Human", "speed": 30,
+      "blurb": "Ambitious, adaptable, and endlessly resourceful wanderers.",
+      "choices": [{ "id": "versatility", "label": "Extra Skills", "type": "skills", "count": 2, "options": "any" }],
+      "traits": [
+        { "name": "Resourceful", "desc": "Gain proficiency in one skill of your choice." },
+        { "name": "Skillful", "desc": "Gain proficiency in another skill of your choice." }
+      ],
+      "effect": { "extraSkillPicks": 2, "skillPicksFrom": "any" }
+    },
+    {
+      "id": "orc", "name": "Orc", "speed": 30,
+      "blurb": "Relentless hunters blessed with the endurance of their fierce ancestors.",
+      "traits": [
+        { "name": "Adrenaline Rush", "desc": "Taking the Dash action also grants you Temporary HP equal to your Proficiency Bonus." },
+        { "name": "Relentless Endurance", "desc": "When reduced to 0 HP but not killed, drop to 1 HP instead. Once per Long Rest." },
+        { "name": "Darkvision 120 ft", "desc": "See in dim light within 120 ft as if bright." }
+      ],
+      "effect": { "darkvision": 120, "dashTempHp": true, "dropTo1": true }
+    },
+    {
+      "id": "tiefling", "name": "Tiefling", "speed": 30,
+      "blurb": "Infernal-blooded souls whose fiendish legacy burns just beneath the skin.",
+      "choices": [{
+        "id": "legacy", "label": "Fiendish Legacy", "type": "options",
+        "options": [
+          { "value": "abyssal", "label": "Abyssal — poison resistance + Poison Spray cantrip" },
+          { "value": "chthonic", "label": "Chthonic — necrotic resistance + False Life 1/Long Rest" },
+          { "value": "infernal", "label": "Infernal — fire resistance + Fire Bolt cantrip" }
+        ]
+      }],
+      "traits": [
+        { "name": "Fiendish Legacy", "desc": "Choose a fiendish bloodline granting a damage resistance and a boon." },
+        { "name": "Darkvision 60 ft", "desc": "See in dim light within 60 ft as if bright." }
+      ],
+      "effect": { "darkvision": 60 }
+    }
+  ]
+}

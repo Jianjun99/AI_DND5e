@@ -1,0 +1,58 @@
+{
+  "monsters": [
+    {
+      "id": "giant_rat", "name": "Giant Rat", "xp": 25, "ac": 12, "hp": "2d6", "speed": 30, "darkvision": 30,
+      "abilities": { "str": 7, "dex": 16, "con": 10, "int": 2, "wis": 10, "cha": 4 },
+      "attacks": [{ "name": "Bite", "bonus": 4, "range": 5, "damage": "1d4+2", "damageType": "piercing" }],
+      "blurb": "A dog-sized rodent with diseased yellow fangs."
+    },
+    {
+      "id": "skeleton", "name": "Skeleton", "xp": 50, "ac": 13, "hp": "2d8+4", "speed": 30, "darkvision": 60,
+      "abilities": { "str": 10, "dex": 14, "con": 15, "int": 6, "wis": 8, "cha": 5 },
+      "attacks": [{ "name": "Shortsword", "bonus": 4, "range": 5, "damage": "1d6+2", "damageType": "piercing" }],
+      "vulnerabilities": ["bludgeoning"],
+      "blurb": "Rattling bones animated by dark magic; brittle but merciless."
+    },
+    {
+      "id": "goblin", "name": "Goblin Warrior", "xp": 50, "ac": 15, "hp": "2d6+2", "speed": 30, "darkvision": 60,
+      "abilities": { "str": 8, "dex": 15, "con": 10, "int": 10, "wis": 8, "cha": 8 },
+      "attacks": [
+        { "name": "Scimitar", "bonus": 4, "range": 5, "damage": "1d6+2", "damageType": "slashing" },
+        { "name": "Shortbow", "bonus": 4, "range": 25, "damage": "1d6+2", "damageType": "piercing", "ranged": true }
+      ],
+      "traits": ["Nimble Escape: can Disengage as a bonus action."],
+      "blurb": "A wiry goblin in scavenged leather, blade and bow close at hand."
+    },
+    {
+      "id": "zombie", "name": "Zombie", "xp": 100, "ac": 10, "hp": "3d8+3", "speed": 20, "darkvision": 60,
+      "abilities": { "str": 14, "dex": 8, "con": 14, "int": 3, "wis": 6, "cha": 5 },
+      "attacks": [{ "name": "Slam", "bonus": 4, "range": 5, "damage": "1d6+2", "damageType": "bludgeoning" }],
+      "traits": ["Undead Fortitude: when reduced to 0 HP, a CON save DC 5 + damage lets it survive with 1 HP."],
+      "blurb": "A shambling corpse, grave-dirt clinging to its rotting frame."
+    },
+    {
+      "id": "cultist", "name": "Crypt Cultist", "xp": 50, "ac": 12, "hp": "2d8+2", "speed": 30, "darkvision": 0,
+      "abilities": { "str": 11, "dex": 12, "con": 10, "int": 10, "wis": 11, "cha": 10 },
+      "attacks": [{ "name": "Ritual Dagger", "bonus": 3, "range": 5, "damage": "1d4+1", "damageType": "piercing" }],
+      "blurb": "A hooded zealot murmuring prayers to something buried below."
+    },
+    {
+      "id": "ogre", "name": "Grubnik the Crypt Ogre", "xp": 450, "ac": 11, "hp": "7d10+21", "speed": 40, "darkvision": 60,
+      "abilities": { "str": 19, "dex": 8, "con": 16, "int": 5, "wis": 7, "cha": 7 },
+      "attacks": [{ "name": "Greatclub", "bonus": 6, "range": 5, "damage": "2d8+4", "damageType": "bludgeoning" }],
+      "traits": ["Bound to the Relic: Grubnik cannot stray far from the altar."],
+      "boss": true,
+      "blurb": "A hulking brute festooned with bones, swinging a tree-trunk club."
+    }
+  ],
+  "ally": {
+    "id": "bram", "name": "Bram the Scout",
+    "ac": 13, "hp": 16, "speed": 30, "darkvision": 60,
+    "abilities": { "str": 10, "dex": 16, "con": 12, "int": 10, "wis": 14, "cha": 10 },
+    "attacks": [
+      { "name": "Longbow", "bonus": 5, "range": 25, "damage": "1d8+3", "damageType": "piercing", "ranged": true },
+      { "name": "Shortsword", "bonus": 5, "range": 5, "damage": "1d6+3", "damageType": "piercing" }
+    ],
+    "blurb": "A wiry hunter who knows these crypts better than anyone alive — for now."
+  }
+}

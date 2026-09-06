@@ -1,0 +1,13 @@
+# runtime data (characters, saves, settings) — lives in the Docker volume
+data/
+
+# dependencies
+node_modules/
+
+# local tooling / logs
+.zcode/
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db

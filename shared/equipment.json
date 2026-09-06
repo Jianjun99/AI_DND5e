@@ -1,0 +1,53 @@
+{
+  "weapons": [
+    { "id": "club", "name": "Club", "type": "simple_melee", "damage": "1d4", "damageType": "bludgeoning", "props": [], "cost": 1 },
+    { "id": "dagger", "name": "Dagger", "type": "simple_melee", "damage": "1d4", "damageType": "piercing", "props": ["finesse", "thrown", "light"], "cost": 2 },
+    { "id": "greatclub", "name": "Greatclub", "type": "simple_melee", "damage": "1d8", "damageType": "bludgeoning", "props": ["two_handed"], "cost": 2 },
+    { "id": "handaxe", "name": "Handaxe", "type": "simple_melee", "damage": "1d6", "damageType": "slashing", "props": ["light", "thrown"], "cost": 5 },
+    { "id": "javelin", "name": "Javelin", "type": "simple_melee", "damage": "1d6", "damageType": "piercing", "props": ["thrown"], "cost": 5 },
+    { "id": "lighthammer", "name": "Light Hammer", "type": "simple_melee", "damage": "1d4", "damageType": "bludgeoning", "props": ["light", "thrown"], "cost": 2 },
+    { "id": "mace", "name": "Mace", "type": "simple_melee", "damage": "1d6", "damageType": "bludgeoning", "props": [], "cost": 5 },
+    { "id": "quarterstaff", "name": "Quarterstaff", "type": "simple_melee", "damage": "1d6", "damageType": "bludgeoning", "props": ["versatile"], "versatile": "1d8", "cost": 2 },
+    { "id": "sickle", "name": "Sickle", "type": "simple_melee", "damage": "1d4", "damageType": "slashing", "props": ["light"], "cost": 1 },
+    { "id": "spear", "name": "Spear", "type": "simple_melee", "damage": "1d6", "damageType": "piercing", "props": ["thrown", "versatile"], "versatile": "1d8", "cost": 1 },
+    { "id": "lightcrossbow", "name": "Light Crossbow", "type": "simple_ranged", "damage": "1d8", "damageType": "piercing", "props": ["ammunition", "loading", "two_handed"], "range": 80, "cost": 25 },
+    { "id": "shortbow", "name": "Shortbow", "type": "simple_ranged", "damage": "1d6", "damageType": "piercing", "props": ["ammunition", "two_handed"], "range": 80, "cost": 25 },
+    { "id": "battleaxe", "name": "Battleaxe", "type": "martial_melee", "damage": "1d8", "damageType": "slashing", "props": ["versatile"], "versatile": "1d10", "cost": 10 },
+    { "id": "flail", "name": "Flail", "type": "martial_melee", "damage": "1d8", "damageType": "bludgeoning", "props": [], "cost": 10 },
+    { "id": "glaive", "name": "Glaive", "type": "martial_melee", "damage": "1d10", "damageType": "slashing", "props": ["heavy", "reach", "two_handed"], "cost": 20 },
+    { "id": "greataxe", "name": "Greataxe", "type": "martial_melee", "damage": "1d12", "damageType": "slashing", "props": ["heavy", "two_handed"], "cost": 30 },
+    { "id": "greatsword", "name": "Greatsword", "type": "martial_melee", "damage": "2d6", "damageType": "slashing", "props": ["heavy", "two_handed"], "cost": 50 },
+    { "id": "longsword", "name": "Longsword", "type": "martial_melee", "damage": "1d8", "damageType": "slashing", "props": ["versatile"], "versatile": "1d10", "cost": 15 },
+    { "id": "maul", "name": "Maul", "type": "martial_melee", "damage": "2d6", "damageType": "bludgeoning", "props": ["heavy", "two_handed"], "cost": 10 },
+    { "id": "morningstar", "name": "Morningstar", "type": "martial_melee", "damage": "1d8", "damageType": "piercing", "props": [], "cost": 15 },
+    { "id": "rapier", "name": "Rapier", "type": "martial_melee", "damage": "1d8", "damageType": "piercing", "props": ["finesse"], "cost": 25 },
+    { "id": "scimitar", "name": "Scimitar", "type": "martial_melee", "damage": "1d6", "damageType": "slashing", "props": ["finesse", "light"], "cost": 25 },
+    { "id": "shortsword", "name": "Shortsword", "type": "martial_melee", "damage": "1d6", "damageType": "piercing", "props": ["finesse", "light"], "cost": 10 },
+    { "id": "warhammer", "name": "Warhammer", "type": "martial_melee", "damage": "1d8", "damageType": "bludgeoning", "props": ["versatile"], "versatile": "1d10", "cost": 15 },
+    { "id": "longbow", "name": "Longbow", "type": "martial_ranged", "damage": "1d8", "damageType": "piercing", "props": ["ammunition", "heavy", "two_handed"], "range": 150, "cost": 50 }
+  ],
+  "armor": [
+    { "id": "padded", "name": "Padded Armor", "type": "light", "ac": "11+dex", "cost": 5 },
+    { "id": "leather", "name": "Leather Armor", "type": "light", "ac": "11+dex", "cost": 10 },
+    { "id": "studded_leather", "name": "Studded Leather", "type": "light", "ac": "12+dex", "cost": 45 },
+    { "id": "hide", "name": "Hide Armor", "type": "medium", "ac": "12+dex(2)", "cost": 10 },
+    { "id": "chain_shirt", "name": "Chain Shirt", "type": "medium", "ac": "13+dex(2)", "cost": 50 },
+    { "id": "scale_mail", "name": "Scale Mail", "type": "medium", "ac": "14+dex(2)", "cost": 50 },
+    { "id": "breastplate", "name": "Breastplate", "type": "medium", "ac": "14+dex(2)", "cost": 400 },
+    { "id": "half_plate", "name": "Half Plate", "type": "medium", "ac": "15+dex(2)", "cost": 750 },
+    { "id": "ring_mail", "name": "Ring Mail", "type": "heavy", "ac": "14", "cost": 30 },
+    { "id": "chain_mail", "name": "Chain Mail", "type": "heavy", "ac": "16", "minStr": 13, "cost": 75 },
+    { "id": "splint", "name": "Splint Armor", "type": "heavy", "ac": "17", "minStr": 15, "cost": 200 },
+    { "id": "plate", "name": "Plate Armor", "type": "heavy", "ac": "18", "minStr": 15, "cost": 1500 }
+  ],
+  "gear": [
+    { "id": "potion_healing", "name": "Potion of Healing", "type": "potion", "heal": "2d4+2", "cost": 50, "desc": "Bonus action to drink: regain 2d4+2 HP." },
+    { "id": "healers_kit", "name": "Healer's Kit", "type": "kit", "cost": 5, "desc": "Required for the Healer feat; 10 uses." },
+    { "id": "thieves_tools", "name": "Thieves' Tools", "type": "tool", "cost": 25, "desc": "Pick locks and disarm traps." },
+    { "id": "shield", "name": "Shield", "type": "shield", "acBonus": 2, "cost": 10, "desc": "+2 AC while wielded." },
+    { "id": "torch", "name": "Torch", "type": "gear", "cost": 1 },
+    { "id": "rope", "name": "Hempen Rope", "type": "gear", "cost": 1 },
+    { "id": "rations", "name": "Rations", "type": "gear", "cost": 5 },
+    { "id": "relic", "name": "Relic of the Sunless Crypt", "type": "quest", "cost": 0, "desc": "The objective of your delve." }
+  ]
+}

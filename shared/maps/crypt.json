@@ -1,0 +1,105 @@
+{
+  "id": "crypt",
+  "name": "The Sunless Crypt",
+  "width": 34,
+  "height": 24,
+  "tileSizeFt": 5,
+  "playerStart": { "x": 4, "y": 4 },
+  "victoryTile": { "x": 3, "y": 2, "desc": "campfire" },
+  "legend": { "#": "wall", ".": "floor", ",": "rubble", "D": "door" },
+  "rows": [
+    "##################################",
+    "#........#######.................#",
+    "#........#######.................#",
+    "#........#######.................#",
+    "#........D.....D.................#",
+    "#........#####.#.................#",
+    "#........#####.#.................#",
+    "##############.#..,,,............#",
+    "##############.###################",
+    "##########...#.###################",
+    "##########.....###################",
+    "##########...#.###################",
+    "##############.###################",
+    "#...........##.##...........######",
+    "#..............##...........######",
+    "#...........##...D..........######",
+    "#...........#####...........######",
+    "#...........#####..,,.......######",
+    "######################D###########",
+    "######################.###########",
+    "########.................#########",
+    "########........,,.......#########",
+    "########.................#########",
+    "##################################"
+  ],
+  "rooms": [
+    { "id": "camp", "name": "Entrance Hall", "rect": [1, 1, 8, 6], "desc": "A torch-lit entrance chamber. Your campfire still crackles here — the last warm place in the crypt." },
+    { "id": "bonehall", "name": "Bone Hall", "rect": [16, 1, 32, 7], "desc": "A vast pillared hall littered with old bones. Shadows pool between the columns, and something rattles in the dark." },
+    { "id": "nook", "name": "Forgotten Alcove", "rect": [10, 9, 13, 11], "desc": "A cramped burial alcove off the corridor. The air is thick with grave-dust." },
+    { "id": "ratnest", "name": "The Flooded Nest", "rect": [1, 13, 11, 17], "desc": "Ankle-deep water floods this chamber, and its walls are gnawed and greasy. Things skitter at the edge of your light." },
+    { "id": "goblinden", "name": "Goblin Den", "rect": [17, 13, 27, 17], "desc": "Scraps of hide, gnawed bones, and a rank smell. Goblins have made this hall their den." },
+    { "id": "sanctum", "name": "The Sanctum", "rect": [8, 20, 24, 22], "desc": "The deepest chamber. A basalt altar dominates the far wall, and the dark here feels older — and heavier — than anywhere above." }
+  ],
+  "entities": [
+    { "type": "object", "id": "campfire", "name": "Campfire", "x": 3, "y": 2, "icon": "🔥", "desc": "A crackling campfire. A safe place to rest — this is where the delve began." },
+    { "type": "npc", "id": "bram", "name": "Bram the Scout", "x": 5, "y": 3, "icon": "🧭" },
+    { "type": "door", "id": "door1", "name": "Wooden Door", "x": 9, "y": 4, "locked": false },
+    { "type": "door", "id": "door2", "name": "Bone-Framed Door", "x": 15, "y": 4, "locked": false },
+    { "type": "door", "id": "door3", "name": "Bolted Door", "x": 17, "y": 15, "locked": true, "lockDc": 13, "forceDc": 15 },
+    { "type": "door", "id": "door4", "name": "Stone Door", "x": 22, "y": 18, "locked": false },
+    { "type": "monster", "kind": "skeleton", "id": "skel1", "x": 22, "y": 3 },
+    { "type": "monster", "kind": "skeleton", "id": "skel2", "x": 27, "y": 5 },
+    { "type": "chest", "id": "chest1", "name": "Iron-Banded Chest", "x": 30, "y": 2, "icon": "🧰", "loot": { "gold": 30, "potions": 1 } },
+    { "type": "monster", "kind": "zombie", "id": "zomb1", "x": 11, "y": 10 },
+    { "type": "monster", "kind": "giant_rat", "id": "rat1", "x": 4, "y": 14 },
+    { "type": "monster", "kind": "giant_rat", "id": "rat2", "x": 7, "y": 16 },
+    { "type": "monster", "kind": "giant_rat", "id": "rat3", "x": 9, "y": 13 },
+    { "type": "npc", "id": "morthek", "name": "Morthek the Dying", "x": 2, "y": 13, "icon": "🩸" },
+    { "type": "chest", "id": "chest2", "name": "Waterlogged Chest", "x": 2, "y": 17, "icon": "🧰", "loot": { "gold": 25, "potions": 2 } },
+    { "type": "trap", "id": "trap1", "name": "Dart Trap", "x": 14, "y": 10, "dc": 13, "save": "dex", "damage": "1d6", "damageType": "poison" },
+    { "type": "monster", "kind": "goblin", "id": "griznak", "name": "Griznak", "x": 22, "y": 14, "chief": true },
+    { "type": "monster", "kind": "goblin", "id": "gob2", "x": 19, "y": 15 },
+    { "type": "monster", "kind": "goblin", "id": "gob3", "x": 24, "y": 16 },
+    { "type": "chest", "id": "chest3", "name": "Goblin Stash", "x": 26, "y": 13, "icon": "🧰", "loot": { "gold": 40, "potions": 1 } },
+    { "type": "trap", "id": "trap2", "name": "Tripwire Trap", "x": 20, "y": 15, "dc": 12, "save": "dex", "damage": "1d6", "damageType": "piercing" },
+    { "type": "monster", "kind": "cultist", "id": "cult1", "x": 18, "y": 21 },
+    { "type": "monster", "kind": "ogre", "id": "ogre1", "x": 15, "y": 21 },
+    { "type": "object", "id": "altar", "name": "Sunless Altar", "x": 12, "y": 22, "icon": "🕯️", "desc": "A basalt altar crusted with old wax and darker stains. The Relic rests upon it." },
+    { "type": "object", "id": "relic", "name": "Relic of the Sunless Crypt", "x": 12, "y": 22, "icon": "💎", "desc": "Your objective. Take it — if you can." }
+  ],
+  "npcs": {
+    "bram": {
+      "persona": "You are Bram, a wiry, weather-beaten scout. You know the Sunless Crypt better than anyone alive. You are dry-witted, practical, superstitious about the deep rooms, and loyal once paid. You speak in short, weathered sentences. You will not enter the Sanctum — the last scout who did never came back. You never reveal the location of hidden treasure outright, only rumors and warnings.",
+      "knowledge": "The Bone Hall holds restless skeletons; the flooded nest is full of giant rats; a goblin band under Griznak lairs behind a bolted door; the deepest sanctum holds an ogre bound to guard a relic on an altar. He has heard the altar can bless those who pray rightly.",
+      "canned": [
+        "Keep your blade loose and your lantern low, friend.",
+        "Old bones don't stay buried down here. Trust me on that.",
+        "If you find anything shiny, I get first look. Scout's tax.",
+        "That bolted door to the east? Goblins. Griznak's lot. Sneak or shove, your call.",
+        "The deep sanctum... no. I'll hold the door. Someone has to."
+      ]
+    },
+    "morthek": {
+      "persona": "You are Morthek, a wounded tomb-robber slumped against the wall, bleeding out from a giant rat's bite. You are weak, bitter, and darkly funny about your own impending death. You whisper more than you speak.",
+      "knowledge": "You were part of a three-person crew. The others are dead. You saw the ogre: 'It swings that club like a branch breaks.' You know the goblin chief Griznak can be bought off, and that the altar in the sanctum rewards a proper prayer. You have one healing potion left, which you will give to anyone who speaks kindly to you.",
+      "canned": [
+        "Another one come to die? ...Ah, you look sturdier than my crew.",
+        "The ogre. Grubnik. It guards the relic like a mother guards a child.",
+        "Griznak? Goblin chief. Coward with a sword. He'll talk, if you scare him proper.",
+        "Pray at the altar. The old god there... it still listens. It still grants.",
+        "Take my potion. I won't... I won't be needing it where I'm going."
+      ]
+    },
+    "griznak": {
+      "persona": "You are Griznak, chief of the goblin band in the crypt. You are greedy, nervous, and a shameless coward when the odds turn. You bargain hard but fold under real intimidation. You call everyone 'soft-skin'.",
+      "knowledge": "You serve nothing but coin and your own hide. The ogre in the sanctum is not yours to command. If paid, scared, or smoothly deceived, you and your two warriors will leave the crypt and never return. Otherwise you fight — and squeal for your warriors to join.",
+      "canned": [
+        "Soft-skin! You lost? This Griznak's crypt now. Pay toll or bleed.",
+        "Big brute downstairs? Not ours. Not touching that one.",
+        "You want the shiny rock? Go. Take it. Griznak doesn't die for rocks.",
+        "Fifty gold and we walk away. Good deal, soft-skin. Best deal."
+      ]
+    }
+  }
+}
