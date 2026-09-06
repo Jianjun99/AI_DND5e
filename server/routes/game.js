@@ -3,6 +3,7 @@ const store = require('../store');
 const engine = require('../game/engine');
 const referee = require('../game/referee');
 const dm = require('../game/dm');
+const portraits = require('../portraits');
 
 const router = express.Router();
 
@@ -98,6 +99,7 @@ router.post('/:id/action', async (req, res) => {
   const logStart = state.log.length;
   let chatReply = null;
   let appearance = null;
+  let portrait = null;
   let handled = true;
 
   try {
@@ -282,6 +284,14 @@ router.post('/:id/action', async (req, res) => {
           engine.addLog(state, 'system', '📖 You scratch a new entry into your journal.');
           break;
         }
+        case 'portrait': {
+          const pent = state.entities.find(e => e.id === action.targetId && (e.kind === 'monster' || e.kind === 'npc'));
+          if (!pent) { events.push({ type: 'error', text: 'Nothing to portray.' }); break; }
+          try {
+            portrait = await portraits.ensurePortrait(state, pent);
+          } catch { portrait = null; }
+          break;
+        }
         case 'quest': {
           if (!requireAlive(state, events)) break;
           const campQ = (state.map.victory && state.map.victory.campfire) || state.map.victoryTile;
@@ -316,7 +326,7 @@ router.post('/:id/action', async (req, res) => {
   state.updatedAt = Date.now();
   store.saveGame(state);
   if (handled) await narrate(state, events, logStart);
-  res.json({ state: sanitize(state), events, chatReply, appearance });
+  res.json({ state: sanitize(state), events, chatReply, appearance, portrait });
 });
 
 // Marla's shop — buy supplies with gold while near the entrance camp

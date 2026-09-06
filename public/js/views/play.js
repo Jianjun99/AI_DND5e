@@ -10,6 +10,7 @@ let game = null;
 let selectedTarget = null;
 let activeNpc = null;
 let appearanceShown = null;
+let portraitShown = null;
 let busy = false;
 
 export async function playView(main, saveRef) {
@@ -66,7 +67,7 @@ export async function playView(main, saveRef) {
   }
   const data = await api.getGame(saveRef);
   game = data.state;
-  selectedTarget = null; activeNpc = null; appearanceShown = null;
+  selectedTarget = null; activeNpc = null; appearanceShown = null; portraitShown = null;
 
   main.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:baseline;">
@@ -140,13 +141,33 @@ export async function playView(main, saveRef) {
   async function fetchAppearance(ent) {
     const key = ent.kind === 'monster' ? ent.monsterId : ent.npcId;
     game.appearances = game.appearances || {};
-    if (game.appearances[key]) { appearanceShown = game.appearances[key]; update(); return; }
+    if (game.appearances[key]) { appearanceShown = game.appearances[key]; update(); } else {
+      try {
+        const res = await api.gameAction(game.id, { type: 'describe', targetId: ent.id });
+        game = res.state;
+        appearanceShown = res.appearance || null;
+        update();
+      } catch { /* appearance is optional flavor */ }
+    }
+    fetchPortrait(ent);
+  }
+
+  // Fetch (and cache server-side) a painted portrait: AI image → SD WebUI → procedural sigil
+  async function fetchPortrait(ent) {
+    const key = ent.kind === 'monster' ? ent.monsterId : ent.npcId;
+    game.portraits = game.portraits || {};
+    if (game.portraits[key]) { portraitShown = game.portraits[key]; update(); return; }
     try {
-      const res = await api.gameAction(game.id, { type: 'describe', targetId: ent.id });
+      const res = await api.gameAction(game.id, { type: 'portrait', targetId: ent.id });
       game = res.state;
-      appearanceShown = res.appearance || null;
-      update();
-    } catch { /* appearance is optional flavor */ }
+      if (res.portrait && res.portrait.url) {
+        game.portraits[key] = res.portrait;
+        if (selectedTarget && (selectedTarget.monsterId === key || selectedTarget.npcId === key)) {
+          portraitShown = res.portrait;
+        }
+        update();
+      }
+    } catch { /* portraits are optional flavor */ }
   }
 
   // Marla's shop
@@ -249,6 +270,7 @@ export async function playView(main, saveRef) {
       }
       selectedTarget = null;
       appearanceShown = null;
+      portraitShown = null;
       update();
       return res;
     } catch (e) {
@@ -326,10 +348,16 @@ export async function playView(main, saveRef) {
         ${(p.conditions.length || (p.buffs || []).filter(b => b.id !== 'concentrating').length) ? `<div style="margin-top:6px;">${p.conditions.map(c => `<span class="chip red">${esc(c)}</span>`).join('')}${(p.buffs || []).filter(b => b.id !== 'concentrating' && b.id !== 'cond_' ).map(b => `<span class="chip blue">${esc(b.id)}</span>`).join('')}</div>` : ''}
       </div>
 
-      ${appearanceShown && selectedTarget ? `
-      <div class="card" style="border-color:var(--gold-dim);">
-        <p class="small" style="font-family:var(--font-serif); color:var(--parchment); margin:0;">${esc(appearanceShown)}</p>
-      </div>` : ''}
+      ${(() => {
+        const pk = selectedTarget ? (selectedTarget.monsterId || selectedTarget.npcId) : null;
+        const port = pk ? (game.portraits || {})[pk] : null;
+        if (!port) return '';
+        return `
+      <div class="card" style="border-color:var(--gold-dim); text-align:center;">
+        <img src="${port.url}" alt="portrait" style="width:100%; max-width:180px; border-radius:8px;" onerror="this.style.display='none'">
+        <p class="small" style="font-family:var(--font-serif); color:var(--parchment); margin:6px 0 0;">${esc(appearanceShown || (selectedTarget && selectedTarget.name) || '')}</p>
+      </div>`;
+      })()}
 
       ${game.quests && game.quests.active ? `
       <div class="card" style="border-color:var(--gold-dim);">

@@ -56,8 +56,21 @@ export async function settingsView(main) {
         </div>
         <div id="testResult"></div>
       </div>
-      <div class="card">
-        <h3>How to connect your local model</h3>
+      <div>
+        <div class="card">
+          <h3>🖼 Creature Portraits</h3>
+          <p class="small muted" style="margin-bottom:8px;">When you meet a creature, the game paints its portrait (AI image, cached per creature type — a crypt has ~10 faces, generated once ever).</p>
+          <div class="field">
+            <label><input type="checkbox" id="portraitsEnabled" ${settings.portraits && settings.portraits.enabled !== false ? 'checked' : ''} style="width:auto"> Enable portrait generation</label>
+          </div>
+          <div class="field">
+            <label>Portrait provider chain: your Google key → optional local SD WebUI → procedural sigil (always works)</label>
+            <input type="text" id="sdUrl" value="${esc((settings.portraits || {}).sdUrl || '')}" placeholder="http://host.docker.internal:7860 (optional Stable Diffusion URL)">
+          </div>
+          <p class="small muted">Google's free image quota is small — limited portraits may fall back to the procedural sigil and retry the next time you meet that creature.</p>
+        </div>
+        <div class="card" style="margin-top:12px;">
+          <h3>How to connect your local model</h3>
         <p class="small muted" style="margin-bottom:10px;">The game talks to your LLM from the server side, so there are no
         CORS problems. When running in Docker, use <code>host.docker.internal</code> to reach servers on your own computer.</p>
         <h2 style="font-size:15px;">Ollama</h2>
@@ -95,8 +108,13 @@ export async function settingsView(main) {
     timeoutMs: +$('timeoutMs').value
   });
 
+  const collectPortraits = () => ({
+    enabled: $('portraitsEnabled').checked,
+    sdUrl: $('sdUrl').value.trim()
+  });
+
   $('saveBtn').addEventListener('click', async () => {
-    await api.saveSettings({ llm: collect() });
+    await api.saveSettings({ llm: collect(), portraits: collectPortraits() });
     toast('Settings saved.');
   });
 

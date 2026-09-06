@@ -57,17 +57,23 @@ const DEFAULT_SETTINGS = {
     temperature: 0.8,
     maxTokens: 500,
     timeoutMs: 25000
+  },
+  portraits: {
+    enabled: true,
+    sdUrl: ''
   }
 };
 function getSettings() {
   const stored = readJson(SETTINGS_FILE, {});
   const settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
   if (stored.llm) settings.llm = Object.assign(settings.llm, stored.llm);
+  if (stored.portraits) settings.portraits = Object.assign(settings.portraits, stored.portraits);
   return settings;
 }
 function saveSettings(next) {
   const merged = getSettings();
   if (next.llm) merged.llm = Object.assign(merged.llm, next.llm);
+  if (next.portraits) merged.portraits = Object.assign(merged.portraits, next.portraits);
   writeJson(SETTINGS_FILE, merged);
   return merged;
 }

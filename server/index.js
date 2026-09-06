@@ -51,6 +51,7 @@ app.use('/api/content', contentRoute);
 // Static frontend + SPA fallback
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 app.use(express.static(PUBLIC_DIR));
+app.use('/portraits', express.static(store.DATA_DIR + '/portraits', { maxAge: '7d' }));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));

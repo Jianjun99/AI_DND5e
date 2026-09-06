@@ -445,7 +445,8 @@ function startGame(character, options = {}) {
         x: e.x, y: e.y, hp, hpMax: hp, ac: def.ac, speedFt: def.speed, abilities: def.abilities,
         attacks: def.attacks, darkvision: def.darkvision || 0, xp: def.xp, boss: !!def.boss,
         vulnerabilities: def.vulnerabilities || [], traits: def.traits || [],
-        chief: !!e.chief, conditions: [], buffs: [], alive: true, aware: false, fled: false
+        chief: !!e.chief, conditions: [], buffs: [], alive: true, aware: false, fled: false,
+        sx: e.x, sy: e.y
       });
     } else if (e.type === 'npc') {
       state.entities.push({ id: 'npc_' + e.id, kind: 'npc', npcId: e.id, name: e.name, x: e.x, y: e.y, icon: e.icon || '🗣️', alive: true });
@@ -1235,6 +1236,16 @@ function processMonsterTurn(state, mon, events) {
   if (!targets.length) return;
   const target = targets.sort((a, b) => manhattan(mon, a) - manhattan(mon, b))[0];
   if (mon.conditions.includes('prone')) mon.conditions = mon.conditions.filter(c => c !== 'prone');
+  // bosses are bound to their post: they only engage intruders inside their court
+  if (mon.boss && mon.sx !== undefined) {
+    const spawn = { x: mon.sx, y: mon.sy };
+    const intruderNear = manhattan(spawn, target) <= 7;
+    const atEdge = manhattan(spawn, mon) >= 6;
+    if (!intruderNear || (atEdge && manhattan(mon, target) > 1)) {
+      addLog(state, 'mech', `${mon.name} holds its post, bound to the relic it guards.`);
+      return;
+    }
+  }
   const rangedAtk = (mon.attacks || []).find(a => a.ranged);
   const meleeAtk = (mon.attacks || []).find(a => !a.ranged) || (mon.attacks || [])[0];
 
@@ -1252,6 +1263,8 @@ function processMonsterTurn(state, mon, events) {
       if (budget < cost) break;
       if (entityAt(state, step.x, step.y)) break;
       budget -= cost; mon.x = step.x; mon.y = step.y;
+      // leashed bosses never stray more than 6 tiles from their post
+      if (mon.boss && mon.sx !== undefined && manhattan(mon, { x: mon.sx, y: mon.sy }) > 6) { mon.x = step.x; mon.y = step.y; break; }
       if (manhattan(mon, target) <= 1) break;
     }
   }
