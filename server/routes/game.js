@@ -334,9 +334,9 @@ function buyFromMarla(state, action, events) {
   const item = engine.SHOP_ITEMS.find(i => i.id === action.itemId);
   if (!item) { events.push({ type: 'error', text: 'Marla does not stock that.' }); return; }
   const p = engine.playerEntity(state);
-  const marla = state.entities.find(e => e.kind === 'npc' && e.npcId === 'marla');
-  if (!marla || engine.manhattan(marla, p) > 3) {
-    events.push({ type: 'error', text: "Marla's stall is by the entrance camp — go see her to buy supplies." });
+  const shopkeeper = state.entities.find(e => e.kind === 'npc' && ['marla', 'perra'].includes(e.npcId));
+  if (!shopkeeper || engine.manhattan(shopkeeper, p) > 3) {
+    events.push({ type: 'error', text: 'No trader nearby — find Marla or Perra at the camps to buy supplies.' });
     return;
   }
   const char = state.character;
@@ -358,28 +358,42 @@ function buyFromMarla(state, action, events) {
 function respawnAtCamp(state, events) {
   const map = state.map;
   const p = engine.playerEntity(state);
+  const camp = (state.map.victory && state.map.victory.campfire) || map.playerStart;
   p.hp = Math.max(1, Math.ceil(p.hpMax / 2));
   p.hpMax = state.character.hpMax;
-  p.x = map.playerStart.x; p.y = map.playerStart.y;
+  p.x = camp.x; p.y = camp.y;
   p.alive = true; p.conditions = []; p.buffs = []; p.tempHp = 0; p.deathSaves = { succ: 0, fail: 0, stable: false };
   state.mode = 'explore';
   state.flags.failed = false;
   state.flags.reckless = false;
-  // revive & reset monsters to their original posts
-  const originals = {};
-  map.entities.forEach(e => { if (e.type === 'monster') originals[e.id] = e; });
-  state.entities.filter(e => e.kind === 'monster').forEach(m => {
-    const orig = originals[m.id];
-    m.alive = true; m.hp = m.hpMax; m.aware = false;
-    m.conditions = []; m.buffs = [];
-    if (m.fled && orig) { m.fled = false; }
-    if (orig && !m.fled) { m.x = orig.x; m.y = orig.y; }
-  });
+  // revive & reset monsters on EVERY visited map of the world
+  if (state.world) {
+    Object.keys(state.world).forEach(mapId => {
+      const def = engine.getMap(mapId);
+      const entry = state.world[mapId];
+      entry.ents.filter(e => e.kind === 'monster').forEach(m => {
+        const orig = (def.entities.find(x => x.id === m.id)) || {};
+        m.alive = true; m.hp = m.hpMax; m.aware = false;
+        m.conditions = []; m.buffs = []; m.fled = false;
+        if (orig.x !== undefined) { m.x = orig.x; m.y = orig.y; }
+      });
+    });
+    engine.loadWorldMap(state, state.mapId);
+  } else {
+    const originals = {};
+    map.entities.forEach(e => { if (e.type === 'monster') originals[e.id] = e; });
+    state.entities.filter(e => e.kind === 'monster').forEach(m => {
+      const orig = originals[m.id];
+      m.alive = true; m.hp = m.hpMax; m.aware = false;
+      m.conditions = []; m.buffs = []; m.fled = false;
+      if (orig && !m.fled) { m.x = orig.x; m.y = orig.y; }
+    });
+  }
   if (state.flags.ally) {
     const ally = state.entities.find(e => e.kind === 'ally');
-    if (ally) { ally.alive = true; ally.hp = ally.hpMax; ally.x = map.playerStart.x + 1; ally.y = map.playerStart.y; }
+    if (ally) { ally.alive = true; ally.hp = ally.hpMax; ally.x = p.x + 1; ally.y = p.y; }
   }
-  const ev = { type: 'respawn', narrate: true, text: `Cold water. Torchlight. ${state.character.name} wakes at the entrance camp, aching but alive — dragged back by Bram, the crypt's monsters having returned to their posts. Half your strength remains (${p.hp}/${p.hpMax} HP).` };
+  const ev = { type: 'respawn', narrate: true, text: `Cold water. Torchlight. ${state.character.name} wakes at the camp, aching but alive — dragged back by Bram, the dungeon's monsters having returned to their posts. Half your strength remains (${p.hp}/${p.hpMax} HP).` };
   events.push(ev); engine.addLog(state, 'system', ev.text);
 }
 

@@ -6,9 +6,21 @@
   "width": 34,
   "height": 24,
   "tileSizeFt": 5,
-  "playerStart": { "x": 4, "y": 4 },
-  "victoryTile": { "x": 3, "y": 2, "desc": "campfire" },
-  "legend": { "#": "wall", ".": "floor", ",": "rubble", "D": "door" },
+  "playerStart": {
+    "x": 4,
+    "y": 4
+  },
+  "victoryTile": {
+    "x": 3,
+    "y": 2,
+    "desc": "campfire"
+  },
+  "legend": {
+    "#": "wall",
+    ".": "floor",
+    ",": "rubble",
+    "D": "door"
+  },
   "rows": [
     "##################################",
     "#........#######.................#",
@@ -36,40 +48,328 @@
     "##################################"
   ],
   "rooms": [
-    { "id": "camp", "name": "Entrance Hall", "rect": [1, 1, 8, 6], "desc": "A torch-lit entrance chamber. Your campfire still crackles here — the last warm place in the crypt." },
-    { "id": "bonehall", "name": "Bone Hall", "rect": [16, 1, 32, 7], "desc": "A vast pillared hall littered with old bones. Shadows pool between the columns, and something rattles in the dark." },
-    { "id": "nook", "name": "Forgotten Alcove", "rect": [10, 9, 13, 11], "desc": "A cramped burial alcove off the corridor. The air is thick with grave-dust." },
-    { "id": "ratnest", "name": "The Flooded Nest", "rect": [1, 13, 11, 17], "desc": "Ankle-deep water floods this chamber, and its walls are gnawed and greasy. Things skitter at the edge of your light." },
-    { "id": "goblinden", "name": "Goblin Den", "rect": [17, 13, 27, 17], "desc": "Scraps of hide, gnawed bones, and a rank smell. Goblins have made this hall their den." },
-    { "id": "sanctum", "name": "The Sanctum", "rect": [8, 20, 24, 22], "desc": "The deepest chamber. A basalt altar dominates the far wall, and the dark here feels older — and heavier — than anywhere above." }
+    {
+      "id": "camp",
+      "name": "Entrance Hall",
+      "rect": [
+        1,
+        1,
+        8,
+        6
+      ],
+      "desc": "A torch-lit entrance chamber. Your campfire still crackles here — the last warm place in the crypt."
+    },
+    {
+      "id": "bonehall",
+      "name": "Bone Hall",
+      "rect": [
+        16,
+        1,
+        32,
+        7
+      ],
+      "desc": "A vast pillared hall littered with old bones. Shadows pool between the columns, and something rattles in the dark."
+    },
+    {
+      "id": "nook",
+      "name": "Forgotten Alcove",
+      "rect": [
+        10,
+        9,
+        13,
+        11
+      ],
+      "desc": "A cramped burial alcove off the corridor. The air is thick with grave-dust."
+    },
+    {
+      "id": "ratnest",
+      "name": "The Flooded Nest",
+      "rect": [
+        1,
+        13,
+        11,
+        17
+      ],
+      "desc": "Ankle-deep water floods this chamber, and its walls are gnawed and greasy. Things skitter at the edge of your light."
+    },
+    {
+      "id": "goblinden",
+      "name": "Goblin Den",
+      "rect": [
+        17,
+        13,
+        27,
+        17
+      ],
+      "desc": "Scraps of hide, gnawed bones, and a rank smell. Goblins have made this hall their den."
+    },
+    {
+      "id": "sanctum",
+      "name": "The Sanctum",
+      "rect": [
+        8,
+        20,
+        24,
+        22
+      ],
+      "desc": "The deepest chamber. A basalt altar dominates the far wall, and the dark here feels older — and heavier — than anywhere above."
+    }
   ],
   "entities": [
-    { "type": "object", "id": "campfire", "name": "Campfire", "x": 3, "y": 2, "icon": "🔥", "desc": "A crackling campfire. A safe place to rest — this is where the delve began." },
-    { "type": "npc", "id": "bram", "name": "Bram the Scout", "x": 5, "y": 3, "icon": "🧭" },
-    { "type": "npc", "id": "marla", "name": "Marla the Peddler", "x": 2, "y": 3, "icon": "🧺" },
-    { "type": "door", "id": "door1", "name": "Wooden Door", "x": 9, "y": 4, "locked": false },
-    { "type": "door", "id": "door2", "name": "Bone-Framed Door", "x": 15, "y": 4, "locked": false },
-    { "type": "door", "id": "door3", "name": "Bolted Door", "x": 17, "y": 15, "locked": true, "lockDc": 13, "forceDc": 15 },
-    { "type": "door", "id": "door4", "name": "Stone Door", "x": 22, "y": 18, "locked": false },
-    { "type": "monster", "kind": "skeleton", "id": "skel1", "x": 22, "y": 3 },
-    { "type": "monster", "kind": "skeleton", "id": "skel2", "x": 27, "y": 5 },
-    { "type": "chest", "id": "chest1", "name": "Iron-Banded Chest", "x": 30, "y": 2, "icon": "🧰", "loot": { "gold": 30, "potions": 1, "items": [{ "id": "flame_dagger", "qty": 1 }] } },
-    { "type": "monster", "kind": "zombie", "id": "zomb1", "x": 11, "y": 10 },
-    { "type": "monster", "kind": "giant_rat", "id": "rat1", "x": 4, "y": 14 },
-    { "type": "monster", "kind": "giant_rat", "id": "rat2", "x": 7, "y": 16 },
-    { "type": "monster", "kind": "giant_rat", "id": "rat3", "x": 9, "y": 13 },
-    { "type": "npc", "id": "morthek", "name": "Morthek the Dying", "x": 2, "y": 13, "icon": "🩸" },
-    { "type": "chest", "id": "chest2", "name": "Waterlogged Chest", "x": 2, "y": 17, "icon": "🧰", "loot": { "gold": 25, "potions": 2, "items": [{ "id": "cloak_protection", "qty": 1 }] } },
-    { "type": "trap", "id": "trap1", "name": "Dart Trap", "x": 14, "y": 10, "dc": 13, "save": "dex", "damage": "1d6", "damageType": "poison" },
-    { "type": "monster", "kind": "goblin", "id": "griznak", "name": "Griznak", "x": 22, "y": 14, "chief": true },
-    { "type": "monster", "kind": "goblin", "id": "gob2", "x": 19, "y": 15 },
-    { "type": "monster", "kind": "goblin", "id": "gob3", "x": 24, "y": 16 },
-    { "type": "chest", "id": "chest3", "name": "Goblin Stash", "x": 26, "y": 13, "icon": "🧰", "loot": { "gold": 40, "potions": 1, "items": [{ "id": "amulet_of_vigor", "qty": 1 }] } },
-    { "type": "trap", "id": "trap2", "name": "Tripwire Trap", "x": 20, "y": 15, "dc": 12, "save": "dex", "damage": "1d6", "damageType": "piercing" },
-    { "type": "monster", "kind": "cultist", "id": "cult1", "x": 18, "y": 21 },
-    { "type": "monster", "kind": "ogre", "id": "ogre1", "x": 15, "y": 21 },
-    { "type": "object", "id": "altar", "name": "Sunless Altar", "x": 12, "y": 22, "icon": "🕯️", "desc": "A basalt altar crusted with old wax and darker stains. The Relic rests upon it." },
-    { "type": "object", "id": "relic", "name": "Relic of the Sunless Crypt", "x": 12, "y": 22, "icon": "💎", "desc": "Your objective. Take it — if you can." }
+    {
+      "type": "object",
+      "id": "campfire",
+      "name": "Campfire",
+      "x": 3,
+      "y": 2,
+      "icon": "🔥",
+      "desc": "A crackling campfire. A safe place to rest — this is where the delve began."
+    },
+    {
+      "type": "npc",
+      "id": "bram",
+      "name": "Bram the Scout",
+      "x": 5,
+      "y": 3,
+      "icon": "🧭"
+    },
+    {
+      "type": "npc",
+      "id": "marla",
+      "name": "Marla the Peddler",
+      "x": 2,
+      "y": 3,
+      "icon": "🧺"
+    },
+    {
+      "type": "door",
+      "id": "door1",
+      "name": "Wooden Door",
+      "x": 9,
+      "y": 4,
+      "locked": false
+    },
+    {
+      "type": "door",
+      "id": "door2",
+      "name": "Bone-Framed Door",
+      "x": 15,
+      "y": 4,
+      "locked": false
+    },
+    {
+      "type": "door",
+      "id": "door3",
+      "name": "Bolted Door",
+      "x": 17,
+      "y": 15,
+      "locked": true,
+      "lockDc": 13,
+      "forceDc": 15
+    },
+    {
+      "type": "door",
+      "id": "door4",
+      "name": "Stone Door",
+      "x": 22,
+      "y": 18,
+      "locked": false
+    },
+    {
+      "type": "monster",
+      "kind": "skeleton",
+      "id": "skel1",
+      "x": 22,
+      "y": 3
+    },
+    {
+      "type": "monster",
+      "kind": "skeleton",
+      "id": "skel2",
+      "x": 27,
+      "y": 5
+    },
+    {
+      "type": "chest",
+      "id": "chest1",
+      "name": "Iron-Banded Chest",
+      "x": 30,
+      "y": 2,
+      "icon": "🧰",
+      "loot": {
+        "gold": 30,
+        "potions": 1,
+        "items": [
+          {
+            "id": "flame_dagger",
+            "qty": 1
+          }
+        ]
+      }
+    },
+    {
+      "type": "monster",
+      "kind": "zombie",
+      "id": "zomb1",
+      "x": 11,
+      "y": 10
+    },
+    {
+      "type": "monster",
+      "kind": "giant_rat",
+      "id": "rat1",
+      "x": 4,
+      "y": 14
+    },
+    {
+      "type": "monster",
+      "kind": "giant_rat",
+      "id": "rat2",
+      "x": 7,
+      "y": 16
+    },
+    {
+      "type": "monster",
+      "kind": "giant_rat",
+      "id": "rat3",
+      "x": 9,
+      "y": 13
+    },
+    {
+      "type": "npc",
+      "id": "morthek",
+      "name": "Morthek the Dying",
+      "x": 2,
+      "y": 13,
+      "icon": "🩸"
+    },
+    {
+      "type": "chest",
+      "id": "chest2",
+      "name": "Waterlogged Chest",
+      "x": 2,
+      "y": 17,
+      "icon": "🧰",
+      "loot": {
+        "gold": 25,
+        "potions": 2,
+        "items": [
+          {
+            "id": "cloak_protection",
+            "qty": 1
+          }
+        ]
+      }
+    },
+    {
+      "type": "trap",
+      "id": "trap1",
+      "name": "Dart Trap",
+      "x": 14,
+      "y": 10,
+      "dc": 13,
+      "save": "dex",
+      "damage": "1d6",
+      "damageType": "poison"
+    },
+    {
+      "type": "monster",
+      "kind": "goblin",
+      "id": "griznak",
+      "name": "Griznak",
+      "x": 22,
+      "y": 14,
+      "chief": true
+    },
+    {
+      "type": "monster",
+      "kind": "goblin",
+      "id": "gob2",
+      "x": 19,
+      "y": 15
+    },
+    {
+      "type": "monster",
+      "kind": "goblin",
+      "id": "gob3",
+      "x": 24,
+      "y": 16
+    },
+    {
+      "type": "chest",
+      "id": "chest3",
+      "name": "Goblin Stash",
+      "x": 26,
+      "y": 13,
+      "icon": "🧰",
+      "loot": {
+        "gold": 40,
+        "potions": 1,
+        "items": [
+          {
+            "id": "amulet_of_vigor",
+            "qty": 1
+          }
+        ]
+      }
+    },
+    {
+      "type": "trap",
+      "id": "trap2",
+      "name": "Tripwire Trap",
+      "x": 20,
+      "y": 15,
+      "dc": 12,
+      "save": "dex",
+      "damage": "1d6",
+      "damageType": "piercing"
+    },
+    {
+      "type": "monster",
+      "kind": "cultist",
+      "id": "cult1",
+      "x": 18,
+      "y": 21
+    },
+    {
+      "type": "monster",
+      "kind": "ogre",
+      "id": "ogre1",
+      "x": 15,
+      "y": 21
+    },
+    {
+      "type": "object",
+      "id": "altar",
+      "name": "Sunless Altar",
+      "x": 12,
+      "y": 22,
+      "icon": "🕯️",
+      "desc": "A basalt altar crusted with old wax and darker stains. The Relic rests upon it."
+    },
+    {
+      "type": "object",
+      "id": "relic",
+      "name": "Relic of the Sunless Crypt",
+      "x": 12,
+      "y": 22,
+      "icon": "💎",
+      "desc": "Your objective. Take it — if you can."
+    },
+    {
+      "type": "stairs",
+      "id": "to_vault",
+      "name": "Stairs Descending",
+      "x": 16,
+      "y": 22,
+      "icon": "🪜",
+      "to": {
+        "mapId": "drowned-vault",
+        "x": 22,
+        "y": 14
+      },
+      "desc": "Steps behind the altar spiral down into flooded dark — the vault lies beneath the crypt."
+    }
   ],
   "npcs": {
     "bram": {

@@ -1,28 +1,28 @@
-// home.js — character portal: list characters, create, resume delves
-import { api } from '../api.js';
+// home.js — character portal: list characters, create, resume delves, packs, backup
 import { esc, toast, navigate } from '../app.js';
 
 export async function homeView(main) {
-  const [chars, saves] = await Promise.all([api.listCharacters(), api.listSaves()]);
+  const [chars, saves] = await Promise.all([apiListCharacters(), apiListSaves()]);
   const savesByChar = {};
-  saves.forEach(s => { savesByChar[s.characterId] = s; });
+  saves.forEach(s => { (savesByChar[s.characterId] = savesByChar[s.characterId] || []).push(s); });
+  Object.values(savesByChar).forEach(list => list.sort((a, b) => b.updatedAt - a.updatedAt));
 
   main.innerHTML = `
     <div class="hero">
       <h1>AI Dungeon</h1>
-      <p>A solo D&D (2024 rules) delve into <b>The Sunless Crypt</b>. Create a hero, brave the dark,
-      and — if you like — let your own local LLM breathe life into the Dungeon Master's voice.
-      Everything runs on your machine.</p>
+      <p>A solo D&D (2024 rules) delve into <b>The Sunless Crypt</b> — and beyond. Create a hero, brave the dark,
+      and let your own LLM breathe life into the Dungeon Master's voice. Everything runs on your machine.</p>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 10px;">
       <h2 style="margin:0;">Your Heroes</h2>
       <a class="btn primary" href="#/create">＋ Create Character</a>
     </div>
-    ${chars.length ? `<div class="grid cols3">${chars.map(c => charCard(c, savesByChar[c.id])).join('')}</div>`
+    ${chars.length ? `<div class="grid cols3">${chars.map(c => charCard(c, savesByChar[c.id] || [])).join('')}</div>`
       : `<div class="card" style="text-align:center; padding:40px;">
            <p class="muted">No heroes yet. Every legend starts with a character sheet.</p>
            <p style="margin-top:14px;"><a class="btn primary big" href="#/create">Create your first hero</a></p>
          </div>`}
+
     <div class="card" style="margin-top:18px;">
       <h3>🧩 Content Packs</h3>
       <p class="small muted" style="margin-bottom:10px;">Add community-made dungeons and monsters — import a pack file, or <a href="https://github.com/Jianjun99/AI_DND5e/blob/main/MODDING.md" target="_blank">write your own</a>.</p>
@@ -47,6 +47,24 @@ export async function homeView(main) {
       </div>
     </div>
   `;
+
+  async function apiListCharacters() { return (await fetch('/api/characters')).json(); }
+  async function apiListSaves() { return (await fetch('/api/game')).json(); }
+
+  main.querySelectorAll('[data-delsave]').forEach(btn => btn.addEventListener('click', async e => {
+    e.stopPropagation();
+    if (!confirm('Abandon this delve? Its progress will be lost.')) return;
+    await fetch('/api/game/' + btn.dataset.delsave, { method: 'DELETE' });
+    toast('Delve abandoned.');
+    navigate();
+  }));
+  main.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', async e => {
+    e.stopPropagation();
+    if (!confirm('Delete this hero permanently? (Their delves are kept.)')) return;
+    await fetch('/api/characters/' + btn.dataset.del, { method: 'DELETE' });
+    toast('Hero deleted.');
+    navigate();
+  }));
 
   // content packs
   (async () => {
@@ -83,7 +101,7 @@ export async function homeView(main) {
       const res = await fetch('/api/content/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       const out = await res.json();
       if (!res.ok) throw new Error(out.error || 'Import failed');
-      toast(`Pack "${out.pack.name}" imported: ${out.pack.maps.length} map(s), ${out.pack.monsters.length} monster(s). It's in the map list when you start a delve.`);
+      toast(`Pack "${out.pack.name}" imported: ${out.pack.maps.length} map(s), ${out.pack.monsters.length} monster(s).`);
       navigate();
     } catch (err) {
       toast(err.message);
@@ -116,33 +134,34 @@ export async function homeView(main) {
       toast(err.message);
     }
   });
-  main.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', async e => {
-    e.stopPropagation();
-    if (!confirm('Delete this hero permanently?')) return;
-    await api.deleteCharacter(btn.dataset.del);
-    toast('Hero deleted.');
-    navigate();
-  }));
 }
 
-function charCard(c, save) {
-  const cls = (window.__rules?.classes || []).find(x => x.id === c.className);
-  const sp = (window.__rules?.species || []).find(x => x.id === c.species);
+function charCard(c, saveList) {
+  const rules = window.__rules || {};
+  const cls = (rules.classes || []).find(x => x.id === c.className);
+  const sp = (rules.species || []).find(x => x.id === c.species);
   const clsName = cls ? cls.name : c.className;
   const spName = sp ? sp.name : c.species;
+  const slots = saveList.slice(0, 3);
   return `
     <div class="card char-card">
       <div class="name">${esc(c.name)}</div>
-      <div class="meta">Level ${c.level} ${esc(spName)} ${esc(clsName)}</div>
+      <div class="meta">Level ${c.level} ${esc(spName)} ${esc(clsName)} · ${c.xp} XP · ${c.gold ?? 50} gp</div>
       <div class="stats">
         <span><b>${c.hpMax}</b> HP</span>
         <span><b>${c.acBase}</b> AC</span>
-        <span><b>${c.xp}</b> XP</span>
-        <span><b>${c.gold ?? 50}</b> gp</span>
       </div>
-      ${save ? `<div class="meta">Active delve — last played ${new Date(save.updatedAt).toLocaleString()}</div>` : ''}
+      ${slots.length ? slots.map(sv => `
+        <div class="stat-line" style="align-items:center;">
+          <span class="muted small">${esc(sv.mapName)} · ${new Date(sv.updatedAt).toLocaleDateString()}</span>
+          <span style="display:flex; gap:4px;">
+            <a class="btn small primary" href="#/play/${sv.id}" title="Resume delve">⚔</a>
+            <button class="btn danger small" data-delsave="${sv.id}" title="Abandon delve">✕</button>
+          </span>
+        </div>`).join('') : ''}
+        ${saveList.length > 3 ? `<div class="meta small muted">+ ${saveList.length - 3} older delve(s)</div>` : ''}
       <div class="actions">
-        <a class="btn primary" href="#/play/${save ? save.id : 'new?char=' + c.id}">${save ? '⚔ Resume' : '⚔ Begin Delve'}</a>
+        <a class="btn" href="#/play/new?char=${c.id}">⚔ New Delve</a>
         <a class="btn" href="#/character/${c.id}">Sheet</a>
         <button class="btn danger small" data-del="${c.id}">Delete</button>
       </div>

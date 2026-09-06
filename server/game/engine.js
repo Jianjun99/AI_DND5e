@@ -402,14 +402,73 @@ function markDiscovered(state, visible) {
 }
 
 // ------------------------------------------------------------- game setup ----
+// Generate the per-map part of a world: monsters, NPCs and objects (no hero).
+function generateMapState(mapDef, difficulty) {
+  const ents = [], objects = [], discovered = [];
+  mapDef.entities.forEach(e => {
+    if (e.type === 'monster') {
+      const def = content.getMonster(e.kind);
+      if (!def) return; // unknown kinds are warned about at startGame
+      const hp = Math.max(1, Math.round(rollExpr(def.hp).total * DIFFICULTY[difficulty].hpMult));
+      ents.push({
+        id: e.id, kind: 'monster', monsterId: e.kind, name: e.name || def.name,
+        x: e.x, y: e.y, hp, hpMax: hp, ac: def.ac, speedFt: def.speed, abilities: def.abilities,
+        attacks: def.attacks, darkvision: def.darkvision || 0, xp: def.xp, boss: !!def.boss,
+        vulnerabilities: def.vulnerabilities || [], traits: def.traits || [],
+        chief: !!e.chief, conditions: [], buffs: [], alive: true, aware: false, fled: false,
+        sx: e.x, sy: e.y
+      });
+    } else if (e.type === 'npc') {
+      ents.push({ id: 'npc_' + e.id, kind: 'npc', npcId: e.id, name: e.name, x: e.x, y: e.y, icon: e.icon || '🗣️', alive: true });
+      objects.push({ ...e, type: 'npcMarker' });
+    } else if (e.type === 'trap') {
+      objects.push({ ...e, revealed: false, disarmed: false, triggered: false });
+    } else {
+      objects.push({ ...e, open: e.type === 'door' ? false : undefined, looted: false, unlocked: !e.locked });
+    }
+  });
+  return { ents, objects, discovered };
+}
+
+// world flags (room discovery) are per map; everything else is global to the delve
+function mapFlagKeys(flags) { return Object.keys(flags).filter(k => k.startsWith('room_')); }
+
+function snapshotWorldMap(state) {
+  return {
+    name: state.mapName,
+    ents: state.entities.filter(e => e.kind === 'monster' || e.kind === 'npc'),
+    objects: JSON.parse(JSON.stringify(state.objects)),
+    discovered: [...state.discovered],
+    flags: Object.fromEntries(mapFlagKeys(state.flags).map(k => [k, true]))
+  };
+}
+
+function loadWorldMap(state, mapId) {
+  const mapDef = content.getMap(mapId);
+  const saved = state.world[mapId];
+  const gen = saved || generateMapState(mapDef, state.difficulty);
+  state.world[mapId] = saved || gen;
+  state.mapId = mapDef.id; state.mapName = mapDef.name; state.map = mapDef;
+  // swap the cast: hero (+ally) travels, everything else belongs to the map
+  const travelers = state.entities.filter(e => e.kind === 'player' || e.kind === 'ally');
+  state.entities = [...travelers, ...gen.ents];
+  state.objects = gen.objects;
+  state.discovered = gen.discovered || [];
+  mapFlagKeys(state.flags).forEach(k => delete state.flags[k]);
+  Object.entries(gen.flags || {}).forEach(([k, v]) => { state.flags[k] = v; });
+  const visible = computeVision(state);
+  markDiscovered(state, visible);
+  state.world[mapId] = snapshotWorldMap(state);
+}
+
 function startGame(character, options = {}) {
-  const mapDef = JSON.parse(JSON.stringify(content.getMap(options.mapId)));
-  const map = mapDef;
+  const mapDef = content.getMap(options.mapId);
   const difficulty = DIFFICULTY[options.difficulty] ? options.difficulty : 'normal';
   const state = {
     id: 'save_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     characterId: character.id, character: JSON.parse(JSON.stringify(character)),
-    mapId: map.id, mapName: map.name, map, mode: 'explore', difficulty,
+    mapId: mapDef.id, mapName: mapDef.name, map: mapDef, mode: 'explore', difficulty,
+    world: {},
     quests: { active: null, completed: [] },
     entities: [], objects: [], discovered: [], flags: { hasRelic: false, altarBlessed: false, victory: false, failed: false },
     npcChat: {}, stealth: null, log: [], journal: [], appearances: {}, createdAt: Date.now(), updatedAt: Date.now()
@@ -420,7 +479,7 @@ function startGame(character, options = {}) {
   const potionPack = p.inventory.find(i => i.itemId === 'potion_healing');
   if (potionPack) potionPack.qty = Math.max(0, potionPack.qty + DIFFICULTY[difficulty].bonusPotions);
   state.entities.push({
-    id: 'player', kind: 'player', name: p.name, x: map.playerStart.x, y: map.playerStart.y,
+    id: 'player', kind: 'player', name: p.name, x: mapDef.playerStart.x, y: mapDef.playerStart.y,
     hp: p.hpMax, hpMax: p.hpMax, tempHp: 0, ac: p.acBase, speedFt: p.speedFt,
     conditions: [], buffs: [], alive: true
   });
@@ -428,45 +487,60 @@ function startGame(character, options = {}) {
   if (options.bringAlly) {
     const a = ALLY_DEF;
     state.entities.push({
-      id: 'ally', kind: 'ally', name: a.name, x: map.playerStart.x + 1, y: map.playerStart.y,
+      id: 'ally', kind: 'ally', name: a.name, x: mapDef.playerStart.x + 1, y: mapDef.playerStart.y,
       hp: a.hp, hpMax: a.hp, ac: a.ac, speedFt: a.speed, abilities: a.abilities,
       attacks: a.attacks, darkvision: a.darkvision, conditions: [], buffs: [], alive: true
     });
     state.flags.ally = true;
   }
 
-  map.entities.forEach(e => {
-    if (e.type === 'monster') {
-      const def = content.getMonster(e.kind);
-      if (!def) { addLog(state, 'system', `Warning: unknown monster kind "${e.kind}" on this map — skipped.`); return; }
-      const hp = Math.max(1, Math.round(rollExpr(def.hp).total * DIFFICULTY[difficulty].hpMult));
-      state.entities.push({
-        id: e.id, kind: 'monster', monsterId: e.kind, name: e.name || def.name,
-        x: e.x, y: e.y, hp, hpMax: hp, ac: def.ac, speedFt: def.speed, abilities: def.abilities,
-        attacks: def.attacks, darkvision: def.darkvision || 0, xp: def.xp, boss: !!def.boss,
-        vulnerabilities: def.vulnerabilities || [], traits: def.traits || [],
-        chief: !!e.chief, conditions: [], buffs: [], alive: true, aware: false, fled: false,
-        sx: e.x, sy: e.y
-      });
-    } else if (e.type === 'npc') {
-      state.entities.push({ id: 'npc_' + e.id, kind: 'npc', npcId: e.id, name: e.name, x: e.x, y: e.y, icon: e.icon || '🗣️', alive: true });
-      state.objects.push({ ...e, type: 'npcMarker' });
-    } else if (e.type === 'trap') {
-      state.objects.push({ ...e, revealed: false, disarmed: false, triggered: false });
-    } else {
-      state.objects.push({ ...e, open: e.type === 'door' ? false : undefined, looted: false, unlocked: !e.locked });
+  // hydrate this map (and warn about unknown monster kinds once)
+  mapDef.entities.forEach(e => {
+    if (e.type === 'monster' && !content.getMonster(e.kind)) {
+      addLog(state, 'system', `Warning: unknown monster kind "${e.kind}" on this map — skipped.`);
     }
   });
+  loadWorldMap(state, mapDef.id);
 
-  addLog(state, 'system', `${p.name} the ${cap(p.className)} enters ${map.name}. The delve begins.`);
+  addLog(state, 'system', `${p.name} the ${cap(p.className)} enters ${mapDef.name}. The delve begins.`);
+  return state;
+}
+
+// Travel between connected maps via stairs. Per-map progress (chests, doors,
+// slain monsters, explored fog) is snapshotted and restored.
+function travelTo(state, targetMapId, x, y, events) {
+  if (!content.getMap(targetMapId)) { events.push({ type: 'error', text: 'Those stairs lead nowhere.' }); return; }
+  if (!state.world) state.world = {}; // saves from before multi-map get it lazily
+  state.world[state.mapId] = snapshotWorldMap(state);
+  const fromName = state.mapName;
+  loadWorldMap(state, targetMapId);
+  const p = playerEntity(state);
+  p.x = x; p.y = y;
+  const ally = state.entities.find(e => e.kind === 'ally');
+  if (ally) { ally.x = Math.max(1, x - 1); ally.y = y; }
+  // break off any fight — travel is a full disengage
+  state.mode = 'explore';
+  state.flags.reckless = false;
+  const ev = { type: 'travel', narrate: true, text: `${p.name} takes the ancient stairs. The dark of ${fromName} gives way to ${state.mapName}.`, data: { mapId: targetMapId } };
+  events.push(ev); addLog(state, 'system', ev.text);
   const visible = computeVision(state);
   markDiscovered(state, visible);
-  return state;
+  checkRoomEntry(state, events);
 }
 
 function addLog(state, kind, text) {
   state.log.push({ kind, text, ts: Date.now() });
   if (state.log.length > 300) state.log.splice(0, state.log.length - 300);
+}
+
+// ------------------------------------------------------ in-character hints ----
+// The NPCs teach the rules by mouth: one-time hints tied to real firsts.
+function hint(state, key, npcName, text, events) {
+  state.flags.hints = state.flags.hints || {};
+  if (state.flags.hints[key]) return;
+  state.flags.hints[key] = true;
+  const ev = { type: 'hint', narrate: false, text: npcName + ': "' + text + '"' };
+  events.push(ev); addLog(state, 'npc', ev.text);
 }
 
 // ---------------------------------------------------------------- combat ----
@@ -507,6 +581,7 @@ function startCombat(state, monsterIds, events = []) {
   state.combat = { order, turnIdx: 0, round: 1, actionUsed: false, bonusUsed: false, movementLeft: playerEntity(state).speedFt };
   participants.filter(e => e.kind === 'monster').forEach(m => { m.aware = true; });
   const names = order.map(o => `${o.name} (${o.total})`).join(', ');
+  hint(state, 'combat', 'Bram the Scout', 'Steel first, questions later! Click a beast to mark your target, then strike. Watch the initiative line — you only act on your turn.', events);
   const ev = { type: 'combat_start', narrate: true, text: `Combat begins! Initiative: ${names}.`, data: { order } };
   events.push(ev); addLog(state, 'mech', ev.text);
   processUntilPlayer(state, events);
@@ -837,7 +912,10 @@ function monsterAttack(state, attacker, target, atk, events) {
     return;
   }
   const dealt = applyDamage(state, target, dmg.total, atk.damageType, events);
-  if (isPlayer) addLog(state, 'mech', `${target.name} takes ${dealt} damage (${Math.max(0, target.hp)}/${target.hpMax} HP).`);
+  if (isPlayer) {
+    addLog(state, 'mech', `${target.name} takes ${dealt} damage (${Math.max(0, target.hp)}/${target.hpMax} HP).`);
+    if (target.hp > 0 && target.hp < target.hpMax * 0.4) hint(state, 'lowhp', 'Marla the Peddler', 'You are bleeding, dear! Potions are a bonus action — drink one before you faint on me.');
+  }
   checkPlayerDeath(state, events);
 }
 
@@ -1361,6 +1439,7 @@ function levelUp(state, newLevel, events) {
       char.hp = char.hpMax;
       if (pe) { pe.hpMax = char.hpMax; pe.hp = char.hpMax; }
     }
+    hint(state, 'subclass', 'Bram the Scout', 'Level three awakens your specialty — it is on your sheet now, and it has a button. Use it.', events);
     const sub = { type: 'subclass', narrate: true, text: `${char.name} embraces the ${cls.subclass.name}! ${cls.subclass.desc}`, data: { subclass: cls.subclass.id } };
     events.push(sub); addLog(state, 'system', sub.text);
   }
@@ -1467,6 +1546,7 @@ function lootChest(state, chest, events) {
   (chest.loot.items || []).forEach(it => { addItemToInventory(char, it.id, it.qty || 1); parts.push(itemName(it.id)); });
   applyPickupEffects(state, chest.loot.items || [], events);
   checkQuest(state, 'recover', chest.id, events);
+  if (chest.loot.gold >= 20) hint(state, 'shop', 'Bram the Scout', 'Coin is no good to a corpse. Marla topside and Perra down in the vault both trade — potions, kits, even silver blades.', events);
   const ev = {
     type: 'loot', narrate: true,
     text: `${p_name(state)} pries open the ${chest.name}: ${chest.loot.gold || 0} gold pieces` +
@@ -1564,6 +1644,11 @@ function interactObject(state, objId, events) {
   const p = playerEntity(state);
   if (manhattan(p, obj) > 1) { events.push({ type: 'error', text: 'Move closer first.' }); return; }
   if (obj.type === 'door') return interactDoor(state, obj, events);
+  if (obj.type === 'stairs') {
+    const to = obj.to || {};
+    travelTo(state, to.mapId, to.x, to.y, events);
+    return;
+  }
   if (obj.type === 'chest') return lootChest(state, obj, events);
   if (obj.type === 'npcMarker') {
     const ev = { type: 'chat_open', narrate: false, text: `${obj.name}: "${(state.map.npcs[obj.npcId].canned || ['...'])[0]}"`, data: { npcId: obj.npcId, name: obj.name } };
@@ -1632,5 +1717,5 @@ module.exports = {
   shortRest, longRest, skillCheck, damageRoll, applyDamage, healEntity, awardXp, checkPlayerDeath,
   triggerTrap, noticeTrapsNearby, alertForcedNoise, attackMods, monsterAttack, processMonsterTurn, processAllyTurn,
   rollLoot, lootChest, applyPickupEffects, itemName, addItemToInventory, resolveWeapon,
-  rollSideQuest, checkQuest, campfireOf
+  rollSideQuest, checkQuest, campfireOf, loadWorldMap
 };

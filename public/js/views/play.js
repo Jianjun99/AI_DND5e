@@ -171,7 +171,7 @@ export async function playView(main, saveRef) {
   }
 
   // Marla's shop
-  function openShop() {
+  function openShop(merchantName = 'Marla the Peddler', merchantId = 'marla') {
     let modal = document.getElementById('shopModal');
     if (!modal) {
       modal = document.createElement('div');
@@ -183,14 +183,14 @@ export async function playView(main, saveRef) {
     const render = () => {
       modal.innerHTML = `
         <div class="modal">
-          <h2>🧺 Marla's Stall</h2>
+          <h2>🧺 ${esc(merchantName)}</h2>
           <p class="muted small">"Potions, tools, and luck, dear — I sell the first two."</p>
           <p class="small">Your gold: <b style="color:var(--gold)">${game.character.gold} gp</b></p>
           ${items.map(i => `
             <div class="stat-line"><span>${i.name} <span class="muted small">— ${esc(i.desc)}</span></span>
               <span><button class="btn small" data-buy="${i.id}" ${game.character.gold >= i.price ? '' : 'disabled'}>${i.price} gp</button></span></div>`).join('')}
           <div style="margin-top:12px; display:flex; gap:8px; justify-content:center;">
-            <button class="btn small" id="talkMarla">💬 Talk to Marla</button>
+            <button class="btn small" id="talkMarla">💬 Talk to the trader</button>
             <button class="btn small" id="closeShop">Leave</button>
           </div>
         </div>`;
@@ -200,7 +200,7 @@ export async function playView(main, saveRef) {
       }));
       document.getElementById('closeShop').addEventListener('click', () => modal.remove());
       document.getElementById('talkMarla').addEventListener('click', () => {
-        activeNpc = { id: 'marla', name: 'Marla the Peddler' };
+        activeNpc = { id: merchantId, name: merchantName };
         modal.remove();
         update();
         document.getElementById('chatInput')?.focus();
@@ -290,8 +290,8 @@ export async function playView(main, saveRef) {
       return;
     }
     if (ent && (ent.kind === 'npc')) {
-      if (ent.npcId === 'marla' && Math.abs(player().x - x) + Math.abs(player().y - y) <= 3) {
-        openShop();
+      if (['marla', 'perra'].includes(ent.npcId) && Math.abs(player().x - x) + Math.abs(player().y - y) <= 3) {
+        openShop(ent.npcId === 'perra' ? 'Perra the Pack Trader' : 'Marla the Peddler');
         return;
       }
       act({ type: 'freeform', text: 'talk to ' + ent.name });
@@ -301,7 +301,7 @@ export async function playView(main, saveRef) {
     if (obj) {
       const p = player();
       const dist = Math.abs(p.x - x) + Math.abs(p.y - y);
-      if (dist <= 1 && ['door', 'chest'].includes(obj.type)) { act({ type: 'interact', objectId: obj.id }); return; }
+      if (dist <= 1 && ['door', 'chest', 'stairs'].includes(obj.type)) { act({ type: 'interact', objectId: obj.id }); return; }
       if (dist <= 1 && ['relic', 'altar', 'campfire'].includes(obj.id)) { act({ type: 'interact', objectId: obj.id }); return; }
     }
     act({ type: 'move', x, y });

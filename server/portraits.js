@@ -81,7 +81,7 @@ function proceduralSvg(state, ent) {
   const [dark, glow] = palettes[h % palettes.length];
   const emoji = ent.kind === 'monster'
     ? (ent.boss ? '👹' : { giant_rat: '🐀', skeleton: '💀', zombie: '🧟', goblin: '👺', cultist: '🕯️', ogre: '👹', crypt_hound: '🐕', tomb_warden: '🗿' }[ent.monsterId] || '👹')
-    : ({ bram: '🧭', marla: '🧺', morthek: '🩸' }[ent.npcId] || '🗣️');
+    : ({ bram: '🧭', marla: '🧺', morthek: '🩸', perra: '🎒' }[ent.npcId] || '🗣️');
   const runes = ['ᚠ', 'ᚱ', 'ᚦ', 'ᚨ', 'ᛃ', 'ᛇ', 'ᛉ', 'ᛟ'];
   const ring = runes.map((r, i) => {
     const a = (i / runes.length) * Math.PI * 2 + (h % 20) / 20;
