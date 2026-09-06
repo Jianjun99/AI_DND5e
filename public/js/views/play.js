@@ -7,22 +7,52 @@ import { showDice } from '../dice.js';
 let game = null;
 let selectedTarget = null;
 let activeNpc = null;
+let appearanceShown = null;
 let busy = false;
 
 export async function playView(main, saveRef) {
-  // Start a fresh delve if requested
+  // Start a fresh delve: show the setup modal (difficulty + companion)
   if (saveRef === 'new') {
     const charId = new URLSearchParams(location.hash.split('?')[1] || '').get('char');
     if (!charId) { location.hash = '#/'; return; }
-    const bringAlly = confirm('Bring Bram the Scout along as an ally?\n\n(Recommended for solo balance — Cancel to delve alone.)');
-    const { state } = await api.startGame(charId, bringAlly);
-    game = state;
-    location.hash = `#/play/${game.id}`;
-    return;
+    const chars = await api.listCharacters();
+    const char = chars.find(c => c.id === charId);
+    const rules = appState.rules;
+    main.innerHTML = `
+      <div class="modal-back" style="position:static; background:none; display:block; padding-top:30px;">
+        <div class="modal" style="max-width:640px; margin:0 auto;">
+          <h2>Prepare the delve</h2>
+          <p class="muted small">${esc(char ? char.name : 'Your hero')} descends into <b>The Sunless Crypt</b>. Choose the terms:</p>
+          <div class="card" style="margin:12px 0;">
+            <h3>Difficulty</h3>
+            ${Object.entries(rules.difficulty || {}).map(([id, d]) => `
+              <label style="display:block; margin:8px 0; color:var(--text);">
+                <input type="radio" name="difficulty" value="${id}" ${id === 'normal' ? 'checked' : ''} style="width:auto">
+                <b>${d.label}</b> <span class="muted small">— ${esc(d.blurb)}</span>
+              </label>`).join('')}
+          </div>
+          <div class="card" style="margin:12px 0;">
+            <label style="display:block; margin:0; color:var(--text);">
+              <input type="checkbox" id="allyToggle" checked style="width:auto">
+              🏹 Bring <b>Bram the Scout</b> as an AI companion <span class="muted small">(recommended for solo balance)</span>
+            </label>
+          </div>
+          <button class="btn primary big" id="beginBtn" style="width:100%;">⚔ Descend into the Crypt</button>
+        </div>
+      </div>`;
+    document.getElementById('beginBtn').addEventListener('click', async () => {
+      const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
+      const bringAlly = document.getElementById('allyToggle').checked;
+      try {
+        const { state } = await api.startGame(charId, { bringAlly, difficulty });
+        location.hash = `#/play/${state.id}`;
+      } catch (e) { toast(e.message); }
+    });
+    return () => {};
   }
   const data = await api.getGame(saveRef);
   game = data.state;
-  selectedTarget = null; activeNpc = null;
+  selectedTarget = null; activeNpc = null; appearanceShown = null;
 
   main.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:baseline;">
@@ -86,6 +116,90 @@ export async function playView(main, saveRef) {
 
   function player() { return game.entities.find(e => e.kind === 'player'); }
 
+  function atCampfire() {
+    const camp = game.map.victoryTile;
+    const p = player();
+    return p.x === camp.x && p.y === camp.y;
+  }
+
+  // Fetch (and cache server-side) a vivid appearance description for a monster/NPC
+  async function fetchAppearance(ent) {
+    const key = ent.kind === 'monster' ? ent.monsterId : ent.npcId;
+    game.appearances = game.appearances || {};
+    if (game.appearances[key]) { appearanceShown = game.appearances[key]; update(); return; }
+    try {
+      const res = await api.gameAction(game.id, { type: 'describe', targetId: ent.id });
+      game = res.state;
+      appearanceShown = res.appearance || null;
+      update();
+    } catch { /* appearance is optional flavor */ }
+  }
+
+  // Marla's shop
+  function openShop() {
+    let modal = document.getElementById('shopModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.className = 'modal-back';
+      modal.id = 'shopModal';
+      document.body.appendChild(modal);
+    }
+    const items = appState.rules.shop || [];
+    const render = () => {
+      modal.innerHTML = `
+        <div class="modal">
+          <h2>🧺 Marla's Stall</h2>
+          <p class="muted small">"Potions, tools, and luck, dear — I sell the first two."</p>
+          <p class="small">Your gold: <b style="color:var(--gold)">${game.character.gold} gp</b></p>
+          ${items.map(i => `
+            <div class="stat-line"><span>${i.name} <span class="muted small">— ${esc(i.desc)}</span></span>
+              <span><button class="btn small" data-buy="${i.id}" ${game.character.gold >= i.price ? '' : 'disabled'}>${i.price} gp</button></span></div>`).join('')}
+          <div style="margin-top:12px; display:flex; gap:8px; justify-content:center;">
+            <button class="btn small" id="talkMarla">💬 Talk to Marla</button>
+            <button class="btn small" id="closeShop">Leave</button>
+          </div>
+        </div>`;
+      modal.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', async () => {
+        await act({ type: 'buy', itemId: b.dataset.buy });
+        render();
+      }));
+      document.getElementById('closeShop').addEventListener('click', () => modal.remove());
+      document.getElementById('talkMarla').addEventListener('click', () => {
+        activeNpc = { id: 'marla', name: 'Marla the Peddler' };
+        modal.remove();
+        update();
+        document.getElementById('chatInput')?.focus();
+      });
+    };
+    render();
+  }
+
+  // The adventurer's journal (LLM-written recaps)
+  function openJournal() {
+    const entries = game.journal || [];
+    let modal = document.getElementById('journalModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.className = 'modal-back';
+      modal.id = 'journalModal';
+      document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+      <div class="modal" style="text-align:left; max-height:80vh; overflow-y:auto;">
+        <h2>📖 Adventurer's Journal</h2>
+        ${entries.length ? entries.map(e2 => `
+          <div class="card" style="margin:10px 0; background:var(--bg2);">
+            <p class="small muted" style="margin-bottom:6px;">${new Date(e2.ts).toLocaleString()}</p>
+            <p style="font-family:var(--font-serif); font-size:14.5px;">${esc(e2.text)}</p>
+          </div>`).join('')
+        : '<p class="muted" style="margin:14px 0;">Your journal is empty. Write an entry at the campfire — every long rest adds one.</p>'}
+        <div style="text-align:center; margin-top:12px;">
+          <button class="btn small" id="closeJournal">Close</button>
+        </div>
+      </div>`;
+    document.getElementById('closeJournal').addEventListener('click', () => modal.remove());
+  }
+
   async function act(action) {
     if (busy) return;
     busy = true;
@@ -99,9 +213,12 @@ export async function playView(main, saveRef) {
         const ev = res.events.find(e => e.type === 'chat_open');
         activeNpc = { id: ev.data.npcId, name: ev.data.name };
       }
+      if (res.events.some(e => e.type === 'journal')) toast('📖 Journal updated');
       if (res.chatReply) toast('The NPC answers…');
       selectedTarget = null;
+      appearanceShown = null;
       update();
+      return res;
     } catch (e) {
       toast(e.message);
     } finally { busy = false; }
@@ -113,10 +230,16 @@ export async function playView(main, saveRef) {
     const vis = new Set(game.visible || []);
     if (ent && ent.kind === 'monster' && vis.has(x + ',' + y)) {
       selectedTarget = ent;
+      appearanceShown = (game.appearances || {})[ent.monsterId] || null;
       update();
+      fetchAppearance(ent);
       return;
     }
     if (ent && (ent.kind === 'npc')) {
+      if (ent.npcId === 'marla' && Math.abs(player().x - x) + Math.abs(player().y - y) <= 3) {
+        openShop();
+        return;
+      }
       act({ type: 'freeform', text: 'talk to ' + ent.name });
       return;
     }
@@ -153,12 +276,21 @@ export async function playView(main, saveRef) {
     document.getElementById('sidePanel').innerHTML = `
       <div class="card">
         <h3>${esc(char.name)} <span class="muted" style="text-transform:none;">Lv ${char.level} ${esc(cls.name)}</span></h3>
+        <div style="margin-bottom:6px;">
+          <span class="chip ${game.difficulty === 'hard' ? 'red' : game.difficulty === 'easy' ? 'blue' : ''}">${esc((appState.rules.difficulty || {})[game.difficulty]?.label || 'Normal')}</span>
+          ${game.flags.ally ? '<span class="chip blue">🏹 Bram</span>' : ''}
+        </div>
         <div class="hp-bar"><div class="fill" style="width:${Math.max(0, (p.hp / p.hpMax) * 100)}%"></div></div>
         <div class="hp-text"><span>${p.hp}/${p.hpMax} HP${p.tempHp ? ` (+${p.tempHp} temp)` : ''}</span><span>AC ${acNow()}</span></div>
         <div class="hp-text"><span>Speed ${speedNow()} ft</span><span>XP ${char.xp} · ${char.gold} gp</span></div>
         <div class="hp-text"><span>Slots: ${slotText()}</span><span>HD left: ${char.level - (char.hdUsed || 0)}</span></div>
         ${(p.conditions.length || (p.buffs || []).filter(b => b.id !== 'concentrating').length) ? `<div style="margin-top:6px;">${p.conditions.map(c => `<span class="chip red">${esc(c)}</span>`).join('')}${(p.buffs || []).filter(b => b.id !== 'concentrating' && b.id !== 'cond_' ).map(b => `<span class="chip blue">${esc(b.id)}</span>`).join('')}</div>` : ''}
       </div>
+
+      ${appearanceShown && selectedTarget ? `
+      <div class="card" style="border-color:var(--gold-dim);">
+        <p class="small" style="font-family:var(--font-serif); color:var(--parchment); margin:0;">${esc(appearanceShown)}</p>
+      </div>` : ''}
 
       ${game.mode === 'over' ? `
       <div class="card" style="border-color:#6b3a35;">
@@ -174,6 +306,8 @@ export async function playView(main, saveRef) {
           <button class="btn" data-act="longrest">🔥 Long Rest</button>
           <button class="btn" data-act="potion">🧪 Potion (${potCount})</button>
           <button class="btn" data-act="search">🔍 Search</button>
+          ${atCampfire() ? '<button class="btn" data-act="recap" style="grid-column:1 / -1;">✍ Write journal entry</button>' : ''}
+          <button class="btn" data-act="journal" style="grid-column:1 / -1;">📖 Journal${(game.journal || []).length ? ` (${game.journal.length})` : ''}</button>
         </div>
         <div style="margin-top:8px;">${classActions()}</div>
       </div>`}
@@ -272,6 +406,8 @@ export async function playView(main, saveRef) {
       if (a === 'potion') act({ type: 'useItem', itemId: 'potion_healing' });
       if (a === 'search') act({ type: 'freeform', text: 'search the area carefully' });
       if (a === 'respawn') act({ type: 'respawn' });
+      if (a === 'journal') openJournal();
+      if (a === 'recap') act({ type: 'recap' });
       if (a === 'dodge') act({ type: 'dodge' });
       if (a === 'dash') act({ type: 'dash' });
       if (a === 'endturn') act({ type: 'endTurn' });

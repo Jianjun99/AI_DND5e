@@ -37,6 +37,20 @@ const byId = (arr, id) => arr.find(x => x.id === id);
 const mod = (score) => Math.floor((score - 10) / 2);
 const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') : '';
 
+// ---------------------------------------------------------------- difficulty ----
+const DIFFICULTY = {
+  easy: { label: 'Easy', hpMult: 0.75, dmgMult: 0.75, bonusPotions: 2, blurb: 'Monsters are frail (−25% HP and damage) and you carry 4 potions.' },
+  normal: { label: 'Normal', hpMult: 1, dmgMult: 1, bonusPotions: 0, blurb: 'The crypt as intended. You carry 2 potions.' },
+  hard: { label: 'Hard', hpMult: 1.25, dmgMult: 1.25, bonusPotions: -1, blurb: 'Monsters are mighty (+25% HP and damage). You carry 1 potion.' }
+};
+
+// Marla's stock — validated server-side, rendered client-side from /api/rules
+const SHOP_ITEMS = [
+  { id: 'potion_healing', name: 'Potion of Healing', price: 25, desc: 'Bonus action: regain 2d4+2 HP.' },
+  { id: 'healers_kit', name: "Healer's Kit", price: 15, desc: 'Needed for the Healer feat; patches wounds.' },
+  { id: 'thieves_tools', name: "Thieves' Tools", price: 25, desc: 'Pick locks and disarm traps.' }
+];
+
 // ---------------------------------------------------------------- dice ----
 function die(n) { return 1 + Math.floor(Math.random() * n); }
 function rollExpr(expr) {
@@ -351,15 +365,19 @@ function markDiscovered(state, visible) {
 function startGame(character, options = {}) {
   const mapDef = getMap('crypt');
   const map = JSON.parse(JSON.stringify(mapDef));
+  const difficulty = DIFFICULTY[options.difficulty] ? options.difficulty : 'normal';
   const state = {
     id: 'save_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     characterId: character.id, character: JSON.parse(JSON.stringify(character)),
-    mapName: map.name, map, mode: 'explore',
+    mapName: map.name, map, mode: 'explore', difficulty,
     entities: [], objects: [], discovered: [], flags: { hasRelic: false, altarBlessed: false, victory: false, failed: false },
-    npcChat: {}, stealth: null, log: [], createdAt: Date.now(), updatedAt: Date.now()
+    npcChat: {}, stealth: null, log: [], journal: [], appearances: {}, createdAt: Date.now(), updatedAt: Date.now()
   };
 
   const p = state.character;
+  // difficulty adjusts starting supplies on this delve's snapshot
+  const potionPack = p.inventory.find(i => i.itemId === 'potion_healing');
+  if (potionPack) potionPack.qty = Math.max(0, potionPack.qty + DIFFICULTY[difficulty].bonusPotions);
   state.entities.push({
     id: 'player', kind: 'player', name: p.name, x: map.playerStart.x, y: map.playerStart.y,
     hp: p.hpMax, hpMax: p.hpMax, tempHp: 0, ac: p.acBase, speedFt: p.speedFt,
@@ -379,7 +397,7 @@ function startGame(character, options = {}) {
   map.entities.forEach(e => {
     if (e.type === 'monster') {
       const def = byId(MONSTERS, e.kind);
-      const hp = rollExpr(def.hp).total;
+      const hp = Math.max(1, Math.round(rollExpr(def.hp).total * DIFFICULTY[difficulty].hpMult));
       state.entities.push({
         id: e.id, kind: 'monster', monsterId: e.kind, name: e.name || def.name,
         x: e.x, y: e.y, hp, hpMax: hp, ac: def.ac, speedFt: def.speed, abilities: def.abilities,
@@ -694,7 +712,10 @@ function monsterAttack(state, attacker, target, atk, events) {
     return;
   }
   const crit = roll.natural === 20;
-  const dmg = damageRoll(atk.damage, { crit });
+  const rolled = damageRoll(atk.damage, { crit });
+  // difficulty scales only monster damage, never the ally's
+  const dmgMult = attacker.kind === 'monster' ? DIFFICULTY[state.difficulty || 'normal'].dmgMult : 1;
+  const dmg = { total: Math.max(1, Math.round(rolled.total * dmgMult)), dice: rolled.dice };
   let text = `${atkStr} hits ${target.name}${crit ? ' — CRITICAL HIT!' : ''} for ${dmg.total} ${atk.damageType} damage.`;
   events.push({ type: 'attack_in', narrate: true, text, data: { dmg: dmg.total, crit } });
   addLog(state, 'mech', text);
@@ -1331,7 +1352,7 @@ function interactObject(state, objId, events) {
 
 module.exports = {
   SPECIES, CLASSES, BACKGROUNDS, FEATS, WEAPONS, ARMORS, GEAR, SPELLS, MONSTERS, ALLY_DEF, MAPS,
-  ABILITIES, SKILL_ABILITY, ALL_SKILLS, XP_THRESHOLDS, SLOTS,
+  ABILITIES, SKILL_ABILITY, ALL_SKILLS, XP_THRESHOLDS, SLOTS, DIFFICULTY, SHOP_ITEMS,
   die, rollExpr, d20, mod, cap, byId,
   buildCharacter, applyClassAndSpecies, skillMod, passivePerception,
   getMap, tileChar, isWall, isDifficult, entityAt, roomAt, los, manhattan, bfsPath, computeVision, markDiscovered,

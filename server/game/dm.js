@@ -117,4 +117,57 @@ Narrate their attempt (no mechanical effects).` }
   return `${state.character.name} steels themselves and presses on — the crypt answers only with dripping water and distant, patient silence. (Use the game buttons for attacks, searches, and other actions to affect the world.)`;
 }
 
-module.exports = { narrateEvents, npcChat, freeformFlavor, available };
+// Session recap for the adventurer's journal, written at long rests / campfires.
+async function writeRecap(state) {
+  if (await available()) {
+    const cfg = store.getSettings().llm;
+    const p = engine.playerEntity(state);
+    const roomsVisited = Object.keys(state.flags).filter(k => k.startsWith('room_')).map(k => {
+      const room = (state.map.rooms || []).find(r => r.id === k.slice(5));
+      return room ? room.name : null;
+    }).filter(Boolean);
+    const tail = state.log.slice(-30).map(l => l.text).join(' | ').slice(-1600);
+    const messages = [
+      { role: 'system', content: `You are the journal the hero keeps between delves into "The Sunless Crypt". Write ONE journal entry in the hero's voice, first person, past tense. 3-5 sentences. Refer to concrete events given to you; do not invent events that are not listed. End with one sentence of resolve or dread about what comes next. No headings, no lists.` },
+      { role: 'user', content: `Hero: ${state.character.name}, level ${state.character.level} ${state.character.className}, ${p.hp}/${p.hpMax} HP, ${state.character.gold} gold.
+Rooms explored: ${roomsVisited.join(', ') || 'so far, only the entrance'}.
+Relic: ${state.flags.hasRelic ? 'carried' : 'not yet taken'}.
+Recent events: ${tail || 'the delve just began'}
+
+Write the journal entry now.` }
+    ];
+    const reply = await tryChat(messages, cfg);
+    if (reply) return reply;
+  }
+  // deterministic fallback
+  const rooms = Object.keys(state.flags).filter(k => k.startsWith('room_')).map(k => {
+    const room = (state.map.rooms || []).find(r => r.id === k.slice(5));
+    return room ? room.name : null;
+  }).filter(Boolean);
+  const kills = state.log.filter(l => l.kind === 'mech' && l.text.includes('is destroyed')).length;
+  return `We pressed deeper into the crypt${rooms.length ? ` — through ${rooms.join(', ')}` : ''}. ${kills} of its horrors will not rise again, and ${state.character.gold} gold weighs heavy in my pack. ${state.flags.hasRelic ? 'The Relic is in my hands; now only the road home remains.' : 'The Relic still waits below, and I mean to have it.'}`;
+}
+
+// Vivid appearance for a monster or NPC, generated once per creature type and cached.
+async function describeEntity(state, ent) {
+  let blurb = '';
+  if (ent.kind === 'monster') {
+    const def = engine.byId(engine.MONSTERS, ent.monsterId);
+    blurb = def ? def.blurb : '';
+  } else if (ent.kind === 'npc') {
+    const npcDef = state.map.npcs[ent.npcId];
+    blurb = npcDef ? npcDef.persona.split('.').slice(0, 2).join('.') + '.' : '';
+  }
+  if (await available()) {
+    const cfg = store.getSettings().llm;
+    const messages = [
+      { role: 'system', content: `You describe creatures for a D&D game. Given the facts, write the creature's appearance in 1-2 vivid sentences, present tense, framed as what the player sees ("You see..."). Use ONLY the facts given — never invent abilities, names, or story details. No headings.` },
+      { role: 'user', content: `Creature: ${ent.name}${ent.boss ? ' (a boss)' : ''}. Facts: ${blurb || 'an inhabitant of the Sunless Crypt'}\n\nDescribe its appearance.` }
+    ];
+    const reply = await tryChat(messages, cfg);
+    if (reply) return reply;
+  }
+  return blurb || 'A figure out of the crypt\'s long dark, watching.';
+}
+
+module.exports = { narrateEvents, npcChat, freeformFlavor, writeRecap, describeEntity, available };

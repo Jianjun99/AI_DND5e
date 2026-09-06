@@ -23,8 +23,47 @@ export async function homeView(main) {
            <p class="muted">No heroes yet. Every legend starts with a character sheet.</p>
            <p style="margin-top:14px;"><a class="btn primary big" href="#/create">Create your first hero</a></p>
          </div>`}
+    <div class="card" style="margin-top:18px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+          <h3 style="margin-bottom:2px;">💾 Backup & Restore</h3>
+          <p class="small muted" style="margin:0;">Download all heroes, delves and settings as one file — or restore from a backup. Your data lives only on this machine.</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" id="exportBtn">⬇ Export everything</button>
+          <button class="btn" id="importBtn">⬆ Import backup</button>
+          <input type="file" id="importFile" hidden accept=".json,application/json">
+        </div>
+      </div>
+    </div>
   `;
 
+  document.getElementById('exportBtn').addEventListener('click', async () => {
+    const data = await (await fetch('/api/data/export')).json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ai-dnd-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Backup downloaded.');
+  });
+  document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+  document.getElementById('importFile').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!confirm('Importing replaces ALL current heroes, delves and settings with the backup. Continue?')) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const res = await fetch('/api/data/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const out = await res.json();
+      if (!res.ok) throw new Error(out.error || 'Import failed');
+      toast(`Imported ${out.imported.characters} heroes and ${out.imported.saves} delves.`);
+      navigate();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
   main.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', async e => {
     e.stopPropagation();
     if (!confirm('Delete this hero permanently?')) return;

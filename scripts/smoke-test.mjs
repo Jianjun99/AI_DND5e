@@ -51,6 +51,19 @@ async function waitHealthy() {
   if (player.x !== 4 || player.y !== 4) throw new Error(`Expected start (4,4), got (${player.x},${player.y})`);
   console.log(`✔ delve started: ${sid}`);
 
+  // Marla's shop: player starts within 3 tiles of her stall
+  const goldBefore = game.state.character.gold;
+  const bought = await req('POST', `/api/game/${sid}/action`, { type: 'buy', itemId: 'potion_healing' });
+  if (bought.state.character.gold !== goldBefore - 25) throw new Error('Shop did not charge gold correctly');
+  const potions = bought.state.character.inventory.find(i => i.itemId === 'potion_healing').qty;
+  console.log(`✔ shop works: potion bought, ${bought.state.character.gold} gp left, ${potions} potions`);
+
+  // Journal recap at the campfire
+  await req('POST', `/api/game/${sid}/action`, { type: 'move', x: 3, y: 2 });
+  const recapped = await req('POST', `/api/game/${sid}/action`, { type: 'recap' });
+  if (!recapped.state.journal || recapped.state.journal.length < 1) throw new Error('Journal recap missing');
+  console.log('✔ journal recap written at the campfire');
+
   const moved = await req('POST', `/api/game/${sid}/action`, { type: 'move', x: 8, y: 4 });
   const p2 = moved.state.entities.find(e => e.kind === 'player');
   if (p2.x !== 8 || p2.y !== 4) throw new Error(`Move failed, at (${p2.x},${p2.y})`);
@@ -63,6 +76,21 @@ async function waitHealthy() {
   const freeform = await req('POST', `/api/game/${sid}/action`, { type: 'freeform', text: 'listen carefully' });
   if (!freeform.state.log.some(l => l.text.includes('listen'))) throw new Error('Freeform action produced no log');
   console.log('✔ freeform actions work');
+
+  // Easy difficulty: 4 starting potions (2 base + 2 bonus) and lower monster HP
+  const easy = await req('POST', '/api/game/start', { characterId: char.id, bringAlly: true, difficulty: 'easy' });
+  if (easy.state.difficulty !== 'easy') throw new Error('Difficulty not stored');
+  const easyPotions = easy.state.character.inventory.find(i => i.itemId === 'potion_healing').qty;
+  if (easyPotions !== 4) throw new Error(`Expected 4 potions on easy, got ${easyPotions}`);
+  if (!easy.state.entities.some(e => e.kind === 'ally')) throw new Error('Ally missing on easy delve');
+  const goblin = easy.state.entities.find(e => e.monsterId === 'goblin');
+  if (goblin.hp > Math.round(14 * 0.75)) throw new Error(`Easy difficulty did not reduce goblin HP (got ${goblin.hp})`);
+  console.log(`✔ easy difficulty: 4 potions, ally present, goblin HP ${goblin.hp}/14 max`);
+
+  // Backup export endpoint
+  const backup = await req('GET', '/api/data/export');
+  if (!Array.isArray(backup.characters) || backup.characters.length < 1) throw new Error('Export returned no characters');
+  console.log(`✔ backup export works (${backup.characters.length} characters, ${backup.saves.length} delves)`);
 
   console.log('\nSMOKE TEST PASSED');
 })().catch(e => { console.error('SMOKE TEST FAILED:', e.message); process.exit(1); });

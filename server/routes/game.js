@@ -48,10 +48,10 @@ function requireAlive(state, events) {
 
 // ---------------- routes ----------------
 router.post('/start', async (req, res) => {
-  const { characterId, bringAlly } = req.body || {};
+  const { characterId, bringAlly, difficulty } = req.body || {};
   const char = findCharacter(characterId);
   if (!char) return res.status(404).json({ error: 'Character not found' });
-  const state = engine.startGame(char, { bringAlly: !!bringAlly });
+  const state = engine.startGame(char, { bringAlly: !!bringAlly, difficulty });
   const events = [];
   const intro = {
     type: 'scene', narrate: true,
@@ -87,6 +87,7 @@ router.post('/:id/action', async (req, res) => {
   const events = [];
   const logStart = state.log.length;
   let chatReply = null;
+  let appearance = null;
   let handled = true;
 
   try {
@@ -191,8 +192,17 @@ router.post('/:id/action', async (req, res) => {
           break;
         }
         case 'rest': {
-          if (action.kind === 'long') engine.longRest(state, events);
-          else engine.shortRest(state, events);
+          if (action.kind === 'long') {
+            engine.longRest(state, events);
+            // write a journal entry after a successful long rest (fallback text if the LLM is off)
+            const pRest = engine.playerEntity(state);
+            if (state.mode !== 'combat' && events.every(e => e.type !== 'error')) {
+              state.journal = state.journal || [];
+              const entry = await dm.writeRecap(state);
+              state.journal.push({ ts: Date.now(), text: entry });
+              engine.addLog(state, 'system', '📖 A new entry finds its way into your journal.');
+            }
+          } else engine.shortRest(state, events);
           break;
         }
         case 'freeform': {
@@ -229,6 +239,39 @@ router.post('/:id/action', async (req, res) => {
           respawnAtCamp(state, events);
           break;
         }
+        case 'buy': {
+          if (!requireAlive(state, events)) break;
+          buyFromMarla(state, action, events);
+          break;
+        }
+        case 'describe': {
+          if (!requireAlive(state, events)) break;
+          const ent = state.entities.find(e => e.id === action.targetId && (e.kind === 'monster' || e.kind === 'npc'));
+          if (!ent) { events.push({ type: 'error', text: 'Nothing to describe.' }); break; }
+          const key = ent.kind === 'monster' ? ent.monsterId : ent.npcId;
+          state.appearances = state.appearances || {};
+          if (!state.appearances[key]) {
+            state.appearances[key] = await dm.describeEntity(state, ent);
+          }
+          appearance = state.appearances[key];
+          break;
+        }
+        case 'recap': {
+          if (!requireAlive(state, events)) break;
+          const camp = state.map.victoryTile;
+          const p0 = engine.playerEntity(state);
+          if (!(p0.x === camp.x && p0.y === camp.y)) {
+            events.push({ type: 'error', text: 'You can only write in your journal at the campfire.' });
+            break;
+          }
+          state.journal = state.journal || [];
+          const entry = await dm.writeRecap(state);
+          state.journal.push({ ts: Date.now(), text: entry });
+          const ev = { type: 'journal', narrate: false, text: entry, data: { entry } };
+          events.push(ev);
+          engine.addLog(state, 'system', '📖 You scratch a new entry into your journal.');
+          break;
+        }
         default:
           handled = false;
           events.push({ type: 'error', text: 'Unknown action.' });
@@ -243,8 +286,34 @@ router.post('/:id/action', async (req, res) => {
   state.updatedAt = Date.now();
   store.saveGame(state);
   if (handled) await narrate(state, events, logStart);
-  res.json({ state: sanitize(state), events, chatReply });
+  res.json({ state: sanitize(state), events, chatReply, appearance });
 });
+
+// Marla's shop — buy supplies with gold while near the entrance camp
+function buyFromMarla(state, action, events) {
+  const item = engine.SHOP_ITEMS.find(i => i.id === action.itemId);
+  if (!item) { events.push({ type: 'error', text: 'Marla does not stock that.' }); return; }
+  const p = engine.playerEntity(state);
+  const marla = state.entities.find(e => e.kind === 'npc' && e.npcId === 'marla');
+  if (!marla || engine.manhattan(marla, p) > 3) {
+    events.push({ type: 'error', text: "Marla's stall is by the entrance camp — go see her to buy supplies." });
+    return;
+  }
+  const char = state.character;
+  if (char.gold < item.price) {
+    events.push({ type: 'error', text: `Not enough gold — ${item.name} costs ${item.price} gp and you carry ${char.gold}.` });
+    return;
+  }
+  char.gold -= item.price;
+  const inv = char.inventory.find(x => x.itemId === item.id);
+  if (inv) inv.qty++; else char.inventory.push({ itemId: item.id, qty: 1 });
+  const ev = {
+    type: 'shop', narrate: true,
+    text: `${p.name} buys ${item.name} from Marla for ${item.price} gp. "Pleasure doing business, dear," she says, counting the coin twice.`,
+    data: { item: item.id, price: item.price, goldLeft: char.gold }
+  };
+  events.push(ev); engine.addLog(state, 'mech', `${p.name} buys ${item.name} (−${item.price} gp, ${char.gold} left).`);
+}
 
 function respawnAtCamp(state, events) {
   const map = state.map;

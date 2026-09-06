@@ -225,6 +225,36 @@ function resolveFreeform(state, text) {
     if (near) { engine.interactObject(state, near.id, events); return { handled: true, events }; }
   }
 
+  // --- buy from Marla ---
+  const buyMatch = /\b(buy|purchase|shop|stock up)\b/.exec(t);
+  if (buyMatch) {
+    const marla = state.entities.find(e => e.kind === 'npc' && e.npcId === 'marla' && engine.manhattan(e, p) <= 3);
+    if (!marla) {
+      events.push({ type: 'error', text: "No shop here — Marla's stall is by the entrance camp." });
+      return { handled: true, events };
+    }
+    let itemId = null;
+    if (/potion|healing|heal/.test(t)) itemId = 'potion_healing';
+    else if (/kit|bandage/.test(t)) itemId = 'healers_kit';
+    else if (/tools|lockpick|thieve/.test(t)) itemId = 'thieves_tools';
+    if (!itemId) {
+      events.push({ type: 'chat_open', narrate: false, text: `Marla pats her stall. "Potions, kits, or thieves' tools, dear — what'll it be?"`, data: { npcId: 'marla', name: 'Marla the Peddler' } });
+      return { handled: true, events };
+    }
+    const item = engine.SHOP_ITEMS.find(i => i.id === itemId);
+    const char = state.character;
+    if (char.gold < item.price) {
+      events.push({ type: 'error', text: `You can't afford ${item.name} (${item.price} gp) — you carry ${char.gold} gp.` });
+      return { handled: true, events };
+    }
+    char.gold -= item.price;
+    const inv = char.inventory.find(x => x.itemId === itemId);
+    if (inv) inv.qty++; else char.inventory.push({ itemId, qty: 1 });
+    const ev = { type: 'shop', narrate: true, text: `${p.name} buys ${item.name} from Marla for ${item.price} gp.` };
+    events.push(ev); engine.addLog(state, 'mech', `${p.name} buys ${item.name} (−${item.price} gp, ${char.gold} left).`);
+    return { handled: true, events };
+  }
+
   // --- class flavor freeform (consult the die: give a small perk or just flavor) ---
   return { handled: false, events };
 }

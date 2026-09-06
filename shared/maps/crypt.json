@@ -44,6 +44,7 @@
   "entities": [
     { "type": "object", "id": "campfire", "name": "Campfire", "x": 3, "y": 2, "icon": "🔥", "desc": "A crackling campfire. A safe place to rest — this is where the delve began." },
     { "type": "npc", "id": "bram", "name": "Bram the Scout", "x": 5, "y": 3, "icon": "🧭" },
+    { "type": "npc", "id": "marla", "name": "Marla the Peddler", "x": 2, "y": 3, "icon": "🧺" },
     { "type": "door", "id": "door1", "name": "Wooden Door", "x": 9, "y": 4, "locked": false },
     { "type": "door", "id": "door2", "name": "Bone-Framed Door", "x": 15, "y": 4, "locked": false },
     { "type": "door", "id": "door3", "name": "Bolted Door", "x": 17, "y": 15, "locked": true, "lockDc": 13, "forceDc": 15 },
@@ -99,6 +100,16 @@
         "Big brute downstairs? Not ours. Not touching that one.",
         "You want the shiny rock? Go. Take it. Griznak doesn't die for rocks.",
         "Fifty gold and we walk away. Good deal, soft-skin. Best deal."
+      ]
+    },
+    "marla": {
+      "persona": "You are Marla, a cheerful, sharp-tongued peddler who set up a stall by the crypt entrance. You sell potions and tools to delvers at honest-but-firm prices, always with an upsell. You are superstitious, kind to the wounded, and you never, ever enter the crypt yourself.",
+      "knowledge": "You sell healing potions for 25 gold, healer's kits for 15, and thieves' tools for 25. You've heard the goblins behind the bolted door are led by a coward named Griznak who folds if you scare him. You warn delvers that the deep sanctum holds an ogre. You buy nothing back — 'no refunds on destiny, dear'.",
+      "canned": [
+        "Potions, tools, and luck — I sell the first two, the third you bring yourself.",
+        "Twenty-five gold a potion, and worth every coin down there, dear.",
+        "Back already? Bleeding a little? That'll be the rats. Or the bones. Or worse.",
+        "No refunds on destiny, dear. But do come back alive."
       ]
     }
   }
