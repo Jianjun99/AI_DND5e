@@ -63,8 +63,8 @@ Requires Node.js 20+.
 |---|---|
 | **Adventure** | *The Sunless Crypt* — one hand-crafted dungeon: entrance camp, Bone Hall, forgotten alcove, flooded rat nest, goblin den, and the ogre-guarded Sanctum. Steal the Relic and escape to your campfire to win. |
 | **Rules** | D&D 2024 ("5e newest"): 10 species, 12 classes with level-1–2 features, 16 backgrounds with origin feats, ability scores (standard array / 4d6 drop lowest / point buy), skills, fighting styles, eldritch invocations, ~30 spells, rests, XP and level-ups to 3. |
-| **Combat** | Turn-based on a 5-ft grid with fog of war and line of sight: initiative, attack rolls vs AC, crits, advantage/disadvantage, Sneak Attack, spell attacks and saves, concentration, traps, doors, chests, and a boss. |
-| **Loot & magic items** | Monsters drop gold and chance-based loot from data-driven loot tables; chests hide magic gear — Flame-Tongue Dagger, Cloak of Protection, Amulet of Vigor, and the boss's Crypt Cleaver, all with real mechanical effects. |
+| **Combat** | Turn-based on a 5-ft grid with fog of war and line of sight: initiative, attack rolls vs AC, crits, advantage/disadvantage, Sneak Attack, spell attacks and saves, concentration, death saving throws, traps, doors, chests, and a boss. |
+| **Subclasses & loot** | Every class gains a subclass at level 3 (Battle Master, Assassin-style Thief, Draconic Bloodline…). Monsters drop gold and chance-based loot; chests hide magic gear with real effects. Synthesized sound effects and an optional AI-DM voice-over are built in. |
 | **Companion** | Bram the Scout can join you as an AI-controlled ally (recommended for solo balance). |
 | **Death** | Fall, and you wake at camp at half HP with the monsters back at their posts — the delve continues. |
 

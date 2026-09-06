@@ -1,6 +1,7 @@
 // dm.js — the Dungeon Master's voice. The engine decides outcomes; the LLM only narrates them.
 // If the LLM is off or unreachable, the canned text baked into each event is used instead.
 const store = require('../store');
+const retrieval = require('./retrieval');
 const llm = require('../llm/client');
 const engine = require('./engine');
 
@@ -108,6 +109,7 @@ async function freeformFlavor(state, text) {
       { role: 'user', content: `Hero: ${state.character.name} (level ${state.character.level} ${state.character.className}), ${p.hp}/${p.hpMax} HP.
 Location: ${room ? room.name : 'a corridor of the crypt'}. Mode: ${state.mode}.
 The player attempts: "${text}"
+Relevant lore (do not contradict): ${retrieval.retrieve(state, text + ' ' + (room ? room.name : ''), 3).join(' | ') || 'none'}
 
 Narrate their attempt (no mechanical effects).` }
     ];
@@ -179,6 +181,7 @@ async function questText(state, quest) {
     { role: 'user', content: `Hero: ${state.character.name}, level ${state.character.level} ${state.character.className}.
 The objective (already fixed, do not change it): ${quest.shortText} — reward ${quest.reward.gold} gp and ${quest.reward.xp} XP.
 Target facts: it is ${quest.type === 'slay' ? 'a creature currently lurking in the dungeon' : quest.type === 'recover' ? 'an unopened cache somewhere in the dungeon' : 'an unexplored chamber of the dungeon'}.
+Known lore you may weave in (do not contradict): ${retrieval.retrieve(state, quest.shortText + ' ' + quest.targetName, 3).join(' | ') || 'nothing yet'}.
 
 Write the quest hook now.` }
   ];

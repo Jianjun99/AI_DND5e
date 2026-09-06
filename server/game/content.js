@@ -162,6 +162,7 @@ function listMaps() {
   }));
 }
 function getMonster(id) { return ensure().monsters[id] || null; }
+function listMonsters() { return Object.values(ensure().monsters); }
 function getGear(id) { return ensure().gear[id] || null; }
 function listGear() { return Object.values(ensure().gear); }
 function listPacks() {
@@ -170,4 +171,4 @@ function listPacks() {
 }
 function warnings() { return ensure().warnings; }
 
-module.exports = { scan, reload, getMap, defaultMapId, listMaps, getMonster, getGear, listGear, listPacks, warnings };
+module.exports = { scan, reload, getMap, defaultMapId, listMaps, getMonster, listMonsters, getGear, listGear, listPacks, warnings };

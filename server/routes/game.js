@@ -46,6 +46,16 @@ function requireAlive(state, events) {
   return true;
 }
 
+const NEEDS_CONSCIOUS = ['move', 'attack', 'cast', 'dash', 'dodge', 'useItem', 'interact', 'classAction', 'freeform', 'chat', 'rest', 'quest'];
+function requireConscious(state, events) {
+  const p = state.entities.find(e => e.kind === 'player');
+  if (p && p.conditions.includes('unconscious')) {
+    events.push({ type: 'error', text: `You are dying — death saving throws roll on your turn (${p.deathSaves ? p.deathSaves.succ : 0} success / ${p.deathSaves ? p.deathSaves.fail : 0} failure). Hold on…` });
+    return false;
+  }
+  return true;
+}
+
 // ---------------- routes ----------------
 router.post('/start', async (req, res) => {
   const { characterId, bringAlly, difficulty, mapId } = req.body || {};
@@ -93,7 +103,7 @@ router.post('/:id/action', async (req, res) => {
   try {
     if (action.type === 'respawn') {
       respawnAtCamp(state, events);
-    } else if (requireAlive(state, events)) {
+    } else if (requireAlive(state, events) && (!NEEDS_CONSCIOUS.includes(action.type) || requireConscious(state, events))) {
       switch (action.type) {
         case 'move': {
           engine.movePlayer(state, +action.x, +action.y, events);
@@ -341,7 +351,7 @@ function respawnAtCamp(state, events) {
   p.hp = Math.max(1, Math.ceil(p.hpMax / 2));
   p.hpMax = state.character.hpMax;
   p.x = map.playerStart.x; p.y = map.playerStart.y;
-  p.alive = true; p.conditions = []; p.buffs = []; p.tempHp = 0;
+  p.alive = true; p.conditions = []; p.buffs = []; p.tempHp = 0; p.deathSaves = { succ: 0, fail: 0, stable: false };
   state.mode = 'explore';
   state.flags.failed = false;
   state.flags.reckless = false;
@@ -402,8 +412,9 @@ function handleClassAction(state, action, events) {
       if ((char.uses.bardic_inspiration ?? uses) <= 0) { events.push({ type: 'error', text: 'No Bardic Inspiration left — short rest to recover.' }); return; }
       char.uses.bardic_inspiration = (char.uses.bardic_inspiration ?? uses) - 1;
       if (spendBonus() === 'err') { char.uses.bardic_inspiration++; return; }
-      engine.addBuff(p, { id: 'inspiration', dice: 6, rounds: 10 });
-      const ev = { type: 'inspiration', narrate: true, text: `${p.name} hums a rallying chord — a d6 of Bardic Inspiration is held in reserve for the next roll.` };
+      const dieSize = char.subclass === 'lore' ? 8 : 6; // College of Lore: d8 inspiration
+      engine.addBuff(p, { id: 'inspiration', dice: dieSize, rounds: 10 });
+      const ev = { type: 'inspiration', narrate: true, text: `${p.name} hums a rallying chord — a d${dieSize} of Bardic Inspiration is held in reserve for the next roll.` };
       events.push(ev); engine.addLog(state, 'mech', ev.text);
       break;
     }
@@ -461,6 +472,15 @@ function handleClassAction(state, action, events) {
         const monkAtk = char.attacks.find(a => a.weaponId === 'unarmed');
         const fake = { ...monkAtk, bonus: char.profBonus + engine.mod(char.abilities.dex) };
         engine.monsterAttack(state, p, f, fake, events);
+        // Way of the Open Hand: flurry hits shove the target back 5 ft
+        if (char.subclass === 'openhand' && f.alive !== false) {
+          const dx = Math.sign(f.x - p.x), dy = Math.sign(f.y - p.y);
+          const nx = f.x + dx, ny = f.y + dy;
+          if (!engine.isWall(state, nx, ny) && !engine.entityAt(state, nx, ny)) {
+            f.x = nx; f.y = ny;
+            engine.addLog(state, 'mech', `${f.name} is shoved 5 ft by the open hand!`);
+          }
+        }
       });
       break;
     }
@@ -575,6 +595,36 @@ function handleClassAction(state, action, events) {
     case 'reckless_toggle': {
       state.flags.reckless = !state.flags.reckless;
       engine.addLog(state, 'mech', `Reckless Attack ${state.flags.reckless ? 'ON — advantage on your STR melee attacks, but enemies strike you easier' : 'OFF'}.`);
+      break;
+    }
+    case 'commanders_strike': {
+      if (!spendUse('commanders_strike')) return;
+      if (inCombat) { const err = consumeActionEconomy(state, 'action'); if (err) { char.uses.commanders_strike++; events.push({ type: 'error', text: err }); return; } }
+      const target = state.entities.find(e => e.id === action.targetId && e.kind === 'monster' && e.alive);
+      if (!target) { char.uses.commanders_strike++; events.push({ type: 'error', text: 'Choose a target first.' }); return; }
+      if (engine.manhattan(target, p) > (char.attacks[0].ranged ? Math.floor((char.attacks[0].range || 30) / 5) : 1)) {
+        char.uses.commanders_strike++; events.push({ type: 'error', text: 'Target out of reach.' }); return;
+      }
+      engine.addBuff(p, { id: 'superiority', rounds: 1 });
+      const atk = char.attacks.find(a => !a.ranged && a.weaponId !== 'unarmed') || char.attacks[0];
+      engine.playerAttack(state, target.id, atk.weaponId, events);
+      break;
+    }
+    case 'berserker_attack': {
+      if (!engine.hasBuff(p, 'rage')) { events.push({ type: 'error', text: 'Frenzy requires an active Rage.' }); return; }
+      if (spendBonus() === 'err') return;
+      const foes = state.entities.filter(e => e.kind === 'monster' && e.alive && engine.manhattan(e, p) <= 1);
+      if (!foes.length) { events.push({ type: 'error', text: 'No enemy within reach.' }); return; }
+      const atk = char.attacks.find(a => !a.ranged && a.weaponId !== 'unarmed') || char.attacks[0];
+      engine.monsterAttack(state, p, foes[0], atk, events);
+      break;
+    }
+    case 'sacred_weapon': {
+      if (!spendUse('sacred_weapon')) return;
+      if (spendBonus() === 'err') { char.uses.sacred_weapon++; return; }
+      engine.addBuff(p, { id: 'sacred_weapon', rounds: 10 });
+      const ev = { type: 'sacred', narrate: true, text: `${p.name}'s weapon blazes with holy light — +1 to attack and +${Math.max(1, engine.mod(char.abilities.cha))} radiant damage for 10 rounds!` };
+      events.push(ev); engine.addLog(state, 'mech', ev.text);
       break;
     }
     case 'healing_hands': {

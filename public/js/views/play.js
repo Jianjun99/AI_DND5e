@@ -3,6 +3,8 @@ import { api } from '../api.js';
 import { esc, toast, state as appState, charObjective } from '../app.js';
 import { createMapRenderer } from '../map.js';
 import { showDice } from '../dice.js';
+import { sfx } from '../sfx.js';
+import { tts } from '../tts.js';
 
 let game = null;
 let selectedTarget = null;
@@ -215,21 +217,36 @@ export async function playView(main, saveRef) {
     document.getElementById('closeJournal').addEventListener('click', () => modal.remove());
   }
 
+  const SFX_MAP = {
+    attack: 'attack', attack_in: 'attack', spell_hit: 'spell', cast_flavor: 'spell', save: 'dice',
+    combat_start: 'dice', miss: 'miss', heal: 'heal', levelup: 'levelup', subclass: 'levelup',
+    quest_done: 'quest', quest_offer: 'quest', loot: 'coin', magic_item: 'coin', trap: 'trap',
+    trap_spotted: 'trap', dying: 'death', player_down: 'death', victory: 'victory', door: 'door', blessing: 'heal'
+  };
+
   async function act(action) {
     if (busy) return;
     busy = true;
+    const logLen = game.log.length;
     try {
       const res = await api.gameAction(game.id, action);
       game = res.state;
       // dice flourish on notable rolls
       const dmg = res.events.find(e => ['attack', 'spell_hit', 'attack_in', 'save'].includes(e.type));
       if (dmg && dmg.data && dmg.data.dmg) showDice(20, dmg.data.dmg, 'damage');
+      // sounds for the notable events of this action
+      res.events.forEach(e => { if (SFX_MAP[e.type]) sfx.play(e.type === 'attack' && e.data && e.data.crit ? 'crit' : SFX_MAP[e.type]); });
       if (res.events.some(e => e.type === 'chat_open')) {
         const ev = res.events.find(e => e.type === 'chat_open');
         activeNpc = { id: ev.data.npcId, name: ev.data.name };
       }
       if (res.events.some(e => e.type === 'journal')) toast('📖 Journal updated');
       if (res.chatReply) toast('The NPC answers…');
+      // voice-over: speak the DM's new narration lines (chunked per sentence)
+      if (tts.isEnabled()) {
+        game.log.slice(logLen).filter(l => ['dm', 'system'].includes(l.kind)).slice(0, 2)
+          .forEach(l => tts.speak(l.text.replace(/ dice? results?/i, '').slice(0, 400)));
+      }
       selectedTarget = null;
       appearanceShown = null;
       update();
@@ -285,6 +302,7 @@ export async function playView(main, saveRef) {
     const p = player();
     const rules = appState.rules;
     const cls = rules.classes.find(c => c.id === char.className);
+    const subDef = (cls.subclass && char.subclass === cls.subclass.id) ? cls.subclass : null;
     const myTurn = game.mode !== 'combat' || game.combat.order[game.combat.turnIdx].id === 'player';
     const potCount = (game.character.inventory || [])
       .filter(i => ['potion_healing', 'potion_greater'].includes(i.itemId))
@@ -293,9 +311,13 @@ export async function playView(main, saveRef) {
     document.getElementById('sidePanel').innerHTML = `
       <div class="card">
         <h3>${esc(char.name)} <span class="muted" style="text-transform:none;">Lv ${char.level} ${esc(cls.name)}</span></h3>
-        <div style="margin-bottom:6px;">
+        <div style="margin-bottom:6px; display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
           <span class="chip ${game.difficulty === 'hard' ? 'red' : game.difficulty === 'easy' ? 'blue' : ''}">${esc((appState.rules.difficulty || {})[game.difficulty]?.label || 'Normal')}</span>
           ${game.flags.ally ? '<span class="chip blue">🏹 Bram</span>' : ''}
+          ${subDef ? `<span class="chip">⚔ ${esc(subDef.name)}</span>` : ''}
+          <span style="flex:1"></span>
+          <button class="btn small" id="sfxBtn" title="Sound effects">${sfx.isEnabled() ? '🔊' : '🔇'}</button>
+          <button class="btn small" id="ttsBtn" title="AI DM voice-over">${tts.isEnabled() ? '🗣️' : '🤐'}</button>
         </div>
         <div class="hp-bar"><div class="fill" style="width:${Math.max(0, (p.hp / p.hpMax) * 100)}%"></div></div>
         <div class="hp-text"><span>${p.hp}/${p.hpMax} HP${p.tempHp ? ` (+${p.tempHp} temp)` : ''}</span><span>AC ${acNow()}</span></div>
@@ -315,6 +337,14 @@ export async function playView(main, saveRef) {
         <p class="small" style="color:var(--gold); font-weight:600;">${esc(game.quests.active.shortText)}</p>
         <p class="small muted">${esc(game.quests.active.text)}</p>
         <p class="small" style="margin-top:6px;"><span class="chip">💰 ${game.quests.active.reward.gold} gp</span> <span class="chip blue">✨ ${game.quests.active.reward.xp} XP</span></p>
+      </div>` : ''}
+
+      ${p.conditions.includes('unconscious') ? `
+      <div class="card" style="border-color:#6b3a35;">
+        <h3 style="color:#d98a80;">💀 Dying</h3>
+        <p class="small">Success&nbsp;&nbsp;${'●'.repeat((p.deathSaves || {}).succ || 0)}${'○'.repeat(3 - ((p.deathSaves || {}).succ || 0))}</p>
+        <p class="small">Failures&nbsp;&nbsp;${'●'.repeat((p.deathSaves || {}).fail || 0)}${'○'.repeat(3 - ((p.deathSaves || {}).fail || 0))}</p>
+        <p class="small muted" style="margin-top:4px;">Death saves roll automatically at the start of your turn. 3 successes stabilize you; 3 failures…</p>
       </div>` : ''}
 
       ${game.mode === 'over' ? `
@@ -353,6 +383,8 @@ export async function playView(main, saveRef) {
     `;
 
     wireSide(myTurn);
+    document.getElementById('sfxBtn').addEventListener('click', () => { sfx.toggle(); renderSide(); });
+    document.getElementById('ttsBtn').addEventListener('click', () => { tts.toggle(); renderSide(); toast(tts.isEnabled() ? '🗣️ AI DM voice-on' : '🤐 AI DM voice-off'); });
   }
 
   function acNow() {
@@ -522,5 +554,5 @@ export async function playView(main, saveRef) {
     } catch {}
   }, 4000);
 
-  return () => { clearInterval(pollTimer); document.removeEventListener('keydown', onKey); };
+  return () => { clearInterval(pollTimer); document.removeEventListener('keydown', onKey); tts.stop(); };
 }

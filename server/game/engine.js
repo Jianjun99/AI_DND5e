@@ -224,6 +224,7 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel) {
   else if (cls.id === 'monk') ac = 10 + dexM + mod(abilities.wis);
   else if (char.invocations.includes('armor_of_shadows')) ac = 13 + dexM;
   else ac = 10 + dexM;
+  if (!armorItem && cls.id === 'sorcerer' && char.subclass === 'draconic') ac += 1; // Draconic Resilience
   if (char.inventory.some(i => i.itemId === 'shield')) ac += 2;
   // shields from gear (core or packs) contribute their listed bonus; cloak adds its own
   char.inventory.forEach(i => {
@@ -538,19 +539,57 @@ function tickBuffs(state) {
 function checkPlayerDeath(state, events) {
   if (state.mode === 'over') return true;
   const p = playerEntity(state);
-  if (p && p.hp <= 0) {
+  if (p && p.hp <= 0 && !p.conditions.includes('unconscious')) {
     if (state.character.dropTo1 && !state.flags.dropUsed) {
       p.hp = 1; state.flags.dropUsed = true;
       const ev = { type: 'relentless', narrate: true, text: `${p.name} refuses to fall — Relentless Endurance keeps them at 1 HP!` };
       events.push(ev); addLog(state, 'mech', ev.text);
       return false;
     }
-    state.mode = 'over'; state.flags.failed = true; p.alive = false;
-    const ev = { type: 'player_down', narrate: true, text: `${p.name} falls unconscious. Darkness closes in...` };
+    // 5e dying: death saving throws each turn; 3 successes stabilize, 3 failures kill
+    p.hp = 0;
+    p.deathSaves = { succ: 0, fail: 0, stable: false };
+    if (!p.conditions.includes('unconscious')) p.conditions.push('unconscious');
+    p.buffs = [];
+    const allyAlive = state.entities.some(e => e.kind === 'ally' && e.alive);
+    const ev = { type: 'dying', narrate: true, text: `${p.name} falls, dying! Death saving throws begin each turn — 3 successes stabilize, 3 failures mean the end.${allyAlive ? ' Bram fights on over your body!' : ' No one is left to stand over you…'}` };
     events.push(ev); addLog(state, 'system', ev.text);
-    return true;
+    return false;
   }
   return false;
+}
+
+function rollDeathSave(state, events) {
+  const p = playerEntity(state);
+  if (!p.conditions.includes('unconscious') || p.deathSaves.stable) return;
+  const roll = d20({});
+  let outcome;
+  if (roll.natural === 20) {
+    p.hp = 1; p.conditions = p.conditions.filter(c => c !== 'unconscious');
+    p.deathSaves = { succ: 0, fail: 0, stable: false };
+    const ev = { type: 'death_save', narrate: true, text: `NATURAL 20! ${p.name} gasps awake with 1 HP, adrenaline flooding back!` };
+    events.push(ev); addLog(state, 'mech', ev.text);
+    return;
+  }
+  if (roll.natural === 1) {
+    p.deathSaves.fail += 2; outcome = 'a catastrophic failure — TWO marks of death';
+  } else if (roll.natural >= 10) {
+    p.deathSaves.succ++; outcome = 'a success';
+  } else {
+    p.deathSaves.fail++; outcome = 'a failure';
+  }
+  addLog(state, 'mech', `Death save: d20 ${roll.natural} — ${outcome} (${p.deathSaves.succ} success / ${p.deathSaves.fail} failure).`);
+  if (p.deathSaves.fail >= 3) {
+    state.mode = 'over'; state.flags.failed = true; p.alive = false;
+    const ev = { type: 'player_down', narrate: true, text: `The third failure. ${p.name} slips beyond the reach of any blade or prayer…` };
+    events.push(ev); addLog(state, 'system', ev.text);
+    return;
+  }
+  if (p.deathSaves.succ >= 3) {
+    p.deathSaves.stable = true;
+    const ev = { type: 'death_save', narrate: true, text: `${p.name} stabilizes! The dying slows — but the crypt is still no place to wake up.` };
+    events.push(ev); addLog(state, 'mech', ev.text);
+  }
 }
 
 function processUntilPlayer(state, events) {
@@ -569,7 +608,7 @@ function processUntilPlayer(state, events) {
       }
       continue;
     }
-    if (actor.kind === 'player') { beginPlayerTurn(state); return; }
+    if (actor.kind === 'player') { beginPlayerTurn(state, events); return; }
     if (actor.kind === 'ally') processAllyTurn(state, actor, events);
     else if (actor.kind === 'monster') processMonsterTurn(state, actor, events);
     if (state.mode !== 'combat') return;
@@ -583,13 +622,17 @@ function processUntilPlayer(state, events) {
   }
 }
 
-function beginPlayerTurn(state) {
+function beginPlayerTurn(state, events = []) {
   const c = state.combat, p = playerEntity(state);
   c.actionUsed = false; c.bonusUsed = false;
   state.flags.used_sneak = false;
   state.flags.savage_used = false;
   c.movementLeft = currentSpeed(state, p);
   removeBuff(p, 'shield'); // Shield lasts until the start of your next turn
+  if (p.conditions.includes('unconscious')) {
+    rollDeathSave(state, events);
+    return;
+  }
   if (p.conditions.includes('prone')) {
     p.conditions = p.conditions.filter(x => x !== 'prone');
     c.movementLeft = Math.max(0, c.movementLeft - Math.floor(currentSpeed(state, p) / 2));
@@ -737,6 +780,25 @@ function monsterAttack(state, attacker, target, atk, events) {
   const isPlayer = target.kind === 'player';
   const targetAc = currentAc(state, target);
   const mods = attackMods(state, attacker, target, atk, events);
+  if (attacker.kind === 'player') {
+    const ch = state.character;
+    // Battle Master's Commander's Strike charge
+    if (hasBuff(attacker, 'superiority') && !atk.spell) {
+      removeBuff(attacker, 'superiority');
+      mods.dmgDice.push({ dice: '1d8', type: 'superiority' });
+      events.push({ type: 'note', narrate: false, text: 'Commander\u2019s Strike! +1d8 damage.' });
+    }
+    // Oath of Devotion's Sacred Weapon
+    if (hasBuff(attacker, 'sacred_weapon') && !atk.spell) {
+      mods.bonusFlat += 1;
+      const chaM = Math.max(1, mod(ch.abilities.cha));
+      mods.dmgDice.push({ flat: chaM, type: 'radiant' });
+    }
+    // Hunter's Colossus Slayer
+    if (ch.subclass === 'hunter' && !atk.spell && target.alive !== false && target.hp < target.hpMax && !state.flags.used_colossus) {
+      mods.dmgDice.push({ dice: '1d8', type: 'colossus', oncePerTurn: 'colossus' });
+    }
+  }
   const opts = { adv: mods.adv && !mods.dis, dis: mods.dis && !mods.adv };
   const roll = d20(opts);
   let atkExtra = 0, extraTxt = '';
@@ -821,6 +883,7 @@ function playerAttack(state, targetId, weaponId, events) {
   const bonusTxts = [];
   mods.dmgDice.forEach(b => {
     if (b.oncePerTurn && state.flags['used_' + b.oncePerTurn]) return;
+    if (b.flat) { dmgTotal += b.flat; bonusTxts.push(`+${b.flat} ${b.type}`); return; }
     const r = rollExpr(b.dice);
     dmgTotal += r.total;
     bonusTxts.push(`+${r.total} ${b.type}`);
@@ -836,6 +899,7 @@ function playerAttack(state, targetId, weaponId, events) {
   addLog(state, 'mech', text);
   const dealt = applyDamage(state, target, dmgTotal, atk.dmgType, events);
   addLog(state, 'mech', `${target.name} takes ${dealt} damage (${target.hp}/${target.hpMax} HP${target.alive === false ? ', slain' : ''}).`);
+  if (char.subclass === 'fiend' && target.alive === false) fiendBlessing(state, char, events);
   if (atk.weaponId === 'unarmed' && char.tavernBrawler && target.alive !== false) {
     const dx = Math.sign(target.x - p.x), dy = Math.sign(target.y - p.y);
     const nx = target.x + dx, ny = target.y + dy;
@@ -846,6 +910,19 @@ function playerAttack(state, targetId, weaponId, events) {
 
 // ---------------------------------------------------------------- spells ----
 function findSpell(id) { return byId(SPELLS, id); }
+
+// Life Domain: healing spells restore +2 + spell level
+function lifeBonus(char) { return char.subclass === 'life' ? 3 : 0; }
+
+// The Fiend: when the hero drops an enemy, their patron rewards them with Temporary HP
+function fiendBlessing(state, char, events) {
+  if (char.subclass !== 'fiend') return;
+  const p = playerEntity(state);
+  const gain = Math.max(1, mod(char.abilities.cha)) + char.level;
+  p.tempHp = (p.tempHp || 0) + gain;
+  const ev = { type: 'fiend', narrate: true, text: `Dark One's Blessing: your patron rewards the kill with ${gain} Temporary HP.` };
+  events.push(ev); addLog(state, 'mech', ev.text);
+}
 
 function castSpell(state, spellId, targetId, events, opts = {}) {
   const p = playerEntity(state);
@@ -892,7 +969,7 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
   const resolveTarget = () => state.entities.find(e => e.id === targetId && e.alive !== false);
 
   if (sp.target === 'self') {
-    if (sp.heal) { const r = rollExpr(sp.heal.dice); healEntity(state, p, r.total + spMod, events, sp.name); return true; }
+    if (sp.heal) { const r = rollExpr(sp.heal.dice); healEntity(state, p, r.total + spMod + lifeBonus(char), events, sp.name); return true; }
     if (sp.tempHp) {
       const r = rollExpr(sp.tempHp); p.tempHp = (p.tempHp || 0) + r.total;
       const ev = { type: 'buff', narrate: true, text: `Deathly vigor settles over ${p.name}: ${r.total} temporary HP.` };
@@ -908,7 +985,7 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
   if (sp.target === 'ally') {
     const dest = (targetId === 'player' || !targetId) ? p : (resolveTarget() || p);
     if (dest.kind === 'monster') { events.push({ type: 'error', text: 'You cannot target an enemy with that spell.' }); return true; }
-    if (sp.heal) { const r = rollExpr(sp.heal.dice); healEntity(state, dest, r.total + spMod, events, sp.name); return true; }
+    if (sp.heal) { const r = rollExpr(sp.heal.dice); healEntity(state, dest, r.total + spMod + lifeBonus(char), events, sp.name); return true; }
     if (sp.buff) {
       addBuff(dest, { id: sp.buff.id, rounds: sp.buff.rounds, srcEntity: p.id, conc: !!sp.conc, ...sp.buff });
       const ev = { type: 'buff', narrate: true, text: `${sp.name} settles over ${dest.name}. ${sp.desc}` };
@@ -953,9 +1030,11 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
     }
     const crit = roll.natural === 20;
     const dmg = damageRoll(sp.damage.dice, { crit });
+    if (char.subclass === 'evoker') dmg.total += spMod;
     const ev = { type: 'spell_hit', narrate: true, text: `${p.name}'s ${sp.name} strikes ${target.name}${crit ? ' — CRITICAL!' : ''}: ${dmg.total} ${sp.damage.type} damage.` };
     events.push(ev); addLog(state, 'mech', ev.text);
     applyDamage(state, target, dmg.total, sp.damage.type, events);
+    if (char.subclass === 'fiend' && target.alive === false) fiendBlessing(state, char, events);
     if (sp.condition && target.alive !== false) applyCondition(sp.condition, target);
     if (sp.id === 'eldritch_blast' && char.invocations.includes('repelling_blast') && target.alive !== false) {
       const dx = Math.sign(target.x - p.x), dy = Math.sign(target.y - p.y);
@@ -974,12 +1053,13 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
     let dmgTotal = 0;
     if (sp.damage) {
       const dmg = rollExpr(sp.damage.dice);
+      if (char.subclass === 'evoker') dmg.total += spMod;
       dmgTotal = success && sp.save.onSave === 'half' ? Math.floor(dmg.total / 2) : success ? 0 : dmg.total;
     }
     let text = `${target.name} ${sp.save.ability.toUpperCase()} save: d20 ${saveRoll.natural}+${saveMod} = ${total} vs DC ${dc} — ${success ? 'success' : 'failure'}.`;
     if (sp.damage) text += ` ${dmgTotal} ${sp.damage.type} damage.`;
     events.push({ type: 'save', narrate: true, text }); addLog(state, 'mech', text);
-    if (sp.damage && dmgTotal) applyDamage(state, target, dmgTotal, sp.damage.type, events);
+    if (sp.damage && dmgTotal) { applyDamage(state, target, dmgTotal, sp.damage.type, events); if (char.subclass === 'fiend' && target.alive === false) fiendBlessing(state, char, events); }
     if (!success && target.alive !== false) {
       if (sp.save.onSave === 'prone') { if (!target.conditions.includes('prone')) target.conditions.push('prone'); addLog(state, 'mech', `${target.name} slips and falls prone!`); }
       if (sp.condition) applyCondition(sp.condition, target);
@@ -1000,6 +1080,7 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
     const ev = { type: 'spell_hit', narrate: true, text: `${sp.name} slams into ${target.name} unerringly: ${dmg.total} ${sp.damage.type} damage.` };
     events.push(ev); addLog(state, 'mech', ev.text);
     applyDamage(state, target, dmg.total, sp.damage.type, events);
+    if (char.subclass === 'fiend' && target.alive === false) fiendBlessing(state, char, events);
     return true;
   }
   return true;
@@ -1150,7 +1231,7 @@ function processMonsterTurn(state, mon, events) {
   if (!mon.alive || mon.fled || state.mode !== 'combat') return;
   if (mon.conditions.includes('asleep')) { addLog(state, 'mech', `${mon.name} sleeps soundly.`); return; }
   if (hasBuff(mon, 'charmed')) { addLog(state, 'mech', `${mon.name} gazes at ${p_name(state)} with vacant affection and does nothing.`); return; }
-  const targets = state.entities.filter(e => (e.kind === 'player' || e.kind === 'ally') && e.alive !== false);
+  const targets = state.entities.filter(e => (e.kind === 'player' || e.kind === 'ally') && e.alive !== false && !(e.kind === 'player' && e.conditions.includes('unconscious')));
   if (!targets.length) return;
   const target = targets.sort((a, b) => manhattan(mon, a) - manhattan(mon, b))[0];
   if (mon.conditions.includes('prone')) mon.conditions = mon.conditions.filter(c => c !== 'prone');
@@ -1213,10 +1294,19 @@ function checkCombatEnd(state, events) {
   const foes = (state.combat.order || [])
     .map(o => state.entities.find(e => e.id === o.id))
     .filter(e => e && e.kind === 'monster' && e.alive && !e.fled);
-  if (foes.length === 0) {
+  const p = playerEntity(state);
+  const downed = p && p.conditions.includes('unconscious');
+  if (foes.length === 0 || (downed && p.deathSaves && p.deathSaves.stable)) {
     state.mode = 'explore';
     state.flags.reckless = false;
-    const ev = { type: 'combat_end', narrate: true, text: 'The last enemy falls. The crypt falls silent again.' };
+    if (downed) {
+      // stabilized (or the fight simply ended): wake at 1 HP
+      p.hp = 1; p.conditions = p.conditions.filter(c => c !== 'unconscious');
+      p.deathSaves = { succ: 0, fail: 0, stable: false };
+      const wake = { type: 'death_save', narrate: true, text: `${p.name} claws back to consciousness with 1 HP. The crypt grants no mercy twice.` };
+      events.push(wake); addLog(state, 'system', wake.text);
+    }
+    const ev = { type: 'combat_end', narrate: true, text: foes.length === 0 ? 'The last enemy falls. The crypt falls silent again.' : 'The creatures lose interest in your body and prowl back into the dark.' };
     events.push(ev); addLog(state, 'mech', ev.text);
     const visible = computeVision(state); markDiscovered(state, visible);
     checkRoomEntry(state, events);
@@ -1250,6 +1340,17 @@ function levelUp(state, newLevel, events) {
   }
   const ev = { type: 'levelup', narrate: true, text: `LEVEL UP! ${char.name} reaches level ${newLevel}! Hit points rise to ${char.hpMax} and new powers awaken.`, data: { level: newLevel } };
   events.push(ev); addLog(state, 'system', ev.text);
+  // subclass arrives at level 3
+  if (newLevel >= 3 && !char.subclass && cls.subclass) {
+    char.subclass = cls.subclass.id;
+    if (cls.subclass.hpBonus) {
+      char.hpMax += cls.subclass.hpBonus;
+      char.hp = char.hpMax;
+      if (pe) { pe.hpMax = char.hpMax; pe.hp = char.hpMax; }
+    }
+    const sub = { type: 'subclass', narrate: true, text: `${char.name} embraces the ${cls.subclass.name}! ${cls.subclass.desc}`, data: { subclass: cls.subclass.id } };
+    events.push(sub); addLog(state, 'system', sub.text);
+  }
 }
 
 function shortRest(state, events) {
@@ -1278,6 +1379,11 @@ function shortRest(state, events) {
   if (char.feat === 'lucky') char.uses.lucky_reroll = 2;
   if (char.feat === 'musician') char.uses.lucky_reroll = Math.max(char.uses.lucky_reroll || 0, 1);
   if (char.slotsRefresh === 'short') char.slots = { ...char.slotsMax };
+  if (cls.id === 'druid' && char.subclass === 'land' && !char.uses.land_recovery_used && (char.slotsMax[1] || 0) > (char.slots[1] || 0)) {
+    char.slots[1] = (char.slots[1] || 0) + 1;
+    char.uses.land_recovery_used = true;
+    addLog(state, 'mech', 'Natural Recovery: one spell slot restored.');
+  }
   if (cls.id === 'wizard' && !char.uses.arcane_recovery_used) {
     const back = Math.ceil(char.level / 2);
     char.slots[1] = Math.min((char.slotsMax[1] || 0), (char.slots[1] || 0) + back);
@@ -1303,6 +1409,7 @@ function longRest(state, events) {
   applyClassAndSpecies(char, cls, null, char.level); // re-init uses/pools
   char.freeSpellUses = 0;
   char.uses.arcane_recovery_used = false;
+  char.uses.land_recovery_used = false;
   state.flags.dropUsed = false;
   state.flags.savage_used = false;
   state.flags.reckless = false;
@@ -1322,7 +1429,7 @@ function skillCheck(state, skill, dc) {
   if (guidance) { bonus += die(4); bonusTxt += ' +1d4 guidance'; removeBuff(p, 'guidance'); }
   const insp = getBuff(p, 'inspiration');
   if (insp) { bonus += die(insp.dice || 6); bonusTxt += ` +1d${insp.dice || 6} inspiration`; removeBuff(p, 'inspiration'); }
-  let roll = d20({ reroll1: char.rerollNat1 });
+  let roll = d20({ adv: skill === 'stealth' && char.subclass === 'thief', reroll1: char.rerollNat1 });
   let total = roll.natural + skillMod(char, skill) + bonus;
   let rerolled = false;
   if (total < dc && (char.uses.lucky_reroll || 0) > 0) {
