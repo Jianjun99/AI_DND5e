@@ -42,12 +42,18 @@
   ],
   "gear": [
     { "id": "potion_healing", "name": "Potion of Healing", "type": "potion", "heal": "2d4+2", "cost": 50, "desc": "Bonus action to drink: regain 2d4+2 HP." },
+    { "id": "potion_greater", "name": "Greater Healing Potion", "type": "potion", "heal": "4d4+4", "cost": 100, "desc": "Bonus action to drink: regain 4d4+4 HP." },
     { "id": "healers_kit", "name": "Healer's Kit", "type": "kit", "cost": 5, "desc": "Required for the Healer feat; 10 uses." },
     { "id": "thieves_tools", "name": "Thieves' Tools", "type": "tool", "cost": 25, "desc": "Pick locks and disarm traps." },
     { "id": "shield", "name": "Shield", "type": "shield", "acBonus": 2, "cost": 10, "desc": "+2 AC while wielded." },
     { "id": "torch", "name": "Torch", "type": "gear", "cost": 1 },
     { "id": "rope", "name": "Hempen Rope", "type": "gear", "cost": 1 },
     { "id": "rations", "name": "Rations", "type": "gear", "cost": 5 },
-    { "id": "relic", "name": "Relic of the Sunless Crypt", "type": "quest", "cost": 0, "desc": "The objective of your delve." }
+    { "id": "relic", "name": "Relic of the Sunless Crypt", "type": "quest", "cost": 0, "desc": "The objective of your delve." },
+    { "id": "silver_sword", "name": "Silver Shortsword", "type": "magic_weapon", "base": "shortsword", "magic": 1, "cost": 200, "desc": "+1 to attack and damage; gleams near the undead." },
+    { "id": "flame_dagger", "name": "Flame-Tongue Dagger", "type": "magic_weapon", "base": "dagger", "magic": 1, "bonusDamage": { "dice": "1d4", "type": "fire" }, "cost": 250, "desc": "+1 dagger whose edge drips fire: +1d4 fire damage." },
+    { "id": "crypt_cleaver", "name": "Crypt Cleaver", "type": "magic_weapon", "base": "greataxe", "magic": 1, "cost": 400, "desc": "+1 greataxe carved from tomb-stone, still humming with the crypt's power." },
+    { "id": "cloak_protection", "name": "Cloak of Protection", "type": "magic_armor", "acBonus": 1, "cost": 200, "desc": "+1 AC while carried." },
+    { "id": "amulet_of_vigor", "name": "Amulet of Vigor", "type": "magic_trinket", "hpBonus": 5, "cost": 250, "desc": "Permanently grants +5 max HP when found." }
   ]
 }

@@ -271,7 +271,9 @@ export async function playView(main, saveRef) {
     const rules = appState.rules;
     const cls = rules.classes.find(c => c.id === char.className);
     const myTurn = game.mode !== 'combat' || game.combat.order[game.combat.turnIdx].id === 'player';
-    const potCount = (char.inventory.find(i => i.itemId === 'potion_healing') || {}).qty || 0;
+    const potCount = (game.character.inventory || [])
+      .filter(i => ['potion_healing', 'potion_greater'].includes(i.itemId))
+      .reduce((s, i) => s + i.qty, 0);
 
     document.getElementById('sidePanel').innerHTML = `
       <div class="card">
@@ -368,7 +370,7 @@ export async function playView(main, saveRef) {
           <button class="btn" data-act="castmenu" ${myTurn ? '' : 'disabled'}>✨ Cast…</button>
           <button class="btn" data-act="dodge" ${myTurn ? '' : 'disabled'}>🛡 Dodge</button>
           <button class="btn" data-act="dash" ${myTurn ? '' : 'disabled'}>💨 Dash</button>
-          <button class="btn" data-act="potion">🧪 Potion (${(game.character.inventory.find(i => i.itemId === 'potion_healing') || {}).qty || 0})</button>
+          <button class="btn" data-act="potion">🧪 Potion (${(game.character.inventory || []).filter(i => ['potion_healing', 'potion_greater'].includes(i.itemId)).reduce((s, i) => s + i.qty, 0)})</button>
           <button class="btn" data-act="endturn" ${myTurn ? '' : 'disabled'}>⏭ End Turn</button>
         </div>
         <div style="margin-top:8px;">${classActions(myTurn)}</div>
@@ -403,7 +405,12 @@ export async function playView(main, saveRef) {
       const a = b.dataset.act;
       if (a === 'rest') act({ type: 'rest', kind: 'short' });
       if (a === 'longrest') act({ type: 'rest', kind: 'long' });
-      if (a === 'potion') act({ type: 'useItem', itemId: 'potion_healing' });
+      if (a === 'potion') {
+        const inv = game.character.inventory || [];
+        const pot = inv.find(i => i.itemId === 'potion_healing' && i.qty > 0) || inv.find(i => i.itemId === 'potion_greater' && i.qty > 0);
+        if (pot) act({ type: 'useItem', itemId: pot.itemId });
+        else toast('No potions left — Marla sells more.');
+      }
       if (a === 'search') act({ type: 'freeform', text: 'search the area carefully' });
       if (a === 'respawn') act({ type: 'respawn' });
       if (a === 'journal') openJournal();

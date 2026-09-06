@@ -140,20 +140,20 @@ router.post('/:id/action', async (req, res) => {
           break;
         }
         case 'useItem': {
-          if (action.itemId === 'potion_healing') {
-            const inv = state.character.inventory.find(x => x.itemId === 'potion_healing' && x.qty > 0);
-            if (!inv) { events.push({ type: 'error', text: 'No potions left.' }); break; }
-            if (state.mode === 'combat') {
-              const econErr = consumeActionEconomy(state, 'bonus');
-              if (econErr) { events.push({ type: 'error', text: econErr }); break; }
-            }
-            inv.qty--;
-            const r = engine.rollExpr('2d4+2');
-            engine.healEntity(state, engine.playerEntity(state), r.total, events, 'Potion of Healing');
-            engine.addLog(state, 'mech', `${engine.playerEntity(state).name} drinks a Potion of Healing. ${inv.qty} remaining.`);
-          } else {
-            events.push({ type: 'error', text: 'Cannot use that item right now.' });
+          const gearDef = engine.byId(engine.GEAR, action.itemId);
+          const inv = state.character.inventory.find(x => x.itemId === action.itemId && x.qty > 0);
+          if (!gearDef || gearDef.type !== 'potion' || !gearDef.heal) {
+            events.push({ type: 'error', text: 'Cannot use that item right now.' }); break;
           }
+          if (!inv) { events.push({ type: 'error', text: 'None left.' }); break; }
+          if (state.mode === 'combat') {
+            const econErr = consumeActionEconomy(state, 'bonus');
+            if (econErr) { events.push({ type: 'error', text: econErr }); break; }
+          }
+          inv.qty--;
+          const r = engine.rollExpr(gearDef.heal);
+          engine.healEntity(state, engine.playerEntity(state), r.total, events, gearDef.name);
+          engine.addLog(state, 'mech', `${engine.playerEntity(state).name} drinks a ${gearDef.name} (${gearDef.heal}). ${inv.qty} remaining.`);
           break;
         }
         case 'dash': {

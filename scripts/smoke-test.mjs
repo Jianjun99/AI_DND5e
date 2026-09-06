@@ -27,7 +27,11 @@ async function waitHealthy() {
   const rules = await req('GET', '/api/rules');
   if (rules.classes.length !== 12) throw new Error(`Expected 12 classes, got ${rules.classes.length}`);
   if (rules.species.length !== 10) throw new Error(`Expected 10 species, got ${rules.species.length}`);
-  console.log('✔ rules: 12 classes, 10 species loaded');
+  for (const item of ['silver_sword', 'flame_dagger', 'crypt_cleaver', 'cloak_protection', 'amulet_of_vigor', 'potion_greater']) {
+    if (!rules.gear.some(g => g.id === item)) throw new Error(`Magic item missing from gear table: ${item}`);
+  }
+  if (!rules.shop.some(s => s.id === 'silver_sword')) throw new Error('Shop does not stock the Silver Shortsword');
+  console.log('✔ rules: 12 classes, 10 species, magic items and shop stock present');
 
   const char = await req('POST', '/api/characters', {
     name: 'Smoke TestHero',

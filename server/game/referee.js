@@ -125,12 +125,16 @@ function resolveFreeform(state, text) {
 
   // --- potion ---
   if (/\b(drink|quaff|sip)\b/.test(t) || /\b(use|take)\b.*potion/.test(t) || /\bheal\b/.test(t)) {
-    const inv = char.inventory.find(x => x.itemId === 'potion_healing' && x.qty > 0);
-    if (!inv) { events.push({ type: 'error', text: 'You have no potions left.' }); return { handled: true, events }; }
-    inv.qty--;
-    const r = engine.rollExpr('2d4+2');
-    const healed = engine.healEntity(state, p, r.total, events, 'Potion of Healing');
-    engine.addLog(state, 'mech', `${p.name} drinks a Potion of Healing (${r.total}). ${inv.qty} left.`);
+    const potionIds = ['potion_healing', 'potion_greater'];
+    const entry = potionIds
+      .map(id => ({ id, inv: char.inventory.find(x => x.itemId === id && x.qty > 0) }))
+      .find(p => p.inv);
+    if (!entry) { events.push({ type: 'error', text: 'You have no potions left.' }); return { handled: true, events }; }
+    entry.inv.qty--;
+    const def = engine.byId(engine.GEAR, entry.id);
+    const r = engine.rollExpr(def.heal);
+    engine.healEntity(state, p, r.total, events, def.name);
+    engine.addLog(state, 'mech', `${p.name} drinks a ${def.name}. ${entry.inv.qty} left.`);
     return { handled: true, events };
   }
 

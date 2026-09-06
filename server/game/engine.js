@@ -47,9 +47,34 @@ const DIFFICULTY = {
 // Marla's stock — validated server-side, rendered client-side from /api/rules
 const SHOP_ITEMS = [
   { id: 'potion_healing', name: 'Potion of Healing', price: 25, desc: 'Bonus action: regain 2d4+2 HP.' },
+  { id: 'potion_greater', name: 'Greater Healing Potion', price: 50, desc: 'Bonus action: regain 4d4+4 HP.' },
   { id: 'healers_kit', name: "Healer's Kit", price: 15, desc: 'Needed for the Healer feat; patches wounds.' },
-  { id: 'thieves_tools', name: "Thieves' Tools", price: 25, desc: 'Pick locks and disarm traps.' }
+  { id: 'thieves_tools', name: "Thieves' Tools", price: 25, desc: 'Pick locks and disarm traps.' },
+  { id: 'silver_sword', name: 'Silver Shortsword', price: 200, desc: 'Magic shortsword: +1 to attack and damage.' }
 ];
+
+// Weapons resolve either from the weapon table or from magic gear (built on a base weapon)
+function resolveWeapon(id) {
+  const w = byId(WEAPONS, id);
+  if (w) return w;
+  const g = byId(GEAR, id);
+  if (g && g.type === 'magic_weapon') {
+    const base = byId(WEAPONS, g.base) || { name: g.name, damage: '1d4', damageType: 'bludgeoning', props: [], type: 'simple_melee', range: 5 };
+    return Object.assign({}, base, { id, name: g.name, magic: g.magic || 0, bonusDamage: g.bonusDamage || null });
+  }
+  return null;
+}
+
+function itemName(id) {
+  const w = byId(WEAPONS, id), a = byId(ARMORS, id), g = byId(GEAR, id);
+  return (w || a || g || { name: id }).name;
+}
+
+function addItemToInventory(char, id, qty = 1) {
+  const existing = char.inventory.find(i => i.itemId === id);
+  if (existing) existing.qty += qty;
+  else char.inventory.push({ itemId: id, qty });
+}
 
 // ---------------------------------------------------------------- dice ----
 function die(n) { return 1 + Math.floor(Math.random() * n); }
@@ -199,6 +224,7 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel) {
   else if (char.invocations.includes('armor_of_shadows')) ac = 13 + dexM;
   else ac = 10 + dexM;
   if (char.inventory.some(i => i.itemId === 'shield')) ac += 2;
+  if (char.inventory.some(i => i.itemId === 'cloak_protection')) ac += (byId(GEAR, 'cloak_protection').acBonus || 0);
   char.acBase = ac;
 
   char.speedFt = eff.speed || sp.speed || 30;
@@ -218,7 +244,7 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel) {
   char.initBonus = dexM + ((FEATS[char.feat] || {}).initBonus || 0);
 
   char.attacks = char.inventory.map(inv => {
-    const w = byId(WEAPONS, inv.itemId);
+    const w = resolveWeapon(inv.itemId);
     if (!w) return null;
     const finesse = w.props.includes('finesse');
     const ranged = w.type.endsWith('ranged');
@@ -229,11 +255,13 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel) {
     let dmgMod = mod(ab);
     if (char.fightingStyle === 'archery' && ranged) bonus += 2;
     if (char.fightingStyle === 'dueling' && !w.props.includes('two_handed') && !w.props.includes('light')) dmgMod += 2;
+    if (w.magic) { bonus += w.magic; dmgMod += w.magic; }
     return {
       weaponId: w.id, name: w.name, bonus, dmgDice: w.damage, dmgMod, dmgType: w.damageType,
       ranged, range: w.range || 5, props: w.props,
       heavy: w.props.includes('heavy'), light: w.props.includes('light'),
-      twoHanded: w.props.includes('two_handed'), finesse, versatile: w.versatile || null
+      twoHanded: w.props.includes('two_handed'), finesse, versatile: w.versatile || null,
+      magic: w.magic || 0, bonusDamage: w.bonusDamage || null
     };
   }).filter(Boolean);
   const unarmedAb = abilities.str >= abilities.dex ? abilities.str : abilities.dex;
@@ -635,6 +663,7 @@ function applyDamage(state, target, amount, dmgType, events) {
       const ev = { type: 'kill', narrate: true, text: `${target.name} is destroyed! (+${target.xp} XP)`, data: { xp: target.xp } };
       events.push(ev); addLog(state, 'mech', ev.text);
       awardXp(state, target.xp, events);
+      rollLoot(state, target, events);
     } else if (target.kind === 'ally') {
       const ev = { type: 'ally_down', narrate: true, text: `${target.name} collapses!` };
       events.push(ev); addLog(state, 'mech', ev.text);
@@ -783,6 +812,11 @@ function playerAttack(state, targetId, weaponId, events) {
     bonusTxts.push(`+${r.total} ${b.type}`);
     if (b.oncePerTurn) state.flags['used_' + b.oncePerTurn] = true;
   });
+  if (atk.bonusDamage) {
+    const r = rollExpr(atk.bonusDamage.dice);
+    dmgTotal += r.total;
+    bonusTxts.push(`+${r.total} ${atk.bonusDamage.type}`);
+  }
   const text = `${p.name} strikes ${target.name} with ${atk.name}${crit ? ' — CRITICAL HIT!' : ''}: ${dmg.total}${bonusTxts.length ? ' ' + bonusTxts.join(' ') : ''} = ${dmgTotal} ${atk.dmgType} damage.`;
   events.push({ type: 'attack', narrate: true, text, data: { dmg: dmgTotal, crit, target: target.name } });
   addLog(state, 'mech', text);
@@ -1144,6 +1178,9 @@ function levelUp(state, newLevel, events) {
   const cls = byId(CLASSES, char.className);
   applyClassAndSpecies(char, cls, null, newLevel);
   char.hp = char.hpMax;
+  // keep the player entity in step with the raised hit points
+  const pe = playerEntity(state);
+  if (pe) { pe.hpMax = char.hpMax; pe.hp = char.hpMax; pe.ac = char.acBase; }
   if (cls.spellcasting && cls.spellcasting.type === 'known') {
     const list = SPELLS.filter(s => s.level === 1 && s.classes.includes(char.className) && !char.spellcasting.spells.includes(s.id));
     if (list.length) char.spellcasting.spells.push(list[0].id);
@@ -1242,12 +1279,60 @@ function lootChest(state, chest, events) {
   chest.looted = true;
   const char = state.character;
   char.gold += chest.loot.gold || 0;
-  for (let i = 0; i < (chest.loot.potions || 0); i++) {
-    const inv = char.inventory.find(x => x.itemId === 'potion_healing');
-    if (inv) inv.qty++; else char.inventory.push({ itemId: 'potion_healing', qty: 1 });
-  }
-  const ev = { type: 'loot', narrate: true, text: `${p_name(state)} pries open the ${chest.name}: ${chest.loot.gold || 0} gold pieces${chest.loot.potions ? ` and ${chest.loot.potions} Potion${chest.loot.potions > 1 ? 's' : ''} of Healing` : ''}!` };
+  const parts = [];
+  for (let i = 0; i < (chest.loot.potions || 0); i++) addItemToInventory(char, 'potion_healing');
+  (chest.loot.items || []).forEach(it => { addItemToInventory(char, it.id, it.qty || 1); parts.push(itemName(it.id)); });
+  applyPickupEffects(state, chest.loot.items || [], events);
+  const ev = {
+    type: 'loot', narrate: true,
+    text: `${p_name(state)} pries open the ${chest.name}: ${chest.loot.gold || 0} gold pieces` +
+      `${chest.loot.potions ? `, ${chest.loot.potions} Potion${chest.loot.potions > 1 ? 's' : ''} of Healing` : ''}` +
+      `${parts.length ? ` — and ${parts.join(', ')}!` : '!'}` +
+      `${parts.length ? ' A treasure of real power.' : ''}`
+  };
   events.push(ev); addLog(state, 'mech', ev.text);
+}
+
+// Roll a slain monster's loot table: gold dice + chance-based items
+function rollLoot(state, mon, events) {
+  const def = byId(MONSTERS, mon.monsterId);
+  if (!def || !def.loot) return;
+  const char = state.character;
+  const parts = [];
+  if (def.loot.gold) {
+    const g = rollExpr(def.loot.gold).total;
+    if (g > 0) { char.gold += g; parts.push(`${g} gp`); }
+  }
+  const gained = [];
+  (def.loot.items || []).forEach(it => {
+    if (Math.random() < (it.chance === undefined ? 1 : it.chance)) {
+      const qty = it.qty || 1;
+      addItemToInventory(char, it.id, qty);
+      parts.push(itemName(it.id));
+      gained.push(it);
+    }
+  });
+  applyPickupEffects(state, gained, events);
+  if (parts.length) {
+    const ev = { type: 'loot', narrate: true, text: `${mon.name} drops ${parts.join(', ')}!` };
+    events.push(ev); addLog(state, 'mech', ev.text);
+  }
+}
+
+// One-time effects when magic trinkets enter the pack (e.g. Amulet of Vigor: +5 max HP)
+function applyPickupEffects(state, items, events) {
+  if (!items || !items.length) return;
+  const char = state.character;
+  const pe = playerEntity(state);
+  items.forEach(it => {
+    const def = byId(GEAR, it.id);
+    if (def && def.hpBonus) {
+      char.hpMax += def.hpBonus * (it.qty || 1);
+      if (pe) { pe.hpMax = char.hpMax; pe.hp = Math.min(pe.hpMax, pe.hp + def.hpBonus * (it.qty || 1)); }
+      const ev = { type: 'magic_item', narrate: true, text: `The ${def.name} settles against your chest and thrums — you feel hardier! (+${def.hpBonus * (it.qty || 1)} max HP)` };
+      events.push(ev); addLog(state, 'mech', ev.text);
+    }
+  });
 }
 
 function alertForcedNoise(state, events) {
@@ -1361,5 +1446,6 @@ module.exports = {
   alertCheck, startCombat, checkCombatEnd, processUntilPlayer,
   movePlayer, playerAttack, castSpell, findSpell, interactObject, interactDoor,
   shortRest, longRest, skillCheck, damageRoll, applyDamage, healEntity, awardXp, checkPlayerDeath,
-  triggerTrap, noticeTrapsNearby, alertForcedNoise, attackMods, monsterAttack, processMonsterTurn, processAllyTurn
+  triggerTrap, noticeTrapsNearby, alertForcedNoise, attackMods, monsterAttack, processMonsterTurn, processAllyTurn,
+  rollLoot, lootChest, applyPickupEffects, itemName, addItemToInventory, resolveWeapon
 };
