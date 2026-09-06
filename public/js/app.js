@@ -18,10 +18,16 @@ export async function loadRules() {
 }
 
 export function charObjective(game) {
-  if (game.flags.victory) return '🏆 You escaped with the Relic of the Sunless Crypt. Legendary!';
-  if (game.mode === 'over') return '💀 You have fallen. Recover at camp to try again — the crypt resets its guardians.';
-  if (game.flags.hasRelic) return '💎 You carry the Relic! Return to the campfire in the Entrance Hall to escape.';
-  return '💎 Steal the Relic of the Sunless Crypt from the altar in the deepest sanctum, then escape to the campfire. Legends speak of an ogre that guards it…';
+  if (game.flags.victory) return '🏆 Victory! The delve is complete — legendary.';
+  if (game.mode === 'over') return '💀 You have fallen. Recover at camp to try again — the dungeon resets its guardians.';
+  const camp = (game.map.victory && game.map.victory.campfire) || game.map.victoryTile;
+  if (game.map.victory && game.map.victory.type === 'slay_boss') {
+    const bossAlive = game.entities.some(e => e.boss && e.alive && !e.fled);
+    if (!bossAlive) return '🏆 The guardian is slain! Return to the campfire to claim the vault.';
+    return '⚔ ' + (game.map.objectiveText || 'Slay the dungeon\'s guardian, then return to camp.');
+  }
+  if (game.flags.hasRelic) return '💎 You carry the Relic! Return to the campfire to escape.';
+  return '💎 ' + (game.map.objectiveText || 'Steal the Relic of the Sunless Crypt from the altar in the deepest sanctum, then escape to the campfire. Legends speak of an ogre that guards it…');
 }
 
 export function toast(msg) {

@@ -1,0 +1,12 @@
+{
+  "gear": [
+    {
+      "id": "wardens_shield",
+      "name": "Warden's Shield",
+      "type": "shield",
+      "acBonus": 3,
+      "cost": 150,
+      "desc": "+3 AC — a tower shield etched with warding runes."
+    }
+  ]
+}

@@ -24,6 +24,16 @@ export async function homeView(main) {
            <p style="margin-top:14px;"><a class="btn primary big" href="#/create">Create your first hero</a></p>
          </div>`}
     <div class="card" style="margin-top:18px;">
+      <h3>🧩 Content Packs</h3>
+      <p class="small muted" style="margin-bottom:10px;">Add community-made dungeons and monsters — import a pack file, or <a href="https://github.com/Jianjun99/AI_DND5e/blob/main/MODDING.md" target="_blank">write your own</a>.</p>
+      <div id="packList" class="small" style="margin-bottom:10px;"></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" id="packImportBtn">⬆ Import pack</button>
+        <input type="file" id="packFile" hidden accept=".json,application/json">
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
         <div>
           <h3 style="margin-bottom:2px;">💾 Backup & Restore</h3>
@@ -37,6 +47,48 @@ export async function homeView(main) {
       </div>
     </div>
   `;
+
+  // content packs
+  (async () => {
+    try {
+      const c = await (await fetch('/api/content')).json();
+      const list = document.getElementById('packList');
+      if (!list) return;
+      list.innerHTML = c.packs.map(p => `
+        <div class="stat-line">
+          <span><b>${esc(p.name)}</b> <span class="muted">by ${esc(p.author)}</span>
+            <span class="muted small">— ${p.maps.length} map(s), ${p.monsters.length} monster(s)${p.gear.length ? ', ' + p.gear.length + ' item(s)' : ''}</span></span>
+          <span>${p.id !== 'core' ? `<button class="btn small" data-packexport="${esc(p.id)}">⬇ Export</button>` : '<span class="chip">built-in</span>'}</span>
+        </div>`).join('');
+      if (c.warnings && c.warnings.length) {
+        list.innerHTML += `<p class="small" style="color:#d98a80;">⚠ ${esc(c.warnings.join(' · '))}</p>`;
+      }
+      list.querySelectorAll('[data-packexport]').forEach(b => b.addEventListener('click', async () => {
+        const blob = await (await fetch(`/api/content/pack/${b.dataset.packexport}/export`)).blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${b.dataset.packexport}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }));
+    } catch {}
+  })();
+
+  document.getElementById('packImportBtn').addEventListener('click', () => document.getElementById('packFile').click());
+  document.getElementById('packFile').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const res = await fetch('/api/content/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const out = await res.json();
+      if (!res.ok) throw new Error(out.error || 'Import failed');
+      toast(`Pack "${out.pack.name}" imported: ${out.pack.maps.length} map(s), ${out.pack.monsters.length} monster(s). It's in the map list when you start a delve.`);
+      navigate();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
 
   document.getElementById('exportBtn').addEventListener('click', async () => {
     const data = await (await fetch('/api/data/export')).json();

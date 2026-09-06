@@ -1,6 +1,8 @@
 {
   "id": "crypt",
   "name": "The Sunless Crypt",
+  "blurb": "A torch-lit crypt of bones, goblins and a sleeping ogre. Steal the Relic from the deepest sanctum and escape alive.",
+  "objectiveText": "Steal the Relic of the Sunless Crypt from the altar in the deepest sanctum, then escape to your campfire in the Entrance Hall.",
   "width": 34,
   "height": 24,
   "tileSizeFt": 5,

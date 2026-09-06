@@ -48,14 +48,14 @@ function requireAlive(state, events) {
 
 // ---------------- routes ----------------
 router.post('/start', async (req, res) => {
-  const { characterId, bringAlly, difficulty } = req.body || {};
+  const { characterId, bringAlly, difficulty, mapId } = req.body || {};
   const char = findCharacter(characterId);
   if (!char) return res.status(404).json({ error: 'Character not found' });
-  const state = engine.startGame(char, { bringAlly: !!bringAlly, difficulty });
+  const state = engine.startGame(char, { bringAlly: !!bringAlly, difficulty, mapId });
   const events = [];
   const intro = {
     type: 'scene', narrate: true,
-    text: `The crypt door grinds shut behind ${char.name}. Only the campfire's glow and the dark ahead. Somewhere below waits the Relic of the Sunless Crypt.`
+    text: `${state.mapName} closes around ${char.name}. ${state.map.objectiveText || 'The dark ahead is waiting.'}`
   };
   events.push(intro);
   engine.addLog(state, 'dm_canned', intro.text);
@@ -258,7 +258,7 @@ router.post('/:id/action', async (req, res) => {
         }
         case 'recap': {
           if (!requireAlive(state, events)) break;
-          const camp = state.map.victoryTile;
+          const camp = (state.map.victory && state.map.victory.campfire) || state.map.victoryTile;
           const p0 = engine.playerEntity(state);
           if (!(p0.x === camp.x && p0.y === camp.y)) {
             events.push({ type: 'error', text: 'You can only write in your journal at the campfire.' });
@@ -270,6 +270,26 @@ router.post('/:id/action', async (req, res) => {
           const ev = { type: 'journal', narrate: false, text: entry, data: { entry } };
           events.push(ev);
           engine.addLog(state, 'system', '📖 You scratch a new entry into your journal.');
+          break;
+        }
+        case 'quest': {
+          if (!requireAlive(state, events)) break;
+          const campQ = (state.map.victory && state.map.victory.campfire) || state.map.victoryTile;
+          const pq = engine.playerEntity(state);
+          if (!campQ || !(pq.x === campQ.x && pq.y === campQ.y)) {
+            events.push({ type: 'error', text: 'Side quests are offered around the campfire — come back and ask around.' });
+            break;
+          }
+          if (state.quests && state.quests.active) {
+            events.push({ type: 'info', text: `You already have work: ${state.quests.active.shortText}. Finish that first.` });
+            break;
+          }
+          const quest = engine.rollSideQuest(state, events);
+          if (!quest) { events.push({ type: 'info', text: 'No one at camp has work to offer tonight.' }); break; }
+          const llmText = await dm.questText(state, quest);
+          if (llmText) quest.text = llmText;
+          events.push({ type: 'quest_offer', narrate: true, text: quest.text, data: { quest } });
+          engine.addLog(state, 'system', `📜 New side quest: ${quest.shortText} (${quest.reward.gold} gp, ${quest.reward.xp} XP)`);
           break;
         }
         default:

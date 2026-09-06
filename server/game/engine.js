@@ -2,6 +2,7 @@
 // The engine is deterministic: the LLM (if any) only narrates what the engine resolves.
 const path = require('path');
 const fs = require('fs');
+const content = require('./content');
 
 const SHARED = path.join(__dirname, '..', '..', 'shared');
 const load = (f) => JSON.parse(fs.readFileSync(path.join(SHARED, f), 'utf8'));
@@ -57,7 +58,7 @@ const SHOP_ITEMS = [
 function resolveWeapon(id) {
   const w = byId(WEAPONS, id);
   if (w) return w;
-  const g = byId(GEAR, id);
+  const g = content.getGear(id);
   if (g && g.type === 'magic_weapon') {
     const base = byId(WEAPONS, g.base) || { name: g.name, damage: '1d4', damageType: 'bludgeoning', props: [], type: 'simple_melee', range: 5 };
     return Object.assign({}, base, { id, name: g.name, magic: g.magic || 0, bonusDamage: g.bonusDamage || null });
@@ -66,7 +67,7 @@ function resolveWeapon(id) {
 }
 
 function itemName(id) {
-  const w = byId(WEAPONS, id), a = byId(ARMORS, id), g = byId(GEAR, id);
+  const w = byId(WEAPONS, id), a = byId(ARMORS, id), g = content.getGear(id);
   return (w || a || g || { name: id }).name;
 }
 
@@ -224,7 +225,13 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel) {
   else if (char.invocations.includes('armor_of_shadows')) ac = 13 + dexM;
   else ac = 10 + dexM;
   if (char.inventory.some(i => i.itemId === 'shield')) ac += 2;
-  if (char.inventory.some(i => i.itemId === 'cloak_protection')) ac += (byId(GEAR, 'cloak_protection').acBonus || 0);
+  // shields from gear (core or packs) contribute their listed bonus; cloak adds its own
+  char.inventory.forEach(i => {
+    const g = content.getGear(i.itemId);
+    if (g && g.type === 'shield' && i.itemId !== 'shield') ac += (g.acBonus || 0);
+    if (g && g.id === 'cloak_protection') ac += (g.acBonus || 0);
+  });
+  if (char.fightingStyle === 'defense') ac += 1;
   char.acBase = ac;
 
   char.speedFt = eff.speed || sp.speed || 30;
@@ -314,7 +321,11 @@ function skillMod(char, skill) {
 function passivePerception(char) { return 10 + skillMod(char, 'perception'); }
 
 // ------------------------------------------------------------- map utils ----
-function getMap(mapId) { return MAPS[mapId] || MAPS.crypt; }
+function getMap(mapId) { return content.getMap(mapId); }
+// victory campfire, tolerant of old saves that predate the victory object
+function campfireOf(state) {
+  return (state.map.victory && state.map.victory.campfire) || state.map.victoryTile || null;
+}
 function tileChar(map, x, y) {
   if (y < 0 || y >= map.height || x < 0 || x >= map.width) return '#';
   return map.rows[y][x];
@@ -391,13 +402,14 @@ function markDiscovered(state, visible) {
 
 // ------------------------------------------------------------- game setup ----
 function startGame(character, options = {}) {
-  const mapDef = getMap('crypt');
-  const map = JSON.parse(JSON.stringify(mapDef));
+  const mapDef = JSON.parse(JSON.stringify(content.getMap(options.mapId)));
+  const map = mapDef;
   const difficulty = DIFFICULTY[options.difficulty] ? options.difficulty : 'normal';
   const state = {
     id: 'save_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     characterId: character.id, character: JSON.parse(JSON.stringify(character)),
-    mapName: map.name, map, mode: 'explore', difficulty,
+    mapId: map.id, mapName: map.name, map, mode: 'explore', difficulty,
+    quests: { active: null, completed: [] },
     entities: [], objects: [], discovered: [], flags: { hasRelic: false, altarBlessed: false, victory: false, failed: false },
     npcChat: {}, stealth: null, log: [], journal: [], appearances: {}, createdAt: Date.now(), updatedAt: Date.now()
   };
@@ -424,7 +436,8 @@ function startGame(character, options = {}) {
 
   map.entities.forEach(e => {
     if (e.type === 'monster') {
-      const def = byId(MONSTERS, e.kind);
+      const def = content.getMonster(e.kind);
+      if (!def) { addLog(state, 'system', `Warning: unknown monster kind "${e.kind}" on this map — skipped.`); return; }
       const hp = Math.max(1, Math.round(rollExpr(def.hp).total * DIFFICULTY[difficulty].hpMult));
       state.entities.push({
         id: e.id, kind: 'monster', monsterId: e.kind, name: e.name || def.name,
@@ -664,6 +677,7 @@ function applyDamage(state, target, amount, dmgType, events) {
       events.push(ev); addLog(state, 'mech', ev.text);
       awardXp(state, target.xp, events);
       rollLoot(state, target, events);
+      checkQuest(state, 'slay', target.monsterId, events);
     } else if (target.kind === 'ally') {
       const ev = { type: 'ally_down', narrate: true, text: `${target.name} collapses!` };
       events.push(ev); addLog(state, 'mech', ev.text);
@@ -1068,18 +1082,67 @@ function checkRoomEntry(state, events) {
     state.flags['room_' + room.id] = true;
     const ev = { type: 'scene', narrate: true, text: `${room.name}: ${room.desc}`, data: { room: room.id, roomName: room.name } };
     events.push(ev); addLog(state, 'dm_canned', ev.text);
+    checkQuest(state, 'explore', room.id, events);
   }
+}
+
+// ------------------------------------------------------------- side quests ----
+// One active side quest at a time. The server picks a REAL target (a living
+// monster, an unlooted chest, an unvisited room); the LLM only writes the hook.
+function fallbackQuestText(c) {
+  if (c.type === 'slay') return `A scarred sellsword slides a heavy pouch across the campfire. "Every ${c.targetName.toLowerCase()} that stops breathing down there makes the road home safer. Handle it, and this is yours."`;
+  if (c.type === 'recover') return `"I stashed something in the ${c.targetName.toLowerCase()} before the horrors moved in," mutters a one-eyed prospector. "Bring back what's inside and the pouch is yours. Don't go opening my other caches."`;
+  return `"Nobody who walked into the ${c.targetName.toLowerCase()} came back with a sound mind," an old delver says, not looking up. "Walk it end to end, put your eyes on every corner, and we'll call your debts settled."`;
+}
+
+function rollSideQuest(state) {
+  if (state.quests && state.quests.active) return null;
+  const cands = [];
+  state.entities.filter(e => e.kind === 'monster' && e.alive && !e.fled).forEach(m => cands.push({ type: 'slay', target: m.monsterId, targetName: m.name }));
+  state.objects.filter(o => o.type === 'chest' && !o.looted).forEach(c => cands.push({ type: 'recover', target: c.id, targetName: c.name }));
+  (state.map.rooms || []).forEach(r => { if (!state.flags['room_' + r.id]) cands.push({ type: 'explore', target: r.id, targetName: r.name }); });
+  if (!cands.length) return null;
+  const c = cands[die(cands.length) - 1];
+  const quest = {
+    id: 'q_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+    type: c.type, target: c.target, targetName: c.targetName,
+    shortText: c.type === 'slay' ? `Cull the ${c.targetName}s` : c.type === 'recover' ? `Recover the ${c.targetName}` : `Explore the ${c.targetName}`,
+    text: fallbackQuestText(c),
+    reward: { gold: 25 + die(5) * 10, xp: 25 + die(6) * 5 },
+    created: Date.now()
+  };
+  state.quests = state.quests || { active: null, completed: [] };
+  state.quests.active = quest;
+  return quest;
+}
+
+function checkQuest(state, type, target, events) {
+  const q = state.quests && state.quests.active;
+  if (!q || q.type !== type || q.target !== target) return;
+  state.quests.active = null;
+  state.quests.completed.push({ shortText: q.shortText, text: q.text, reward: q.reward, ts: Date.now() });
+  if (q.reward.gold) state.character.gold += q.reward.gold;
+  const ev = { type: 'quest_done', narrate: true, text: `SIDE QUEST COMPLETE — ${q.shortText}! You collect ${q.reward.gold} gp and ${q.reward.xp} XP.` };
+  events.push(ev); addLog(state, 'system', ev.text);
+  awardXp(state, q.reward.xp, events);
 }
 
 function checkVictory(state, events) {
   const p = playerEntity(state);
-  const v = state.map.victoryTile;
-  if (state.flags.hasRelic && p.x === v.x && p.y === v.y && state.mode === 'explore') {
-    state.mode = 'victory'; state.flags.victory = true;
-    awardXp(state, 100, events);
-    const ev = { type: 'victory', narrate: true, text: `VICTORY! ${p.name} slips out of the crypt into daylight, the Relic of the Sunless Crypt in hand. The delve is complete! (+100 XP)` };
-    events.push(ev); addLog(state, 'system', ev.text);
-  }
+  const v = state.map.victory || { type: 'fetch_relic', campfire: state.map.victoryTile };
+  const camp = campfireOf(state);
+  if (!camp) return;
+  if (!(p.x === camp.x && p.y === camp.y) || state.mode !== 'explore') return;
+  let won = false;
+  if (v.type === 'slay_boss') {
+    const bossAlive = state.entities.some(e => e.kind === 'monster' && e.boss && e.alive && !e.fled);
+    if (!bossAlive) won = true;
+  } else if (state.flags.hasRelic) won = true;
+  if (!won) return;
+  state.mode = 'victory'; state.flags.victory = true;
+  awardXp(state, 100, events);
+  const ev = { type: 'victory', narrate: true, text: `VICTORY! ${p.name} escapes ${state.mapName} into daylight${v.type === 'slay_boss' ? ', leaving a broken guardian behind' : ', the prize in hand'}. The delve is complete! (+100 XP)` };
+  events.push(ev); addLog(state, 'system', ev.text);
 }
 
 // ---------------------------------------------------------------- monster AI ----
@@ -1230,8 +1293,8 @@ function longRest(state, events) {
   const char = state.character;
   const p = playerEntity(state);
   if (state.mode === 'combat') { events.push({ type: 'error', text: 'You cannot rest while enemies are near!' }); return; }
-  const camp = state.map.victoryTile;
-  if (!(p.x === camp.x && p.y === camp.y)) { events.push({ type: 'error', text: 'You can only take a long rest at your campfire in the Entrance Hall.' }); return; }
+  const camp = campfireOf(state);
+  if (!camp || !(p.x === camp.x && p.y === camp.y)) { events.push({ type: 'error', text: 'You can only take a long rest at your campfire in the Entrance Hall.' }); return; }
   p.hp = p.hpMax; p.tempHp = 0; p.conditions = [];
   char.hdUsed = 0;
   char.slots = { ...char.slotsMax };
@@ -1283,6 +1346,7 @@ function lootChest(state, chest, events) {
   for (let i = 0; i < (chest.loot.potions || 0); i++) addItemToInventory(char, 'potion_healing');
   (chest.loot.items || []).forEach(it => { addItemToInventory(char, it.id, it.qty || 1); parts.push(itemName(it.id)); });
   applyPickupEffects(state, chest.loot.items || [], events);
+  checkQuest(state, 'recover', chest.id, events);
   const ev = {
     type: 'loot', narrate: true,
     text: `${p_name(state)} pries open the ${chest.name}: ${chest.loot.gold || 0} gold pieces` +
@@ -1295,7 +1359,7 @@ function lootChest(state, chest, events) {
 
 // Roll a slain monster's loot table: gold dice + chance-based items
 function rollLoot(state, mon, events) {
-  const def = byId(MONSTERS, mon.monsterId);
+  const def = content.getMonster(mon.monsterId);
   if (!def || !def.loot) return;
   const char = state.character;
   const parts = [];
@@ -1325,7 +1389,7 @@ function applyPickupEffects(state, items, events) {
   const char = state.character;
   const pe = playerEntity(state);
   items.forEach(it => {
-    const def = byId(GEAR, it.id);
+    const def = content.getGear(it.id);
     if (def && def.hpBonus) {
       char.hpMax += def.hpBonus * (it.qty || 1);
       if (pe) { pe.hpMax = char.hpMax; pe.hp = Math.min(pe.hpMax, pe.hp + def.hpBonus * (it.qty || 1)); }
@@ -1447,5 +1511,6 @@ module.exports = {
   movePlayer, playerAttack, castSpell, findSpell, interactObject, interactDoor,
   shortRest, longRest, skillCheck, damageRoll, applyDamage, healEntity, awardXp, checkPlayerDeath,
   triggerTrap, noticeTrapsNearby, alertForcedNoise, attackMods, monsterAttack, processMonsterTurn, processAllyTurn,
-  rollLoot, lootChest, applyPickupEffects, itemName, addItemToInventory, resolveWeapon
+  rollLoot, lootChest, applyPickupEffects, itemName, addItemToInventory, resolveWeapon,
+  rollSideQuest, checkQuest, campfireOf
 };

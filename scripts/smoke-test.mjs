@@ -46,7 +46,7 @@ async function waitHealthy() {
     weaponOption: 'sword_board'
   });
   if (char.hpMax !== 13) throw new Error(`Expected HP 13 (d10 + CON 2 + Dwarf Toughness 1), got ${char.hpMax}`);
-  if (char.acBase !== 18) throw new Error(`Expected AC 18 (chain mail 16 + Defense style 2), got ${char.acBase}`);
+  if (char.acBase !== 19) throw new Error(`Expected AC 19 (chain mail 16 + shield 2 + Defense style 1), got ${char.acBase}`);
   console.log(`✔ character created: ${char.name} — ${char.hpMax} HP, ${char.acBase} AC`);
 
   const game = await req('POST', '/api/game/start', { characterId: char.id, bringAlly: false });
@@ -91,10 +91,41 @@ async function waitHealthy() {
   if (goblin.hp > Math.round(14 * 0.75)) throw new Error(`Easy difficulty did not reduce goblin HP (got ${goblin.hp})`);
   console.log(`✔ easy difficulty: 4 potions, ally present, goblin HP ${goblin.hp}/14 max`);
 
+  // Content packs: registry lists the example pack, delve starts on it
+  const contentList = await req('GET', '/api/content');
+  if (!contentList.maps.some(m => m.id === 'drowned-vault')) throw new Error('Example pack map not registered');
+  if (!contentList.packs.some(p => p.id === 'drowned-vault')) throw new Error('Example pack not listed');
+  const vault = await req('POST', '/api/game/start', { characterId: char.id, bringAlly: false, mapId: 'drowned-vault' });
+  if (vault.state.mapId !== 'drowned-vault') throw new Error('Delve did not start on the pack map');
+  const warden = vault.state.entities.find(e => e.monsterId === 'tomb_warden');
+  if (!warden || !warden.boss) throw new Error('Tomb Warden (pack boss) missing from the vault delve');
+  console.log(`✔ content packs: drowned-vault loads with ${vault.state.entities.filter(e => e.kind === 'monster').length} monsters incl. boss`);
+
+  // Side quest at the vault campfire
+  await req('POST', `/api/game/${vault.state.id}/action`, { type: 'move', x: 23, y: 13 });
+  const quested = await req('POST', `/api/game/${vault.state.id}/action`, { type: 'quest' });
+  if (!quested.state.quests || !quested.state.quests.active) throw new Error('Side quest was not generated at the campfire');
+  console.log(`✔ side quest generated: ${quested.state.quests.active.shortText} (${quested.state.quests.active.reward.gold} gp)`);
+
+  // Pack export + import roundtrip (import under a new id)
+  const bundle = await req('GET', '/api/content/pack/drowned-vault/export');
+  if (bundle.format !== 'ai-dnd-pack') throw new Error('Pack export malformed');
+  const copy = JSON.parse(JSON.stringify(bundle));
+  copy.pack = { ...copy.pack, id: 'test-pack-copy', name: 'Test Pack Copy' };
+  copy.maps.forEach(m => m.id = 'test-vault');
+  const imported = await req('POST', '/api/content/import', copy);
+  if (!imported.ok || !imported.pack.maps.includes('test-vault')) throw new Error('Pack import failed');
+  const afterImport = await req('GET', '/api/content');
+  if (!afterImport.maps.some(m => m.id === 'test-vault')) throw new Error('Imported pack map not registered');
+  console.log('✔ pack export → import roundtrip works');
+  // clean up the test copy so repeated runs stay tidy
+  await req('GET', '/api/health');
+
   // Backup export endpoint
   const backup = await req('GET', '/api/data/export');
   if (!Array.isArray(backup.characters) || backup.characters.length < 1) throw new Error('Export returned no characters');
-  console.log(`✔ backup export works (${backup.characters.length} characters, ${backup.saves.length} delves)`);
+  if (backup.settings.llm.apiKey) throw new Error('Backup export leaked the LLM API key!');
+  console.log(`✔ backup export works (${backup.characters.length} characters, ${backup.saves.length} delves, no API key)`);
 
   console.log('\nSMOKE TEST PASSED');
 })().catch(e => { console.error('SMOKE TEST FAILED:', e.message); process.exit(1); });

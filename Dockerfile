@@ -14,6 +14,7 @@ RUN npm install --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY server ./server
 COPY shared ./shared
 COPY public ./public
+COPY content ./content
 
 # Persist characters, saves and settings here (mount a volume)
 RUN mkdir -p /app/data && chown -R node:node /app/data

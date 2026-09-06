@@ -140,7 +140,7 @@ function resolveFreeform(state, text) {
 
   // --- rest ---
   if (/\b(rest|camp|sleep)\b/.test(t)) {
-    const camp = state.map.victoryTile;
+    const camp = (state.map.victory && state.map.victory.campfire) || state.map.victoryTile;
     if (p.x === camp.x && p.y === camp.y && /\b(long|sleep|night|dawn)\b/.test(t)) engine.longRest(state, events);
     else engine.shortRest(state, events);
     return { handled: true, events };
@@ -256,6 +256,25 @@ function resolveFreeform(state, text) {
     if (inv) inv.qty++; else char.inventory.push({ itemId, qty: 1 });
     const ev = { type: 'shop', narrate: true, text: `${p.name} buys ${item.name} from Marla for ${item.price} gp.` };
     events.push(ev); engine.addLog(state, 'mech', `${p.name} buys ${item.name} (−${item.price} gp, ${char.gold} left).`);
+    return { handled: true, events };
+  }
+
+  // --- side quests ---
+  if (/\b(quest|work|job|bounty|gig)\b/.test(t)) {
+    const camp = (state.map.victory && state.map.victory.campfire) || state.map.victoryTile;
+    if (!camp || !(p.x === camp.x && p.y === camp.y)) {
+      events.push({ type: 'error', text: 'Work is offered around the campfire — go back and ask around.' });
+      return { handled: true, events };
+    }
+    if (state.quests && state.quests.active) {
+      events.push({ type: 'info', text: `You already have work: ${state.quests.active.shortText}.` });
+      return { handled: true, events };
+    }
+    const quest = engine.rollSideQuest(state);
+    if (!quest) { events.push({ type: 'info', text: 'No one has work to offer tonight.' }); return { handled: true, events }; }
+    const ev = { type: 'quest_offer', narrate: true, text: quest.text, data: { quest } };
+    events.push(ev);
+    engine.addLog(state, 'system', `📜 New side quest: ${quest.shortText} (${quest.reward.gold} gp, ${quest.reward.xp} XP)`);
     return { handled: true, events };
   }
 

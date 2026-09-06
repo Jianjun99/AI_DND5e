@@ -11,18 +11,29 @@ let appearanceShown = null;
 let busy = false;
 
 export async function playView(main, saveRef) {
-  // Start a fresh delve: show the setup modal (difficulty + companion)
+  // Start a fresh delve: show the setup modal (map + difficulty + companion)
   if (saveRef === 'new') {
     const charId = new URLSearchParams(location.hash.split('?')[1] || '').get('char');
     if (!charId) { location.hash = '#/'; return; }
     const chars = await api.listCharacters();
     const char = chars.find(c => c.id === charId);
     const rules = appState.rules;
+    let maps = [];
+    try { maps = (await (await fetch('/api/content')).json()).maps || []; } catch {}
     main.innerHTML = `
       <div class="modal-back" style="position:static; background:none; display:block; padding-top:30px;">
-        <div class="modal" style="max-width:640px; margin:0 auto;">
+        <div class="modal" style="max-width:680px; margin:0 auto;">
           <h2>Prepare the delve</h2>
-          <p class="muted small">${esc(char ? char.name : 'Your hero')} descends into <b>The Sunless Crypt</b>. Choose the terms:</p>
+          <p class="muted small">${esc(char ? char.name : 'Your hero')} gathers supplies. Choose where to descend:</p>
+          <div class="card" style="margin:12px 0;">
+            <h3>Destination</h3>
+            ${maps.map((m, i) => `
+              <label style="display:block; margin:8px 0; color:var(--text); cursor:pointer;">
+                <input type="radio" name="mapPick" value="${esc(m.id)}" ${i === 0 ? 'checked' : ''} style="width:auto">
+                <b>${esc(m.name)}</b> <span class="chip">${esc(m.pack)}</span>
+                <span class="muted small">— ${esc(m.blurb || m.objectiveText || '')}</span>
+              </label>`).join('')}
+          </div>
           <div class="card" style="margin:12px 0;">
             <h3>Difficulty</h3>
             ${Object.entries(rules.difficulty || {}).map(([id, d]) => `
@@ -37,14 +48,15 @@ export async function playView(main, saveRef) {
               🏹 Bring <b>Bram the Scout</b> as an AI companion <span class="muted small">(recommended for solo balance)</span>
             </label>
           </div>
-          <button class="btn primary big" id="beginBtn" style="width:100%;">⚔ Descend into the Crypt</button>
+          <button class="btn primary big" id="beginBtn" style="width:100%;">⚔ Descend</button>
         </div>
       </div>`;
     document.getElementById('beginBtn').addEventListener('click', async () => {
+      const mapId = (document.querySelector('input[name="mapPick"]:checked') || {}).value || 'crypt';
       const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
       const bringAlly = document.getElementById('allyToggle').checked;
       try {
-        const { state } = await api.startGame(charId, { bringAlly, difficulty });
+        const { state } = await api.startGame(charId, { bringAlly, difficulty, mapId });
         location.hash = `#/play/${state.id}`;
       } catch (e) { toast(e.message); }
     });
@@ -117,7 +129,7 @@ export async function playView(main, saveRef) {
   function player() { return game.entities.find(e => e.kind === 'player'); }
 
   function atCampfire() {
-    const camp = game.map.victoryTile;
+    const camp = (game.map.victory && game.map.victory.campfire) || game.map.victoryTile;
     const p = player();
     return p.x === camp.x && p.y === camp.y;
   }
@@ -193,6 +205,9 @@ export async function playView(main, saveRef) {
             <p style="font-family:var(--font-serif); font-size:14.5px;">${esc(e2.text)}</p>
           </div>`).join('')
         : '<p class="muted" style="margin:14px 0;">Your journal is empty. Write an entry at the campfire — every long rest adds one.</p>'}
+        ${(game.quests?.completed || []).length ? `
+          <h3 style="margin-top:14px;">📜 Completed side quests</h3>
+          ${game.quests.completed.map(q => `<div class="stat-line"><span>${esc(q.shortText)}</span><span>+${q.reward.gold} gp · +${q.reward.xp} XP</span></div>`).join('')}` : ''}
         <div style="text-align:center; margin-top:12px;">
           <button class="btn small" id="closeJournal">Close</button>
         </div>
@@ -294,6 +309,14 @@ export async function playView(main, saveRef) {
         <p class="small" style="font-family:var(--font-serif); color:var(--parchment); margin:0;">${esc(appearanceShown)}</p>
       </div>` : ''}
 
+      ${game.quests && game.quests.active ? `
+      <div class="card" style="border-color:var(--gold-dim);">
+        <h3>📜 Side Quest</h3>
+        <p class="small" style="color:var(--gold); font-weight:600;">${esc(game.quests.active.shortText)}</p>
+        <p class="small muted">${esc(game.quests.active.text)}</p>
+        <p class="small" style="margin-top:6px;"><span class="chip">💰 ${game.quests.active.reward.gold} gp</span> <span class="chip blue">✨ ${game.quests.active.reward.xp} XP</span></p>
+      </div>` : ''}
+
       ${game.mode === 'over' ? `
       <div class="card" style="border-color:#6b3a35;">
         <h3 style="color:#d98a80;">You have fallen</h3>
@@ -308,7 +331,8 @@ export async function playView(main, saveRef) {
           <button class="btn" data-act="longrest">🔥 Long Rest</button>
           <button class="btn" data-act="potion">🧪 Potion (${potCount})</button>
           <button class="btn" data-act="search">🔍 Search</button>
-          ${atCampfire() ? '<button class="btn" data-act="recap" style="grid-column:1 / -1;">✍ Write journal entry</button>' : ''}
+          ${atCampfire() ? `<button class="btn" data-act="recap" style="grid-column:1 / -1;">✍ Write journal entry</button>` : ''}
+          ${atCampfire() && !(game.quests && game.quests.active) ? '<button class="btn" data-act="askwork" style="grid-column:1 / -1;">🎲 Ask around for work</button>' : ''}
           <button class="btn" data-act="journal" style="grid-column:1 / -1;">📖 Journal${(game.journal || []).length ? ` (${game.journal.length})` : ''}</button>
         </div>
         <div style="margin-top:8px;">${classActions()}</div>
@@ -415,6 +439,7 @@ export async function playView(main, saveRef) {
       if (a === 'respawn') act({ type: 'respawn' });
       if (a === 'journal') openJournal();
       if (a === 'recap') act({ type: 'recap' });
+      if (a === 'askwork') act({ type: 'quest' });
       if (a === 'dodge') act({ type: 'dodge' });
       if (a === 'dash') act({ type: 'dash' });
       if (a === 'endturn') act({ type: 'endTurn' });

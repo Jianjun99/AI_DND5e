@@ -170,4 +170,19 @@ async function describeEntity(state, ent) {
   return blurb || 'A figure out of the crypt\'s long dark, watching.';
 }
 
-module.exports = { narrateEvents, npcChat, freeformFlavor, writeRecap, describeEntity, available };
+// Side-quest hook text, grounded in a server-chosen real objective.
+async function questText(state, quest) {
+  if (!(await available())) return null;
+  const cfg = store.getSettings().llm;
+  const messages = [
+    { role: 'system', content: `You write short side-quest hooks for a D&D dungeon crawl in "${state.mapName}". A non-player character at the hero's camp offers the quest. Write 2-3 sentences of spoken dialogue plus at most one small action beat in *asterisks*. Be concrete, colorful, and greedy or desperate as fits. Do NOT invent new objectives, places, or monsters beyond those given. No headings.` },
+    { role: 'user', content: `Hero: ${state.character.name}, level ${state.character.level} ${state.character.className}.
+The objective (already fixed, do not change it): ${quest.shortText} — reward ${quest.reward.gold} gp and ${quest.reward.xp} XP.
+Target facts: it is ${quest.type === 'slay' ? 'a creature currently lurking in the dungeon' : quest.type === 'recover' ? 'an unopened cache somewhere in the dungeon' : 'an unexplored chamber of the dungeon'}.
+
+Write the quest hook now.` }
+  ];
+  return tryChat(messages, cfg);
+}
+
+module.exports = { narrateEvents, npcChat, freeformFlavor, writeRecap, describeEntity, questText, available };
