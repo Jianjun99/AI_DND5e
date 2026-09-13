@@ -245,12 +245,14 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
   else if (char.invocations.includes('armor_of_shadows')) ac = 13 + dexM;
   else ac = 10 + dexM;
   if (!armorItem && cls.id === 'sorcerer' && char.subclass === 'draconic') ac += 1; // Draconic Resilience
-  if (char.inventory.some(i => i.itemId === 'shield')) ac += 2;
-  // shields from gear (core or packs) contribute their listed bonus; cloak adds its own
+  const hasShieldEquipped = char.equipped
+    ? (char.equipped.offHand === 'shield' || (content.getGear(char.equipped.offHand) && content.getGear(char.equipped.offHand).type === 'shield'))
+    : char.inventory.some(i => i.itemId === 'shield');
+  if (hasShieldEquipped) ac += 2;
+  // cloak and special items contribute if equipped (or in legacy unequipped inventories)
   char.inventory.forEach(i => {
     const g = content.getGear(i.itemId);
-    if (g && g.type === 'shield' && i.itemId !== 'shield') ac += (g.acBonus || 0);
-    if (g && g.id === 'cloak_protection') ac += (g.acBonus || 0);
+    if (g && g.id === 'cloak_protection' && (!char.equipped || char.equipped.cloak === 'cloak_protection')) ac += (g.acBonus || 0);
   });
   if (char.fightingStyle === 'defense') ac += 1;
   char.acBase = ac;
@@ -849,6 +851,11 @@ function applyDamage(state, target, amount, dmgType, events) {
     if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
     if (target.kind === 'monster') {
       state.stats.kills++;
+      if (state.character) {
+        state.character.bestiary = state.character.bestiary || {};
+        const mKey = target.monsterId || target.id.replace(/_\d+$/, '');
+        state.character.bestiary[mKey] = (state.character.bestiary[mKey] || 0) + 1;
+      }
       const ev = { type: 'kill', narrate: true, text: `${target.name} is destroyed! (+${target.xp} XP)`, data: { xp: target.xp, targetId: target.id, targetX: target.x, targetY: target.y } };
       events.push(ev); addLog(state, 'mech', ev.text);
       awardXp(state, target.xp, events);
@@ -1043,7 +1050,9 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
   let atkExtra = 0, extraTxt = '';
   mods.atkRolls.forEach(b => { const r = rollExpr(b.dice); atkExtra += r.total; extraTxt += ` +${r.total} ${b.type}`; });
   const total = roll.natural + atkBonus + atkExtra;
-  const hit = roll.natural === 20 || (roll.natural !== 1 && total >= currentAc(state, target));
+  const critThreshold = (char.subclass === 'champion') ? 19 : 20;
+  const crit = roll.natural >= critThreshold;
+  const hit = crit || (roll.natural !== 1 && total >= currentAc(state, target));
   if (hasBuff(p, 'adv_next_attack')) removeBuff(p, 'adv_next_attack');
 
   if (!hit) {
@@ -1051,7 +1060,6 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
     events.push({ type: 'miss', narrate: true, text, data: { targetId: target.id, targetX: target.x, targetY: target.y } }); addLog(state, 'mech', text);
     return true;
   }
-  const crit = roll.natural === 20;
   let dmg = damageRoll(atk.dmgDice, { crit, gwf: char.fightingStyle === 'great_weapon', rerollAll: char.savageAttacker && !state.flags.savage_used });
   if (char.savageAttacker) state.flags.savage_used = true;
   let dmgTotal = dmg.total + mods.bonusFlat;
@@ -1796,7 +1804,10 @@ function awardXp(state, amount, events) {
   char.xp += amount;
   addLog(state, 'mech', `XP: +${amount} (total ${char.xp}).`);
   for (const [lvl, threshold] of Object.entries(XP_THRESHOLDS)) {
-    if (char.level < +lvl && char.xp >= threshold) levelUp(state, +lvl, events);
+    if (char.level < +lvl && char.xp >= threshold) {
+      char.pendingLevelUp = +lvl;
+      levelUp(state, +lvl, events);
+    }
   }
 }
 
@@ -2149,5 +2160,5 @@ module.exports = {
   detonateBarrel, triggerSpores, useFont, pullLever, triggerHazard,
   rollLoot, lootChest, applyPickupEffects, itemName, addItemToInventory, resolveWeapon,
   rollSideQuest, checkQuest, campfireOf, loadWorldMap,
-  disarmTrap, unlockChest
+  disarmTrap, unlockChest, travelTo
 };

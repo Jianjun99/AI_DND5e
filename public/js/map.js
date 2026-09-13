@@ -198,9 +198,42 @@ export function createMapRenderer(canvas, opts = {}) {
       }
       ctx.restore();
     });
+    // reachable movement tiles highlight
+    const reachableSet = new Set(game.reachableTiles || []);
+    if (reachableSet.size > 0) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.lineWidth = 1;
+      for (const rkey of reachableSet) {
+        if (!discoveredSet.has(rkey)) continue;
+        const [rx, ry] = rkey.split(',').map(Number);
+        if (map.rows[ry] && map.rows[ry][rx] === '#') continue;
+        ctx.fillRect(px(rx) + 2, px(ry) + 2, TILE - 4, TILE - 4);
+        ctx.strokeRect(px(rx) + 1.5, px(ry) + 1.5, TILE - 3, TILE - 3);
+      }
+      ctx.restore();
+    }
+
+    // path breadcrumb line to hover tile
+    if (hover && reachableSet.has(hover.x + ',' + hover.y)) {
+      const p = entities.find(e => e.kind === 'player');
+      if (p) {
+        ctx.save();
+        ctx.strokeStyle = '#67e8f9';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(px(p.x) + TILE / 2, px(p.y) + TILE / 2);
+        ctx.lineTo(px(hover.x) + TILE / 2, px(hover.y) + TILE / 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     // hover highlight
     if (hover) {
-      ctx.strokeStyle = 'rgba(232,220,192,.5)';
+      ctx.strokeStyle = 'rgba(232,220,192,.6)';
       ctx.lineWidth = 1.5;
       ctx.strokeRect(px(hover.x) + 1, px(hover.y) + 1, TILE - 2, TILE - 2);
     }
@@ -208,9 +241,14 @@ export function createMapRenderer(canvas, opts = {}) {
 
   canvas.addEventListener('mousemove', ev => {
     hover = tileFromEvent(ev);
+    if (opts.onTileHover) opts.onTileHover(hover);
     render(currentGame);
   });
-  canvas.addEventListener('mouseleave', () => { hover = null; });
+  canvas.addEventListener('mouseleave', () => {
+    hover = null;
+    if (opts.onTileHover) opts.onTileHover(null);
+    render(currentGame);
+  });
 
   let currentGame = null;
   function renderStore(game) { currentGame = game; render(game); }

@@ -11,3 +11,7 @@ node_modules/
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Scratch and temporary scripts
+scratch/
+

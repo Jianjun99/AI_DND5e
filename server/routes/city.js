@@ -86,6 +86,13 @@ const DISTRICTS = [
     icon: '📜',
     tagline: 'Adventurer bounties and high-risk contracts',
     desc: 'Guildmaster Vance posts official bounties from the High Regency. Complete delves to claim gold and reputation.'
+  },
+  {
+    id: 'hall_of_heroes',
+    name: 'Hall of Heroes & Trophy Room',
+    icon: '🏛️',
+    tagline: 'Monster Bestiary, legendary delve trophies, and hero records',
+    desc: 'The marble hall where the grand exploits of Oakhaven’s greatest champions are etched in bronze, and relics of conquered foes are displayed.'
   }
 ];
 
@@ -406,9 +413,146 @@ router.post('/sync-delve', (req, res) => {
     }
   }
 
+  // Sync maps visited and bestiary
+  if (delve && delve.mapId) {
+    char.visitedMaps = char.visitedMaps || [];
+    if (!char.visitedMaps.includes(delve.mapId)) char.visitedMaps.push(delve.mapId);
+    if (delve.mapId === 'drowned-vault') char.deepestFloor = 'drowned-vault';
+  }
+  if (delve && delve.character && delve.character.bestiary) {
+    char.bestiary = char.bestiary || {};
+    Object.entries(delve.character.bestiary).forEach(([mId, count]) => {
+      char.bestiary[mId] = Math.max(char.bestiary[mId] || 0, count);
+    });
+  }
+
   char.delvesCompleted = (char.delvesCompleted || 0) + 1;
   saveChar(char);
   res.json({ ok: true, char });
+});
+
+// GET /api/city/hall-of-heroes
+router.get('/hall-of-heroes', (req, res) => {
+  const { charId } = req.query;
+  const chars = store.getCharacters();
+  const currentChar = chars.find(c => c.id === charId) || chars[0] || null;
+
+  // 1. Full Bestiary from content
+  const allMonsters = content.listMonsters ? content.listMonsters() : [];
+  const charBestiary = (currentChar && currentChar.bestiary) ? currentChar.bestiary : {};
+  const globalBestiary = {};
+  chars.forEach(c => {
+    if (c.bestiary) {
+      Object.entries(c.bestiary).forEach(([mId, count]) => {
+        globalBestiary[mId] = (globalBestiary[mId] || 0) + count;
+      });
+    }
+  });
+
+  const bestiaryList = allMonsters.map(m => {
+    const kills = charBestiary[m.id] || 0;
+    const globalKills = globalBestiary[m.id] || 0;
+    return {
+      id: m.id,
+      name: m.name,
+      cr: m.cr || (m.xp >= 400 ? '2' : (m.xp >= 200 ? '1' : (m.xp >= 100 ? '1/2' : '1/4'))),
+      hp: m.hp,
+      ac: m.ac,
+      xp: m.xp,
+      lore: m.lore || m.desc || `A creature lurking in the dark corridors of the subterranean vaults. Worth ${m.xp} XP.`,
+      weakness: m.weakness || (m.vulnerabilities ? m.vulnerabilities.join(', ') : 'None documented'),
+      kills,
+      globalKills,
+      unlocked: kills > 0 || globalKills > 0
+    };
+  });
+
+  // 2. Trophies & Achievements
+  const totalKills = Object.values(charBestiary).reduce((a, b) => a + b, 0);
+  const totalDelves = currentChar?.delvesCompleted || 0;
+  const currentGold = currentChar?.gold || 0;
+  const currentLevel = currentChar?.level || 1;
+
+  const trophies = [
+    {
+      id: 'first_blood',
+      name: 'First Blood',
+      desc: 'Slay your first monster in the Sunless Crypt.',
+      icon: '⚔️',
+      unlocked: totalKills >= 1
+    },
+    {
+      id: 'crypt_cleanser',
+      name: 'Crypt Cleanser',
+      desc: 'Slay at least 10 monsters across your adventures.',
+      icon: '💀',
+      unlocked: totalKills >= 10
+    },
+    {
+      id: 'veteran_delver',
+      name: 'Veteran Delver',
+      desc: 'Survive and complete at least 3 dungeon delves.',
+      icon: '🛡️',
+      unlocked: totalDelves >= 3
+    },
+    {
+      id: 'treasure_hoarder',
+      name: 'Treasure Hoarder',
+      desc: 'Amass 150 gold in your treasury.',
+      icon: '💰',
+      unlocked: currentGold >= 150
+    },
+    {
+      id: 'heroic_ascension',
+      name: 'Heroic Ascension',
+      desc: 'Reach Level 3 and specialize in a character Subclass.',
+      icon: '⭐',
+      unlocked: currentLevel >= 3
+    },
+    {
+      id: 'ogre_slayer',
+      name: 'Slayer of the Sunless Ogre',
+      desc: 'Conquer the fearsome ogre brute guarding the Sunless Relic.',
+      icon: '👹',
+      unlocked: (charBestiary['ogre'] || globalBestiary['ogre'] || 0) >= 1
+    },
+    {
+      id: 'deep_diver',
+      name: 'Dungeon Depth II Explorer',
+      desc: 'Descend through the ancient stairs into The Drowned Vault.',
+      icon: '🔱',
+      unlocked: !!(currentChar?.deepestFloor === 'drowned-vault' || (currentChar?.visitedMaps && currentChar.visitedMaps.includes('drowned-vault')))
+    }
+  ];
+
+  // 3. Hall of Champions
+  const champions = chars.map(c => ({
+    id: c.id,
+    name: c.name,
+    species: c.species,
+    className: c.className,
+    subclass: c.subclass,
+    level: c.level || 1,
+    xp: c.xp || 0,
+    gold: c.gold || 0,
+    delvesCompleted: c.delvesCompleted || 0,
+    kills: Object.values(c.bestiary || {}).reduce((a, b) => a + b, 0),
+    portraitUrl: `/api/characters/${c.id}/portrait`
+  })).sort((a, b) => (b.level * 1000 + b.xp) - (a.level * 1000 + a.xp));
+
+  res.json({
+    ok: true,
+    characterName: currentChar ? currentChar.name : 'Unknown Hero',
+    bestiary: bestiaryList,
+    trophies,
+    champions,
+    stats: {
+      totalKills,
+      totalDelves,
+      currentGold,
+      currentLevel
+    }
+  });
 });
 
 // POST /api/city/rumor

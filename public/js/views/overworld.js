@@ -2,11 +2,16 @@
 import { api } from '../api.js';
 import { esc, toast, state as appState } from '../app.js';
 import { rollAnimated } from '../dice.js';
+import { sfx } from '../sfx.js';
+import { openLevelUpModal } from './levelup.js';
+
+const XP_THRESHOLDS = { 2: 300, 3: 900, 4: 2700, 5: 6500, 6: 8500, 7: 13000, 8: 19000, 9: 26000, 10: 34000 };
 
 let activeChar = null;
 let cityData = null;
+let hallData = null;
 let currentTab = 'map'; // 'map' or 'city'
-let currentDistrict = 'tavern'; // 'tavern', 'armory', 'apothecary', 'guildhall'
+let currentDistrict = 'tavern'; // 'tavern', 'armory', 'apothecary', 'guildhall', 'hall_of_heroes'
 let selectedNodeId = 'oakhaven';
 
 export async function overworldView(main, ...args) {
@@ -38,10 +43,13 @@ export async function overworldView(main, ...args) {
     toast(`⚔ Welcome back to Oakhaven, ${activeChar.name}! Your delve rewards have been secured.`);
   }
 
+  // Start ambient soundscape for current tab
+  sfx.startAmbient(currentTab === 'city' ? 'town' : 'hills');
+
   render(main, chars);
 
   return () => {
-    // cleanup if needed
+    sfx.stopAmbient();
   };
 }
 
@@ -73,6 +81,11 @@ function render(main, allChars) {
               <span class="chip">Level ${activeChar.level || 1} ${esc(activeChar.className || '')}</span>
               <span class="chip blue">${esc(activeChar.species || '')}</span>
               ${activeChar.companion ? `<span class="chip green">Companion: ${getCompanionName(activeChar.companion)}</span>` : ''}
+              ${(() => {
+                const nextLvl = (activeChar.level || 1) + 1;
+                const canLvl = activeChar.pendingLevelUp || (XP_THRESHOLDS[nextLvl] && activeChar.xp >= XP_THRESHOLDS[nextLvl]);
+                return canLvl ? `<button class="btn small levelup-badge-btn" id="btnTownLevelUp" style="padding:2px 10px; margin-left:8px;">⚡ LEVEL UP (Lvl ${nextLvl})</button>` : '';
+              })()}
             </div>
             <div class="hero-stats-row">
               <span>❤️ HP: <b>${activeChar.hp || activeChar.hpMax}/${activeChar.hpMax}</b></span>
@@ -321,6 +334,7 @@ function renderCurrentDistrict() {
     case 'armory': return renderArmory();
     case 'apothecary': return renderApothecary();
     case 'guildhall': return renderGuildhall();
+    case 'hall_of_heroes': return renderHallOfHeroes();
     default: return renderTavern();
   }
 }
@@ -541,6 +555,124 @@ function renderGuildhall() {
   `;
 }
 
+// 5. HALL OF HEROES & TROPHY ROOM
+function renderHallOfHeroes() {
+  if (!hallData) {
+    api.hallOfHeroes(activeChar ? activeChar.id : null).then(d => {
+      hallData = d;
+      const panel = document.querySelector('.district-panel');
+      if (panel && currentDistrict === 'hall_of_heroes') {
+        panel.innerHTML = renderHallOfHeroes();
+        attachDistrictSpecificEvents(document);
+      }
+    }).catch(err => console.error('Failed to load hall of heroes', err));
+
+    return `
+      <div class="district-header">
+        <h2>🏛️ Hall of Heroes & Trophy Room</h2>
+        <p class="sub">Etched in white marble and polished brass, the grand deeds of Oakhaven's adventurers endure forever.</p>
+      </div>
+      <div style="text-align:center; padding:40px;"><div class="spinner"></div></div>
+    `;
+  }
+
+  const { bestiary = [], trophies = [], champions = [], stats = {} } = hallData;
+
+  return `
+    <div class="district-header">
+      <h2>🏛️ Hall of Heroes & Trophy Room</h2>
+      <p class="sub">Etched in white marble and polished brass, the grand deeds of Oakhaven's adventurers endure forever.</p>
+    </div>
+
+    <div class="hall-container">
+      <div class="hall-nav-tabs">
+        <button class="hall-tab-btn active" data-hall-tab="bestiary">🐲 Monster Bestiary (${bestiary.filter(m => m.unlocked).length}/${bestiary.length})</button>
+        <button class="hall-tab-btn" data-hall-tab="trophies">🏆 Trophy Showcase (${trophies.filter(t => t.unlocked).length}/${trophies.length})</button>
+        <button class="hall-tab-btn" data-hall-tab="champions">👑 Hall of Champions (${champions.length})</button>
+      </div>
+
+      <!-- Bestiary Tab -->
+      <div class="bestiary-grid" id="hallSecBestiary">
+        ${bestiary.map(m => {
+          const isUnlocked = m.unlocked || m.kills > 0 || m.globalKills > 0;
+          return `
+            <div class="bestiary-card ${isUnlocked ? '' : 'locked'}">
+              <div class="bestiary-card-header">
+                <div class="bestiary-title-group">
+                  <span class="bestiary-icon">${isUnlocked ? '👾' : '❓'}</span>
+                  <span class="bestiary-name">${isUnlocked ? esc(m.name) : 'Unknown Beast'}</span>
+                </div>
+                <span class="bestiary-cr-badge">CR ${m.cr}</span>
+              </div>
+              <div class="bestiary-stats-row">
+                <span>HP: <b>${isUnlocked ? m.hp : '???'}</b></span>
+                <span>AC: <b>${isUnlocked ? m.ac : '??'}</b></span>
+                <span>XP: <b>${m.xp}</b></span>
+              </div>
+              <div class="bestiary-lore">
+                ${isUnlocked ? esc(m.lore) : 'Encounter and defeat this creature in the deep dungeons to reveal its traits and vulnerabilities.'}
+              </div>
+              <div class="bestiary-kill-footer">
+                <span>Weakness: <i>${isUnlocked ? esc(m.weakness) : '???'}</i></span>
+                <span>Party Slain: <b>${m.globalKills || m.kills || 0}</b></span>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- Trophies Tab -->
+      <div class="trophy-grid" id="hallSecTrophies" style="display:none;">
+        ${trophies.map(t => `
+          <div class="trophy-card ${t.unlocked ? 'unlocked' : 'locked'}">
+            <div class="trophy-icon-box">${t.unlocked ? t.icon : '🔒'}</div>
+            <div class="trophy-info">
+              <div class="trophy-title">${esc(t.name)}</div>
+              <div class="trophy-desc">${esc(t.desc)}</div>
+              <div style="margin-top:4px;">
+                <span class="chip ${t.unlocked ? 'green' : ''}" style="font-size:10.5px;">${t.unlocked ? '✔ Acquired' : 'Locked'}</span>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- Champions Tab -->
+      <div class="card" id="hallSecChampions" style="display:none; background:rgba(18,22,32,0.8); overflow-x:auto;">
+        <table class="champions-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Hero</th>
+              <th>Class & Origin</th>
+              <th>Level</th>
+              <th>Delves Completed</th>
+              <th>Monsters Slain</th>
+              <th>Gold Amassed</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${champions.map((c, i) => {
+              const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-other';
+              return `
+                <tr>
+                  <td><span class="champion-rank-badge ${rankClass}">${i + 1}</span></td>
+                  <td><b>${esc(c.name)}</b></td>
+                  <td>${esc(c.species)} ${esc(c.className)}${c.subclass ? ` (${esc(c.subclass)})` : ''}</td>
+                  <td><b style="color:var(--gold);">Level ${c.level}</b></td>
+                  <td>${c.delvesCompleted}</td>
+                  <td>${c.kills}</td>
+                  <td><span class="gold-text">${c.gold} GP</span></td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
 function getSellPrice(itemId) {
   const arm = cityData?.shops?.armory?.find(i => i.id === itemId);
   if (arm) return Math.max(1, Math.floor(arm.cost * 0.5));
@@ -575,6 +707,7 @@ function attachHeaderEvents(main, allChars) {
   if (tabMap) {
     tabMap.addEventListener('click', () => {
       currentTab = 'map';
+      sfx.startAmbient('hills');
       render(main, allChars);
     });
   }
@@ -582,7 +715,22 @@ function attachHeaderEvents(main, allChars) {
   if (tabCity) {
     tabCity.addEventListener('click', () => {
       currentTab = 'city';
+      sfx.startAmbient('town');
       render(main, allChars);
+    });
+  }
+
+  const lvlBtn = document.getElementById('btnTownLevelUp');
+  if (lvlBtn) {
+    lvlBtn.addEventListener('click', () => {
+      openLevelUpModal(activeChar.id, async () => {
+        const chars = await api.listCharacters();
+        const updated = await api.getCharacter(activeChar.id);
+        activeChar = updated;
+        await loadCityInfo();
+        render(main, chars);
+        toast(`⚡ Level Up applied: Level ${activeChar.level}!`);
+      });
     });
   }
 }
@@ -604,6 +752,7 @@ function attachMapEvents(main) {
   if (enterCityBtn) {
     enterCityBtn.addEventListener('click', () => {
       currentTab = 'city';
+      sfx.startAmbient('town');
       const chars = [activeChar];
       render(main, chars);
     });
@@ -676,6 +825,7 @@ function attachDistrictSpecificEvents(main) {
       try {
         const res = await api.cityRest(activeChar.id, 'short');
         activeChar = res.char;
+        sfx.play('heal');
         toast(res.message || 'Short rest completed.');
         await loadCityInfo();
         const chars = [activeChar];
@@ -691,6 +841,7 @@ function attachDistrictSpecificEvents(main) {
       try {
         const res = await api.cityRest(activeChar.id, 'long');
         activeChar = res.char;
+        sfx.play('heal');
         toast(res.message || 'Long rest completed! Fully rejuvenated.');
         await loadCityInfo();
         const chars = [activeChar];
@@ -711,6 +862,7 @@ function attachDistrictSpecificEvents(main) {
       try {
         const res = await api.cityCompanion(activeChar.id, newComp);
         activeChar = res.char;
+        sfx.play('levelup');
         toast(isAlready ? 'Dismissed companion.' : `Recruited ${getCompanionName(compId)}!`);
         const chars = [activeChar];
         render(main, chars);
@@ -726,6 +878,7 @@ function attachDistrictSpecificEvents(main) {
     rumorBtn.addEventListener('click', async () => {
       const rumorBox = document.getElementById('rumorBox');
       if (rumorBox) rumorBox.textContent = 'Listening to tavern whispers...';
+      sfx.play('dice');
       try {
         const res = await api.cityRumor();
         if (rumorBox) rumorBox.textContent = `"${res.rumor}"`;
@@ -764,6 +917,7 @@ function attachDistrictSpecificEvents(main) {
       try {
         const res = await api.cityBuy(activeChar.id, itemId, 1);
         activeChar = res.char;
+        sfx.play('coin');
         toast(res.message);
         await loadCityInfo();
         const chars = [activeChar];
@@ -782,6 +936,7 @@ function attachDistrictSpecificEvents(main) {
       try {
         const res = await api.citySell(activeChar.id, itemId, 1);
         activeChar = res.char;
+        sfx.play('coin');
         toast(res.message);
         await loadCityInfo();
         const chars = [activeChar];
@@ -800,6 +955,7 @@ function attachDistrictSpecificEvents(main) {
       try {
         const res = await api.cityClaimBounty(activeChar.id, bId);
         activeChar = res.char;
+        sfx.play('quest');
         toast(res.message);
         await loadCityInfo();
         const chars = [activeChar];
@@ -807,6 +963,23 @@ function attachDistrictSpecificEvents(main) {
       } catch (e) {
         toast(e.message);
       }
+    });
+  });
+
+  // Hall of Heroes tabs
+  const hallTabs = main.querySelectorAll('.hall-tab-btn');
+  hallTabs.forEach(t => {
+    t.addEventListener('click', () => {
+      const targetTab = t.getAttribute('data-hall-tab');
+      hallTabs.forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const bestiarySec = main.querySelector('#hallSecBestiary');
+      const trophiesSec = main.querySelector('#hallSecTrophies');
+      const championsSec = main.querySelector('#hallSecChampions');
+      if (bestiarySec) bestiarySec.style.display = targetTab === 'bestiary' ? 'grid' : 'none';
+      if (trophiesSec) trophiesSec.style.display = targetTab === 'trophies' ? 'grid' : 'none';
+      if (championsSec) championsSec.style.display = targetTab === 'champions' ? 'block' : 'none';
+      sfx.play('dice');
     });
   });
 }

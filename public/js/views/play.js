@@ -3,10 +3,14 @@ import { api } from '../api.js';
 import { esc, toast, state as appState, charObjective } from '../app.js';
 import { createMapRenderer } from '../map.js';
 import { createMap3D } from '../map3d.js';
-import { settingsView } from './settings.js';
+import { settingsView, openSettingsModal } from './settings.js';
 import { showDice, rollAnimated } from '../dice.js';
 import { sfx } from '../sfx.js';
 import { tts } from '../tts.js';
+import { initTooltips } from '../tooltip.js';
+import { openLevelUpModal } from './levelup.js';
+
+const XP_THRESHOLDS = { 2: 300, 3: 900, 4: 2700, 5: 6500, 6: 8500, 7: 13000, 8: 19000, 9: 26000, 10: 34000 };
 
 let game = null;
 let selectedTarget = null;
@@ -79,7 +83,12 @@ export async function playView(main, saveRef) {
   }
   const data = await api.getGame(saveRef);
   game = data.state;
-  sfx.startAmbient((game.map && game.map.theme) || 'crypt');
+  const mapTheme = (game.map && game.map.theme) || (game.mapId && game.mapId.includes('vault') ? 'vault' : game.mapId && game.mapId.includes('hills') ? 'hills' : 'crypt');
+  if (game.mode === 'combat') {
+    sfx.startAmbient('combat');
+  } else {
+    sfx.startAmbient(mapTheme);
+  }
   selectedTarget = null; activeNpc = null; appearanceShown = null; portraitShown = null;
 
   main.innerHTML = `
@@ -119,8 +128,23 @@ export async function playView(main, saveRef) {
             </div>
           </div>
 
+          <!-- Tactical Combat Initiative Tracker Ribbon -->
+          <div class="initiative-ribbon-container" id="initiativeRibbonContainer" style="display:none;"></div>
+
           <div id="fctLayer" class="fct-layer"></div>
-          <div class="map-hint" id="mapHint">Click to move · click a monster to target · arrows/WASD to step</div>
+          <div class="delve-guidance-hud" id="delveGuidanceHud">
+            <div class="guidance-main-row">
+              <div class="guidance-status-group">
+                <span class="guidance-mode-pill" id="guidanceModePill">🧭 Exploration</span>
+                <span class="guidance-movement-pill" id="guidanceMovementPill">👣 30 ft (6 tiles)</span>
+                <span class="guidance-objective-pill" id="guidanceObjectivePill">🎯 ${esc(charObjective(game))}</span>
+              </div>
+            </div>
+            <div class="guidance-hover-bar" id="guidanceHoverBar">
+              <span class="guidance-hover-icon" id="guidanceHoverIcon">💡</span>
+              <span class="guidance-hover-text" id="guidanceHoverText">Click a highlighted tile to move · Click a monster or chest to interact · WASD to step</span>
+            </div>
+          </div>
           <button class="btn small" id="viewToggle2D" style="display:none; position:absolute; top:8px; right:10px; z-index:5;">🏰 3D View</button>
         </div>
         <div class="log-panel">
@@ -136,15 +160,209 @@ export async function playView(main, saveRef) {
     </div>
   `;
 
+  function computeReachableTiles(g) {
+    if (!g || !g.map) return [];
+    const p = (g.entities || []).find(e => e.kind === 'player');
+    if (!p) return [];
+    const maxTiles = g.mode === 'combat'
+      ? Math.max(0, Math.floor((g.combat?.movementLeft ?? 30) / 5))
+      : Math.max(1, Math.floor((p.speedFt || g.character?.speedFt || 30) / 5));
+    if (maxTiles <= 0) return [];
+
+    const map = g.map;
+    const disc = new Set(g.discovered || []);
+    const queue = [{ x: p.x, y: p.y, dist: 0 }];
+    const visited = new Map();
+    visited.set(p.x + ',' + p.y, 0);
+
+    const blockingObjs = new Set();
+    (g.objects || []).forEach(o => {
+      if (o.type === 'door' && !o.open) blockingObjs.add(o.x + ',' + o.y);
+      if (o.type === 'barrel' && !o.exploded) blockingObjs.add(o.x + ',' + o.y);
+    });
+
+    const blockingEnemies = new Set();
+    (g.entities || []).forEach(e => {
+      if (e.kind === 'monster' && e.alive !== false) blockingEnemies.add(e.x + ',' + e.y);
+    });
+
+    const res = [];
+    while (queue.length) {
+      const { x, y, dist } = queue.shift();
+      if (dist > 0) res.push(x + ',' + y);
+      if (dist >= maxTiles) continue;
+
+      const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]];
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx, ny = y + dy;
+        const nkey = nx + ',' + ny;
+        if (nx < 0 || ny < 0 || nx >= map.width || ny >= map.height) continue;
+        if (!disc.has(nkey)) continue;
+        if (map.rows[ny] && map.rows[ny][nx] === '#') continue;
+        if (blockingObjs.has(nkey)) continue;
+        if (blockingEnemies.has(nkey)) continue;
+
+        const newDist = dist + 1;
+        if (!visited.has(nkey) || visited.get(nkey) > newDist) {
+          visited.set(nkey, newDist);
+          queue.push({ x: nx, y: ny, dist: newDist });
+        }
+      }
+    }
+    return res;
+  }
+
+  let currentHoverTile = null;
+  function updateHoverCues(tile) {
+    currentHoverTile = tile;
+    const modePill = document.getElementById('guidanceModePill');
+    const movePill = document.getElementById('guidanceMovementPill');
+    const objPill = document.getElementById('guidanceObjectivePill');
+    const hoverIcon = document.getElementById('guidanceHoverIcon');
+    const hoverText = document.getElementById('guidanceHoverText');
+    if (!modePill || !hoverText || !game) return;
+
+    if (game.mode === 'combat') {
+      const myTurn = !game.combat || game.combat.order[game.combat.turnIdx]?.id === 'player';
+      if (myTurn) {
+        modePill.className = 'guidance-mode-pill combat-player';
+        modePill.textContent = `⚔️ Your Turn (Rnd ${game.combat.round})`;
+      } else {
+        modePill.className = 'guidance-mode-pill combat-enemy';
+        modePill.textContent = `🛡️ Enemies Acting (Rnd ${game.combat.round})`;
+      }
+      const mvLeft = game.combat?.movementLeft ?? 0;
+      movePill.textContent = `👣 ${mvLeft} ft (${Math.floor(mvLeft / 5)} tiles)`;
+    } else if (game.mode === 'over') {
+      modePill.className = 'guidance-mode-pill combat-enemy';
+      modePill.textContent = '💀 Defeated';
+      movePill.textContent = '👣 0 ft';
+    } else if (game.mode === 'victory') {
+      modePill.className = 'guidance-mode-pill';
+      modePill.textContent = '🏆 Victorious';
+      movePill.textContent = '👣 Complete';
+    } else {
+      modePill.className = 'guidance-mode-pill';
+      modePill.textContent = '🧭 Exploration';
+      const sp = player()?.speedFt || game.character?.speedFt || 30;
+      movePill.textContent = `👣 ${sp} ft (${Math.floor(sp / 5)} tiles)`;
+    }
+
+    if (objPill) objPill.textContent = `🎯 ${charObjective(game)}`;
+
+    if (!tile) {
+      hoverIcon.textContent = '💡';
+      if (game.mode === 'combat') {
+        const myTurn = !game.combat || game.combat.order[game.combat.turnIdx]?.id === 'player';
+        hoverText.innerHTML = myTurn
+          ? '<b>Your Turn!</b> Click a blue tile to move, click a monster to target, or select an action. Press <span class="guidance-action-key">SPACE</span> to end turn.'
+          : 'Enemies are currently executing their actions...';
+      } else {
+        hoverText.innerHTML = 'Click any floor tile or use <span class="guidance-action-key">WASD</span> to move. Click monsters, chests, or doors to interact.';
+      }
+      return;
+    }
+
+    const { x, y } = tile;
+    const vis = new Set(game.visible || []);
+    const isLit = vis.has(x + ',' + y);
+    const p = player();
+
+    const ent = (game.entities || []).find(e => e.x === x && e.y === y && e.alive !== false);
+    if (ent && ent.kind === 'monster' && isLit) {
+      hoverIcon.textContent = '⚔️';
+      const dist = p ? Math.max(Math.abs(p.x - x), Math.abs(p.y - y)) : 99;
+      const inMelee = dist <= 1;
+      hoverText.innerHTML = `<b>${esc(ent.name)}</b> (${ent.hp}/${ent.hpMax} HP, AC ${ent.ac || 10}) — ${inMelee ? 'In Melee Range! <b>Click to Target / Attack</b>' : `Distance: ${dist * 5} ft. <b>Click to Target</b>`}`;
+      return;
+    }
+
+    if (ent && ent.kind === 'npc' && isLit) {
+      hoverIcon.textContent = '🗣️';
+      hoverText.innerHTML = `<b>${esc(ent.name)}</b> — Click to Talk / Trade`;
+      return;
+    }
+
+    if (ent && ent.kind === 'ally') {
+      hoverIcon.textContent = '🏹';
+      hoverText.innerHTML = `<b>${esc(ent.name)}</b> (${ent.hp}/${ent.hpMax} HP) — Companion`;
+      return;
+    }
+
+    const obj = (game.objects || []).find(o => o.x === x && o.y === y && o.type !== 'npcMarker');
+    if (obj && isLit) {
+      const dist = p ? Math.abs(p.x - x) + Math.abs(p.y - y) : 99;
+      if (obj.type === 'door') {
+        hoverIcon.textContent = '🚪';
+        hoverText.innerHTML = `<b>Door (${obj.open ? 'Open' : 'Closed'})</b> — ${dist <= 1 ? 'Click to Open / Close' : 'Move closer to open'}`;
+        return;
+      }
+      if (obj.type === 'chest') {
+        hoverIcon.textContent = '🧰';
+        if (obj.looted) hoverText.innerHTML = `<b>Empty Chest</b> (Already looted)`;
+        else if (obj.locked && !obj.unlocked) hoverText.innerHTML = `<b>Locked Chest</b> — ${dist <= 1 ? 'Click to Pick Lock or Force Open' : 'Move closer to unlock'}`;
+        else hoverText.innerHTML = `<b>Unlocked Chest</b> — ${dist <= 1 ? 'Click to Open & Loot' : 'Move closer to loot'}`;
+        return;
+      }
+      if (obj.type === 'barrel') {
+        hoverIcon.textContent = '🛢️';
+        hoverText.innerHTML = obj.exploded ? `<b>Shattered Barrel</b>` : `<b>Explosive Powder Keg</b> — Click to Target / Detonate with Attack`;
+        return;
+      }
+      if (obj.type === 'trap') {
+        hoverIcon.textContent = '⚠️';
+        hoverText.innerHTML = `<b>Concealed Trap</b> — ${dist <= 1 ? 'Click to Disarm (DC ' + (obj.dc || 12) + ')' : 'Hazardous mechanism'}`;
+        return;
+      }
+      if (obj.type === 'font') {
+        hoverIcon.textContent = '⛲';
+        hoverText.innerHTML = `<b>Ancient Shrine Font</b> — ${obj.used ? 'Depleted' : 'Click to Drink & receive blessing'}`;
+        return;
+      }
+      if (obj.type === 'lever') {
+        hoverIcon.textContent = '🕹️';
+        hoverText.innerHTML = `<b>Iron Lever</b> — Click to Pull`;
+        return;
+      }
+      if (obj.type === 'stairs') {
+        hoverIcon.textContent = '🪜';
+        hoverText.innerHTML = `<b>Stone Stairway</b> — Descend deeper into the dungeon`;
+        return;
+      }
+    }
+
+    const rSet = new Set(game.reachableTiles || []);
+    if (rSet.has(x + ',' + y)) {
+      hoverIcon.textContent = '👣';
+      const steps = p ? Math.abs(x - p.x) + Math.abs(y - p.y) : 0;
+      hoverText.innerHTML = `<b>Move to (${x}, ${y})</b> — ${steps * 5} ft (${steps} tiles). <b>Click to Move</b>`;
+      return;
+    }
+
+    if (game.map?.rows[y]?.[x] === '#') {
+      hoverIcon.textContent = '🧱';
+      hoverText.innerHTML = `<b>Dungeon Wall</b> — Impassable solid stone`;
+      return;
+    }
+
+    hoverIcon.textContent = '🚫';
+    hoverText.innerHTML = `<b>Tile (${x}, ${y})</b> — Beyond current movement range this turn`;
+  }
+
   const canvas = document.getElementById('mapCanvas');
-  const renderer = createMapRenderer(canvas, { isSelected: e => selectedTarget && e.id === selectedTarget.id });
+  const renderer = createMapRenderer(canvas, {
+    isSelected: e => selectedTarget && e.id === selectedTarget.id,
+    onTileHover: t => updateHoverCues(t)
+  });
   let renderer3d = null;
-  // Default to 3D mode unless explicitly turned off
-  let activeView = localStorage.getItem('dnd_3d') === 'off' ? '2d' : '3d';
+  // Default to 3D mode unless explicitly configured otherwise
+  const viewPref = localStorage.getItem('dnd_default_view') || localStorage.getItem('dnd_3d');
+  let activeView = (viewPref === '2d' || viewPref === 'off') ? '2d' : '3d';
 
   function toggleView() {
     activeView = activeView === '3d' ? '2d' : '3d';
     localStorage.setItem('dnd_3d', activeView === '3d' ? 'on' : 'off');
+    localStorage.setItem('dnd_default_view', activeView);
     if (game) activeRender(game);
   }
 
@@ -171,11 +389,17 @@ export async function playView(main, saveRef) {
     const map3dEl = document.getElementById('map3d');
     const btn2D = document.getElementById('viewToggle2D');
 
+    gameState.reachableTiles = computeReachableTiles(gameState);
+    gameState.selectedTarget = selectedTarget;
+    updateHoverCues(currentHoverTile);
+
     if (activeView === '3d') {
       if (!renderer3d) {
         renderer3d = createMap3D(map3dEl, {
           onTileClick: (x, y) => handleTileClick(x, y),
-          isSelected: e => selectedTarget && e.id === selectedTarget.id
+          onTileHover: t => updateHoverCues(t),
+          isSelected: e => selectedTarget && e.id === selectedTarget.id,
+          getSelected: () => selectedTarget
         });
       }
       if (wrap) {
@@ -204,6 +428,14 @@ export async function playView(main, saveRef) {
   });
 
   const onKey = (e) => {
+    if (e.key === 'Escape') {
+      const openModals = document.querySelectorAll('.modal-back');
+      if (openModals.length > 0) {
+        e.preventDefault();
+        openModals.forEach(m => m.remove());
+        return;
+      }
+    }
     if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
     const dirs = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] };
     const d = dirs[e.key];
@@ -296,13 +528,14 @@ export async function playView(main, saveRef) {
           <p class="muted small">"Potions, tools, and luck, dear — I sell the first two."</p>
           <p class="small">Your gold: <b style="color:var(--gold)">${game.character.gold} gp</b></p>
           ${items.map(i => `
-            <div class="stat-line"><span>${i.name} <span class="muted small">— ${esc(i.desc)}</span></span>
+            <div class="stat-line" data-item-tooltip="${i.id}" style="cursor:help;"><span>${i.name} <span class="muted small">— ${esc(i.desc)}</span></span>
               <span><button class="btn small" data-buy="${i.id}" ${game.character.gold >= i.price ? '' : 'disabled'}>${i.price} gp</button></span></div>`).join('')}
           <div style="margin-top:12px; display:flex; gap:8px; justify-content:center;">
             <button class="btn small" id="talkMarla">💬 Talk to the trader</button>
             <button class="btn small" id="closeShop">Leave</button>
           </div>
         </div>`;
+      initTooltips(modal, appState.rules);
       modal.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', async () => {
         await act({ type: 'buy', itemId: b.dataset.buy });
         render();
@@ -453,11 +686,87 @@ export async function playView(main, saveRef) {
   const SFX_MAP = {
     attack: 'attack', attack_in: 'attack', spell_hit: 'spell', cast_flavor: 'spell', save: 'dice',
     combat_start: 'dice', miss: 'miss', heal: 'heal', levelup: 'levelup', subclass: 'levelup',
+    travel: 'travel_stairs', equip: 'equip', level_ready: 'levelup',
     quest_done: 'quest', quest_offer: 'quest', loot: 'coin', magic_item: 'coin', trap: 'trap',
     trap_spotted: 'trap', trap_disarmed: 'victory', trap_disarm_failed: 'trap',
-    chest_unlocked: 'coin', chest_locked: 'miss',
-    dying: 'death', player_down: 'death', victory: 'victory', door: 'door', blessing: 'heal'
+    chest_unlocked: 'chest_open', chest_locked: 'miss',
+    dying: 'death', player_down: 'death', victory: 'victory', door: 'door', blessing: 'heal',
+    barrel_detonate: 'barrel_boom', hazard_burn: 'hazard_burn', parry: 'parry', stealth: 'stealth', retreat: 'retreat'
   };
+
+  function showFloorBanner(title, subtitle) {
+    const existing = document.querySelector('.floor-banner-overlay');
+    if (existing) existing.remove();
+    const banner = document.createElement('div');
+    banner.className = 'floor-banner-overlay';
+    banner.innerHTML = `
+      <div class="floor-banner-frame">
+        <div class="floor-banner-depth">DEPTH TRANSITION</div>
+        <div class="floor-banner-title">${esc(title)}</div>
+        <div class="floor-banner-sub">${esc(subtitle || 'The darkness recedes as you step deeper into the ancient chambers.')}</div>
+      </div>
+    `;
+    document.body.appendChild(banner);
+    setTimeout(() => { if (banner.parentNode) banner.remove(); }, 3600);
+  }
+
+  function updateInitiativeRibbon() {
+    const container = document.getElementById('initiativeRibbonContainer');
+    if (!container) return;
+    if (game.mode !== 'combat' || !game.combat || !game.combat.order || !game.combat.order.length) {
+      container.style.display = 'none';
+      return;
+    }
+    container.style.display = 'block';
+    const c = game.combat;
+    const cardsHtml = c.order.map((o, idx) => {
+      const isPlayer = o.id === 'player';
+      const ent = isPlayer ? game.entities.find(e => e.kind === 'player') : game.entities.find(e => e.id === o.id);
+      const hp = ent ? (ent.hp ?? 1) : 1;
+      const hpMax = ent ? (ent.hpMax ?? 1) : 1;
+      const pct = Math.max(0, Math.min(100, Math.round((hp / hpMax) * 100)));
+      const isDead = ent && ent.alive === false;
+      const isActive = idx === c.turnIdx;
+      const fillClass = pct < 25 ? 'danger' : pct < 50 ? 'warn' : '';
+      const avatar = isPlayer ? '🧙' : (ent?.icon || (isDead ? '💀' : '👾'));
+      return `
+        <div class="initiative-card ${isActive ? 'active' : ''} ${isDead ? 'dead' : ''}" data-target-id="${o.id}" title="${esc(o.name)} (${hp}/${hpMax} HP, AC ${ent?.ac || 10}, Init ${o.total})">
+          <div class="init-avatar-token">${isDead ? '💀' : avatar}</div>
+          <div class="init-info-col">
+            <div class="init-name-row">
+              <span class="init-combatant-name">${esc(o.name.split(' ')[0])}</span>
+              <span class="init-score-badge">${o.total}</span>
+            </div>
+            <div class="init-hp-track">
+              <div class="init-hp-fill ${fillClass}" style="width:${pct}%;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="initiative-ribbon">
+        <div class="initiative-round-tag">⚔ Rnd ${c.round}</div>
+        ${cardsHtml}
+      </div>
+    `;
+
+    container.querySelectorAll('.initiative-card:not(.dead)').forEach(card => {
+      card.onclick = () => {
+        const targetId = card.dataset.targetId;
+        if (targetId && targetId !== 'player') {
+          const ent = game.entities.find(e => e.id === targetId);
+          if (ent && ent.alive !== false) {
+            selectedTarget = ent;
+            appearanceShown = (game.appearances || {})[ent.monsterId] || null;
+            update();
+            sfx.play('dice');
+          }
+        }
+      };
+    });
+  }
 
   function spawnFloatingText(tileX, tileY, text, kind = 'damage') {
     const layer = document.getElementById('fctLayer');
@@ -484,9 +793,31 @@ export async function playView(main, saveRef) {
     if (busy) return;
     busy = true;
     const logLen = game.log.length;
+    const prevMode = game.mode;
     try {
       const res = await api.gameAction(game.id, action);
       game = res.state;
+      // Ambient soundscape dynamic response to combat enter/exit
+      const mapTheme = (game.map && game.map.theme) || (game.mapId && game.mapId.includes('vault') ? 'vault' : game.mapId && game.mapId.includes('hills') ? 'hills' : 'crypt');
+      if (prevMode !== 'combat' && game.mode === 'combat') {
+        sfx.startAmbient('combat');
+      } else if (prevMode === 'combat' && game.mode !== 'combat') {
+        sfx.startAmbient(mapTheme);
+      }
+      if (game.mode === 'victory' || game.mode === 'over') {
+        sfx.stopAmbient();
+      }
+      if (action.type === 'item' && action.itemId && action.itemId.includes('potion')) {
+        sfx.play('potion');
+      } else if (action.type === 'retreat') {
+        sfx.play('retreat');
+      }
+      // Floor travel / descent banner
+      const travelEv = res.events.find(e => e.type === 'travel');
+      if (travelEv) {
+        showFloorBanner(game.mapName || 'New Chamber', travelEv.text);
+        sfx.play('travel_stairs');
+      }
       // dice flourish on notable rolls
       const dmg = res.events.find(e => ['attack', 'spell_hit', 'attack_in', 'save'].includes(e.type));
       if (dmg && dmg.data && dmg.data.dmg) showDice(20, dmg.data.dmg, 'damage');
@@ -495,10 +826,8 @@ export async function playView(main, saveRef) {
         let x = e.data?.targetX;
         let y = e.data?.targetY;
         if (x == null || y == null) {
-          const tid = e.data?.targetId || (e.type === 'attack_in' ? 'player' : (selectedTarget?.id || action.targetId));
-          const ent = game.entities.find(ent => ent.id === tid);
+          const ent = game.entities.find(en => en.id === e.data?.targetId);
           if (ent) { x = ent.x; y = ent.y; }
-          else if (tid === 'player' && player()) { x = player().x; y = player().y; }
         }
         if (x == null || y == null) return;
 
@@ -530,9 +859,11 @@ export async function playView(main, saveRef) {
         game.log.slice(logLen).filter(l => ['dm', 'system'].includes(l.kind)).slice(0, 2)
           .forEach(l => tts.speak(l.text.replace(/ dice? results?/i, '').slice(0, 400)));
       }
-      selectedTarget = null;
-      appearanceShown = null;
-      portraitShown = null;
+      if (selectedTarget && !game.entities.some(e => e.id === selectedTarget.id && e.alive !== false)) {
+        selectedTarget = null;
+        appearanceShown = null;
+        portraitShown = null;
+      }
       update();
       return res;
     } catch (e) {
@@ -589,6 +920,7 @@ export async function playView(main, saveRef) {
   function update() {
     activeRender(game);
     renderSide();
+    updateInitiativeRibbon();
     if ((game.mode === 'victory' || game.mode === 'over' || game.mode === 'retreat') && !summaryShown) {
       summaryShown = true;
       sfx.play((game.mode === 'victory' || game.mode === 'retreat') ? 'victory' : 'death');
@@ -596,33 +928,17 @@ export async function playView(main, saveRef) {
     }
     renderLog();
     const hint = document.getElementById('mapHint');
-    if (game.mode === 'combat') hint.textContent = `Combat — round ${game.combat.round}. Click to move (movement left: ${game.combat.movementLeft} ft). Space = end turn.`;
-    else if (game.mode === 'over') hint.textContent = 'You have fallen…';
-    else if (game.mode === 'victory') hint.textContent = 'Victory!';
-    else hint.textContent = 'Click to move · click a monster to target · arrows/WASD to step';
-  }
-
-  function openSettingsModal() {
-    let modal = document.getElementById('settingsModal');
-    if (modal) { modal.remove(); }
-    modal = document.createElement('div');
-    modal.className = 'modal-back';
-    modal.id = 'settingsModal';
-    modal.innerHTML = `
-      <div class="modal" style="max-width:900px; max-height:90vh; overflow-y:auto; text-align:left;">
-        <div style="display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:var(--panel); padding:10px 6px; z-index:2;">
-          <span></span>
-          <button class="btn small" id="closeSettingsModal" style="position:absolute; right:14px; top:14px;">Done — back to the delve ✕</button>
-        </div>
-        <div id="settingsBody"></div>
-      </div>`;
-    document.body.appendChild(modal);
-    settingsView(document.getElementById('settingsBody'));
-    document.getElementById('closeSettingsModal').addEventListener('click', () => modal.remove());
+    if (hint) {
+      if (game.mode === 'combat') hint.textContent = `Combat — round ${game.combat.round}. Click to move (movement left: ${game.combat.movementLeft} ft). Space = end turn.`;
+      else if (game.mode === 'over') hint.textContent = 'You have fallen…';
+      else if (game.mode === 'victory') hint.textContent = 'Victory!';
+      else hint.textContent = 'Click to move · click a monster to target · arrows/WASD to step';
+    }
+    updateHoverCues(currentHoverTile);
   }
 
   const dmSettingsBtn = document.getElementById('dmSettingsBtn');
-  if (dmSettingsBtn) dmSettingsBtn.addEventListener('click', openSettingsModal);
+  if (dmSettingsBtn) dmSettingsBtn.addEventListener('click', () => openSettingsModal());
 
   const pSelect = document.getElementById('personaQuickSelect');
   if (pSelect) {
@@ -642,10 +958,10 @@ export async function playView(main, saveRef) {
     });
   }
 
-  // while delving, the topbar DM Settings opens as a modal so the delve stays open
+  // while delving, if there is a data-nav="settings" link, wire it to the modal
   const settingsLink = document.querySelector('[data-nav="settings"]');
   const onSettingsNav = (e) => { e.preventDefault(); e.stopPropagation(); openSettingsModal(); };
-  settingsLink.addEventListener('click', onSettingsNav, true);
+  if (settingsLink) settingsLink.addEventListener('click', onSettingsNav, true);
 
   function openSummary() {
     const st = game.stats || { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
@@ -658,8 +974,13 @@ export async function playView(main, saveRef) {
       modal.id = 'summaryModal';
       document.body.appendChild(modal);
     }
+    const dismiss = () => {
+      if (modal && modal.parentNode) modal.parentNode.removeChild(modal);
+    };
+
     modal.innerHTML = `
-      <div class="modal">
+      <div class="modal" style="position:relative; max-width:520px;">
+        <button class="btn small" id="closeSummaryX" style="position:absolute; top:12px; right:12px; min-width:32px; padding:4px 8px; font-weight:bold; cursor:pointer;" title="Close summary">✕</button>
         <h2>${won ? '🏆 Delve Complete!' : (retreated ? '🏃 Retreated to Safety' : '💀 The Delve Ends… for now')}</h2>
         <p class="muted small">${esc(game.character.name)} · ${esc(game.mapName)} · level ${game.character.level}</p>
         <div class="stat-line"><span>⚔ Monsters slain</span><span>${st.kills || 0}</span></div>
@@ -668,22 +989,35 @@ export async function playView(main, saveRef) {
         <div class="stat-line"><span>💰 Gold banked</span><span>${game.character.gold || 0} gp (+${st.goldFound || 0} found)</span></div>
         <div class="stat-line"><span>⏱ Combat rounds</span><span>${st.rounds || 0}</span></div>
         <div class="stat-line"><span>📜 Side quests done</span><span>${(game.quests && game.quests.completed || []).length}</span></div>
-        <div style="margin-top:14px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+        <div style="margin-top:16px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
           ${(won || retreated)
-            ? `<a class="btn primary" href="#/overworld?char=${game.characterId}&return=${won ? 'victory' : 'retreat'}">🏰 Return to Oakhaven</a>
-               <a class="btn" href="#/overworld?char=${game.characterId}">🗺️ Region Map</a>
-               <a class="btn" href="#/">Home</a>`
+            ? `<a class="btn primary sumNavBtn" href="#/overworld?char=${game.characterId}&return=${won ? 'victory' : 'retreat'}">🏰 Return to Oakhaven</a>
+               <a class="btn sumNavBtn" href="#/overworld?char=${game.characterId}">🗺️ Region Map</a>
+               <button class="btn" id="closeSummaryBtn">🔍 Review Delve</button>
+               <a class="btn sumNavBtn" href="#/">Home</a>`
             : `<button class="btn primary" id="sumRespawn">🌅 Recover at camp</button>
-               <a class="btn" href="#/overworld?char=${game.characterId}">🏰 Retreat to Town</a>
-               <a class="btn" href="#/">Home</a>`}
+               <a class="btn sumNavBtn" href="#/overworld?char=${game.characterId}">🏰 Retreat to Town</a>
+               <button class="btn" id="closeSummaryBtn">🔍 Review Delve</button>
+               <a class="btn sumNavBtn" href="#/">Home</a>`}
         </div>
       </div>`;
+
     // Automatically commit delve loot and progression back to persistent character
     if (game.characterId && game.id) {
       api.citySyncDelve({ charId: game.characterId, delveStateId: game.id }).catch(() => {});
     }
+
+    modal.querySelectorAll('.sumNavBtn').forEach(btn => btn.addEventListener('click', dismiss));
+    const closeX = document.getElementById('closeSummaryX');
+    if (closeX) closeX.addEventListener('click', dismiss);
+    const closeBtn = document.getElementById('closeSummaryBtn');
+    if (closeBtn) closeBtn.addEventListener('click', dismiss);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) dismiss();
+    });
+
     const rr = document.getElementById('sumRespawn');
-    if (rr) rr.addEventListener('click', () => { modal.remove(); summaryShown = false; act({ type: 'respawn' }); });
+    if (rr) rr.addEventListener('click', () => { dismiss(); summaryShown = false; act({ type: 'respawn' }); });
   }
 
   function renderSide() {
@@ -727,6 +1061,11 @@ export async function playView(main, saveRef) {
         <div class="hp-text"><span>${p.hp}/${p.hpMax} HP${p.tempHp ? ` (+${p.tempHp} temp)` : ''}</span><span>AC ${acNow()}</span></div>
         <div class="hp-text"><span>Speed ${speedNow()} ft</span><span>XP ${char.xp} · ${char.gold} gp</span></div>
         <div class="hp-text"><span>Slots: ${slotText()}</span><span>HD left: ${char.level - (char.hdUsed || 0)}</span></div>
+        ${(() => {
+          const nextLvl = (char.level || 1) + 1;
+          const canLvl = char.pendingLevelUp || (XP_THRESHOLDS[nextLvl] && char.xp >= XP_THRESHOLDS[nextLvl]);
+          return canLvl ? `<button class="btn small levelup-badge-btn" id="btnDelveLevelUp" style="width:100%; margin-top:8px;">⚡ LEVEL UP AVAILABLE (Ascend to Lvl ${nextLvl})</button>` : '';
+        })()}
         ${(p.conditions.length || (p.buffs || []).filter(b => b.id !== 'concentrating').length) ? `<div style="margin-top:6px;">${p.conditions.map(c => `<span class="chip red">${esc(c)}</span>`).join('')}${(p.buffs || []).filter(b => b.id !== 'concentrating' && b.id !== 'cond_' ).map(b => `<span class="chip blue">${esc(b.id)}</span>`).join('')}</div>` : ''}
       </div>
 
@@ -772,19 +1111,49 @@ export async function playView(main, saveRef) {
           <button class="btn" data-act="longrest">🔥 Long Rest</button>
           <button class="btn" data-act="potion">🧪 Potion (${potCount})</button>
           ${atCampfire() ? `<button class="btn" data-act="recap" style="grid-column:1 / -1;">✍ Write journal entry</button>` : ''}
-          ${atCampfire() && !(game.quests && game.quests.active) ? '<button class="btn" data-act="askwork" style="grid-column:1 / -1;">🎲 Ask around for work</button>' : ''}
-          ${(atCampfire() || atEntrance()) ? '<button class="btn primary" data-act="retreat" style="grid-column:1 / -1; background:linear-gradient(180deg, #3d5a42, #29422e); border-color:#508059;">🏰 Retreat to Oakhaven</button>' : ''}
+          ${(atCampfire() || atEntrance() || game.mode === 'retreat' || game.mode === 'victory') ? `<button class="btn primary" data-act="retreat" style="grid-column:1 / -1; background:linear-gradient(180deg, #3d5a42, #29422e); border-color:#508059;">${game.mode === 'retreat' || game.mode === 'victory' ? '🏆 View Summary / Return to Town' : '🏰 Retreat to Oakhaven'}</button>` : ''}
           <button class="btn" data-act="journal" style="grid-column:1 / -1;">📖 Journal${(game.journal || []).length ? ` (${game.journal.length})` : ''}</button>
         </div>
         <div style="margin-top:8px;">${classActions()}</div>
       </div>`}
 
       <div class="card">
-        <h3>Inventory</h3>
+        <h3>Inventory & Equipment</h3>
         ${char.inventory.map(i => {
-          const def = appState.rules.weapons.find(w => w.id === i.itemId) || appState.rules.armor.find(w => w.id === i.itemId) || appState.rules.gear.find(w => w.id === i.itemId);
+          const def = (appState.rules.weapons || []).find(w => w.id === i.itemId) || (appState.rules.armor || []).find(w => w.id === i.itemId) || (appState.rules.gear || []).find(w => w.id === i.itemId);
           const usable = def && (def.type === 'potion' || def.type === 'scroll');
-          return `<div class="stat-line"><span>${def ? def.name : i.itemId}</span><span>${usable && i.qty > 0 ? `<button class="btn small" data-useitem="${i.itemId}">Use</button>` : ''} ×${i.qty}</span></div>`;
+          const isWeapon = (appState.rules.weapons || []).some(w => w.id === i.itemId);
+          const isArmor = (appState.rules.armor || []).some(a => a.id === i.itemId);
+          const isShield = i.itemId === 'shield' || (def && def.type === 'shield');
+          const isCloak = i.itemId.includes('cloak');
+          const isRing = i.itemId.includes('ring');
+          let equipBtn = '';
+          const eq = char.equipped || {};
+          if (isWeapon) {
+            if (eq.mainHand === i.itemId) equipBtn = `<span class="delve-inv-btn equipped">Wielded</span>`;
+            else equipBtn = `<button class="delve-inv-btn" data-equip-slot="mainHand" data-equip-item="${i.itemId}">Wield</button>`;
+          } else if (isArmor) {
+            if (eq.armor === i.itemId) equipBtn = `<span class="delve-inv-btn equipped">Worn</span>`;
+            else equipBtn = `<button class="delve-inv-btn" data-equip-slot="armor" data-equip-item="${i.itemId}">Wear</button>`;
+          } else if (isShield) {
+            if (eq.offHand === i.itemId) equipBtn = `<span class="delve-inv-btn equipped">Shielded</span>`;
+            else equipBtn = `<button class="delve-inv-btn" data-equip-slot="offHand" data-equip-item="${i.itemId}">Hold</button>`;
+          } else if (isCloak) {
+            if (eq.cloak === i.itemId) equipBtn = `<span class="delve-inv-btn equipped">Donned</span>`;
+            else equipBtn = `<button class="delve-inv-btn" data-equip-slot="cloak" data-equip-item="${i.itemId}">Don</button>`;
+          } else if (isRing) {
+            if (eq.ring1 === i.itemId) equipBtn = `<span class="delve-inv-btn equipped">Attuned</span>`;
+            else equipBtn = `<button class="delve-inv-btn" data-equip-slot="ring1" data-equip-item="${i.itemId}">Attune</button>`;
+          }
+
+          return `<div class="stat-line" data-item-tooltip="${i.itemId}" style="cursor:help;">
+            <span>${def ? def.name : i.itemId}</span>
+            <span style="display:flex; align-items:center;">
+              ${usable && i.qty > 0 ? `<button class="btn small" data-useitem="${i.itemId}" style="margin-right:4px;">Use</button>` : ''}
+              ${equipBtn}
+              <span style="margin-left:6px;">×${i.qty}</span>
+            </span>
+          </div>`;
         }).join('')}
       </div>
 
@@ -795,6 +1164,7 @@ export async function playView(main, saveRef) {
     `;
 
     wireSide(myTurn);
+    initTooltips(document.getElementById('sidePanel'), appState.rules);
     document.getElementById('sfxBtn').addEventListener('click', () => { sfx.toggle(); renderSide(); });
     document.getElementById('volSlider').addEventListener('input', (e) => { sfx.setVolume(+(e.target.value) / 100); });
     const vt = document.getElementById('viewToggle');
@@ -838,7 +1208,7 @@ export async function playView(main, saveRef) {
       if (item) {
         const disClass = (game.mode === 'combat' && !myTurn) ? 'disabled' : '';
         slots.push(`
-          <div class="quick-slot-card ${disClass}" data-quickslot="${i}" title="${esc(item.name)} (Key [${i + 1}])">
+          <div class="quick-slot-card ${disClass}" data-quickslot="${i}" data-item-tooltip="${item.itemId}" title="${esc(item.name)} (Key [${i + 1}])">
             <span class="slot-key-badge">${i + 1}</span>
             <span class="slot-icon">${item.icon}</span>
             <span class="slot-label">${esc(item.shortName)}</span>
@@ -994,7 +1364,10 @@ export async function playView(main, saveRef) {
       if (a === 'journal') openJournal();
       if (a === 'recap') act({ type: 'recap' });
       if (a === 'askwork') act({ type: 'quest' });
-      if (a === 'retreat') act({ type: 'retreat' });
+      if (a === 'retreat') {
+        if (game.mode === 'retreat' || game.mode === 'victory') openSummary();
+        else act({ type: 'retreat' });
+      }
       if (a === 'dodge') act({ type: 'dodge' });
       if (a === 'dash') act({ type: 'dash' });
       if (a === 'endturn') act({ type: 'endTurn' });
@@ -1027,6 +1400,32 @@ export async function playView(main, saveRef) {
       }
       if (id === 'hunters_mark_free' && !selectedTarget) return toast('Target a monster first.');
       act(action);
+    }));
+
+    const btnLvl = document.getElementById('btnDelveLevelUp');
+    if (btnLvl) {
+      btnLvl.onclick = () => {
+        openLevelUpModal(game.character.id, (upd) => {
+          game.character = upd;
+          renderSide();
+          toast(`⚡ Level Up applied: Level ${upd.level}!`);
+        });
+      };
+    }
+
+    document.querySelectorAll('[data-equip-slot]').forEach(b => b.addEventListener('click', async () => {
+      const slot = b.dataset.equipSlot;
+      const itemId = b.dataset.equipItem;
+      sfx.play('equip');
+      await act({ type: 'equip', slot, itemId });
+      toast(`Equipped ${itemId}!`);
+    }));
+
+    document.querySelectorAll('[data-unequip-slot]').forEach(b => b.addEventListener('click', async () => {
+      const slot = b.dataset.unequipSlot;
+      sfx.play('equip');
+      await act({ type: 'unequip', slot });
+      toast(`Unequipped ${slot}!`);
     }));
   }
 
@@ -1077,6 +1476,13 @@ export async function playView(main, saveRef) {
     } catch {}
   }, 4000);
 
-  sfx.stopAmbient();
-  return () => { clearInterval(pollTimer); document.removeEventListener('keydown', onKey); tts.stop(); sfx.stopAmbient(); if (renderer3d) renderer3d.dispose(); settingsLink.removeEventListener('click', onSettingsNav, true); };
+  return () => {
+    clearInterval(pollTimer);
+    document.removeEventListener('keydown', onKey);
+    tts.stop();
+    sfx.stopAmbient();
+    if (renderer3d) renderer3d.dispose();
+    if (settingsLink) settingsLink.removeEventListener('click', onSettingsNav, true);
+    document.querySelectorAll('.modal-back').forEach(m => m.remove());
+  };
 }

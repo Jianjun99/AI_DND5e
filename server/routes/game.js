@@ -221,6 +221,87 @@ router.post('/:id/action', async (req, res) => {
           engine.interactObject(state, action.objectId, events);
           break;
         }
+        case 'equip': {
+          const { slot, itemId } = action;
+          if (!slot) { events.push({ type: 'error', text: 'Slot required' }); break; }
+          state.character.equipped = state.character.equipped || {};
+          if (!itemId || itemId === 'none') {
+            state.character.equipped[slot] = null;
+            events.push({ type: 'equip', text: `Unequipped ${slot}.`, slot, itemId: null });
+          } else {
+            const hasItem = (state.character.inventory || []).some(i => i.itemId === itemId && i.qty > 0);
+            if (!hasItem) { events.push({ type: 'error', text: 'Item not in inventory' }); break; }
+            state.character.equipped[slot] = itemId;
+            events.push({ type: 'equip', text: `Equipped ${itemId} in ${slot}.`, slot, itemId });
+          }
+          const armorId = state.character.equipped.armor;
+          const offHandId = state.character.equipped.offHand;
+          const reorder = (itId) => {
+            const idx = (state.character.inventory || []).findIndex(i => i.itemId === itId);
+            if (idx > 0) { const [it] = state.character.inventory.splice(idx, 1); state.character.inventory.unshift(it); }
+          };
+          if (armorId) reorder(armorId);
+          if (offHandId) reorder(offHandId);
+          const cls = (engine.CLASSES || []).find(c => c.id === state.character.className);
+          if (cls) engine.applyClassAndSpecies(state.character, cls, null, state.character.level || 1, true);
+          if (state.character.equipped.mainHand) {
+            const w = engine.resolveWeapon(state.character.equipped.mainHand);
+            if (w) {
+              const dexMod = Math.floor(((state.character.abilities?.dex || 10) - 10) / 2);
+              const strMod = Math.floor(((state.character.abilities?.str || 10) - 10) / 2);
+              const isFinesse = (w.props || []).includes('finesse');
+              const isRanged = !!w.range && w.range > 5;
+              const abilityMod = isRanged ? dexMod : (isFinesse ? Math.max(strMod, dexMod) : strMod);
+              const prof = (state.character.profBonus || 2);
+              const mainAtk = {
+                weaponId: w.id, name: w.name,
+                bonus: prof + abilityMod + (w.magic || 0),
+                dmgDice: w.damage || '1d6',
+                dmgMod: abilityMod + (w.magic || 0),
+                dmgType: w.damageType || 'slashing',
+                ranged: isRanged, range: w.range || 5, props: w.props || []
+              };
+              const rest = (state.character.attacks || []).filter(a => a.weaponId !== w.id);
+              const un = rest.find(a => a.weaponId === 'unarmed');
+              state.character.attacks = [mainAtk, ...(rest.filter(a => a !== un)), un].filter(Boolean);
+            }
+          }
+          const pe = engine.playerEntity(state);
+          if (pe) pe.ac = state.character.acBase;
+          try {
+            const chars = store.getCharacters();
+            const cIdx = chars.findIndex(c => c.id === state.character.id);
+            if (cIdx >= 0) {
+              chars[cIdx].equipped = state.character.equipped;
+              chars[cIdx].inventory = state.character.inventory;
+              chars[cIdx].acBase = state.character.acBase;
+              chars[cIdx].attacks = state.character.attacks;
+              store.saveCharacters(chars);
+            }
+          } catch {}
+          break;
+        }
+        case 'unequip': {
+          const { slot } = action;
+          if (slot && state.character.equipped) {
+            state.character.equipped[slot] = null;
+            const cls = (engine.CLASSES || []).find(c => c.id === state.character.className);
+            if (cls) engine.applyClassAndSpecies(state.character, cls, null, state.character.level || 1, true);
+            const pe = engine.playerEntity(state);
+            if (pe) pe.ac = state.character.acBase;
+            events.push({ type: 'equip', text: `Unequipped ${slot}.`, slot, itemId: null });
+            try {
+              const chars = store.getCharacters();
+              const cIdx = chars.findIndex(c => c.id === state.character.id);
+              if (cIdx >= 0) {
+                chars[cIdx].equipped = state.character.equipped;
+                chars[cIdx].acBase = state.character.acBase;
+                store.saveCharacters(chars);
+              }
+            } catch {}
+          }
+          break;
+        }
         case 'endTurn': {
           engine.endTurn(state, events);
           break;

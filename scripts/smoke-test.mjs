@@ -1,6 +1,6 @@
 // End-to-end smoke test: boots against a running server (BASE_URL or http://localhost:3100)
 // and walks the core loop: health → rules → create character → start delve → move → door → freeform.
-const BASE = process.env.BASE_URL || 'http://localhost:3100';
+let BASE = process.env.BASE_URL || (process.env.PORT ? `http://localhost:${process.env.PORT}` : null);
 
 async function req(method, path, body) {
   const res = await fetch(BASE + path, {
@@ -14,8 +14,18 @@ async function req(method, path, body) {
 }
 
 async function waitHealthy() {
+  const candidates = BASE ? [BASE] : ['http://localhost:3000', 'http://localhost:3100'];
   for (let i = 0; i < 20; i++) {
-    try { return await req('GET', '/api/health'); } catch { await new Promise(r => setTimeout(r, 500)); }
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url + '/api/health');
+        if (res.ok) {
+          BASE = url;
+          return await res.json();
+        }
+      } catch {}
+    }
+    await new Promise(r => setTimeout(r, 500));
   }
   throw new Error('Server never became healthy');
 }

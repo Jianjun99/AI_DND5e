@@ -4,7 +4,7 @@ import { homeView } from './views/home.js';
 import { creatorView } from './views/creator.js';
 import { sheetView } from './views/sheet.js';
 import { playView } from './views/play.js';
-import { settingsView } from './views/settings.js';
+import { settingsView, openSettingsModal } from './views/settings.js';
 import { overworldView } from './views/overworld.js';
 
 export const state = {
@@ -57,6 +57,10 @@ let currentCleanup = null;
 export async function navigate() {
   const hash = location.hash || '#/';
   const main = document.getElementById('view');
+
+  // Dismiss any lingering body modals on route transitions
+  document.querySelectorAll('.modal-back').forEach(m => m.remove());
+
   if (currentCleanup) { try { currentCleanup(); } catch {} currentCleanup = null; }
   document.querySelectorAll('.topbar nav a').forEach(a => a.classList.remove('active'));
 
@@ -96,6 +100,13 @@ async function refreshContinue() {
 window.addEventListener('hashchange', navigate);
 
 (async function init() {
+  const topSetBtn = document.getElementById('topSettingsBtn');
+  if (topSetBtn) {
+    topSetBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openSettingsModal();
+    });
+  }
   try { await loadRules(); } catch (e) { /* server may be offline; views handle it */ }
   await navigate();
 })();

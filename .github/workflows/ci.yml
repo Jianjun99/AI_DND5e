@@ -28,6 +28,9 @@ jobs:
       - name: Smoke-test the API (health, rules, character, delve)
         run: node scripts/smoke-test.mjs
 
+      - name: Run Full Test Suite (unit, integration & progression)
+        run: PORT=3100 node scripts/test-all.mjs
+
       - name: Stop server
         if: always()
         run: kill $(cat server.pid) || true

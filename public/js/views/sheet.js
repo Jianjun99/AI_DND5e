@@ -1,6 +1,7 @@
 // sheet.js — character sheet display
 import { api } from '../api.js';
 import { esc, toast, state as appState } from '../app.js';
+import { initTooltips } from '../tooltip.js';
 
 const ABILS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 const SKILL_ABILITY = { acrobatics:'dex', animal_handling:'wis', arcana:'int', athletics:'str', deception:'cha', history:'int', insight:'wis', intimidation:'cha', investigation:'int', medicine:'wis', nature:'int', perception:'wis', performance:'cha', persuasion:'cha', religion:'int', sleight_of_hand:'dex', stealth:'dex', survival:'wis' };
@@ -47,7 +48,7 @@ export async function sheetView(main, charId) {
     const a = rules.armor.find(x => x.id === i.itemId);
     const g = rules.gear.find(x => x.id === i.itemId);
     const def = w || a || g;
-    return `<div class="stat-line"><span>${def ? def.name : i.itemId}</span><span>×${i.qty}</span></div>`;
+    return `<div class="stat-line" data-item-tooltip="${i.itemId}" style="cursor:help;"><span>${def ? def.name : i.itemId}</span><span>×${i.qty}</span></div>`;
   }).join('');
 
   const getItemName = (id) => {
@@ -84,32 +85,32 @@ export async function sheetView(main, charId) {
         <span class="small muted">Click slot to change</span>
       </div>
       <div class="paperdoll-grid">
-        <div class="paperdoll-slot" data-slot="armor">
+        <div class="paperdoll-slot" data-slot="armor" ${currentArmor ? `data-item-tooltip="${currentArmor}" style="cursor:help;"` : ''}>
           <div class="slot-label">🦺 Armor</div>
           <div class="slot-name ${currentArmor ? '' : 'empty'}">${getItemName(currentArmor) || 'Unarmored'}</div>
           <div class="slot-val small muted">${getItemDesc(currentArmor)}</div>
         </div>
-        <div class="paperdoll-slot" data-slot="mainHand">
+        <div class="paperdoll-slot" data-slot="mainHand" ${currentMainHand ? `data-item-tooltip="${currentMainHand}" style="cursor:help;"` : ''}>
           <div class="slot-label">🗡️ Main Hand</div>
           <div class="slot-name ${currentMainHand ? '' : 'empty'}">${getItemName(currentMainHand) || 'Unarmed'}</div>
           <div class="slot-val small muted">${getItemDesc(currentMainHand)}</div>
         </div>
-        <div class="paperdoll-slot" data-slot="offHand">
+        <div class="paperdoll-slot" data-slot="offHand" ${currentOffHand ? `data-item-tooltip="${currentOffHand}" style="cursor:help;"` : ''}>
           <div class="slot-label">🛡️ Off-Hand</div>
           <div class="slot-name ${currentOffHand ? '' : 'empty'}">${getItemName(currentOffHand) || 'Empty'}</div>
           <div class="slot-val small muted">${getItemDesc(currentOffHand)}</div>
         </div>
-        <div class="paperdoll-slot" data-slot="cloak">
+        <div class="paperdoll-slot" data-slot="cloak" ${currentCloak ? `data-item-tooltip="${currentCloak}" style="cursor:help;"` : ''}>
           <div class="slot-label">🧥 Cloak</div>
           <div class="slot-name ${currentCloak ? '' : 'empty'}">${getItemName(currentCloak) || 'Empty'}</div>
           <div class="slot-val small muted">${getItemDesc(currentCloak)}</div>
         </div>
-        <div class="paperdoll-slot" data-slot="amulet">
+        <div class="paperdoll-slot" data-slot="amulet" ${currentAmulet ? `data-item-tooltip="${currentAmulet}" style="cursor:help;"` : ''}>
           <div class="slot-label">📿 Amulet</div>
           <div class="slot-name ${currentAmulet ? '' : 'empty'}">${getItemName(currentAmulet) || 'Empty'}</div>
           <div class="slot-val small muted">${getItemDesc(currentAmulet)}</div>
         </div>
-        <div class="paperdoll-slot" data-slot="ring1">
+        <div class="paperdoll-slot" data-slot="ring1" ${currentRing1 ? `data-item-tooltip="${currentRing1}" style="cursor:help;"` : ''}>
           <div class="slot-label">💍 Ring</div>
           <div class="slot-name ${currentRing1 ? '' : 'empty'}">${getItemName(currentRing1) || 'Empty'}</div>
           <div class="slot-val small muted">${getItemDesc(currentRing1)}</div>
@@ -320,6 +321,8 @@ export async function sheetView(main, charId) {
       }
     });
   }
+
+  initTooltips(main, rules);
 }
 
 function skillProfMod(char, skill) {
