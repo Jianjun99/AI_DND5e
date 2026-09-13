@@ -58,6 +58,8 @@ export async function navigate() {
   if (currentCleanup) { try { currentCleanup(); } catch {} currentCleanup = null; }
   document.querySelectorAll('.topbar nav a').forEach(a => a.classList.remove('active'));
 
+  refreshContinue();
+
   for (const r of routes) {
     const m = r.re.exec(hash);
     if (m) {
@@ -72,6 +74,21 @@ export async function navigate() {
     }
   }
   location.hash = '#/';
+}
+
+// Topbar "Continue" — always points at the most recent delve so leaving the
+// game screen (settings, home) is never a dead end.
+async function refreshContinue() {
+  const btn = document.getElementById('continueBtn');
+  if (!btn) return;
+  try {
+    const saves = await (await fetch('/api/game')).json();
+    if (!saves.length) { btn.classList.add('hidden'); return; }
+    const latest = saves.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    btn.href = '#/play/' + latest.id;
+    btn.textContent = `⚔ Continue — ${latest.characterName} (${latest.mapName})`;
+    btn.classList.remove('hidden');
+  } catch { btn.classList.add('hidden'); }
 }
 
 window.addEventListener('hashchange', navigate);

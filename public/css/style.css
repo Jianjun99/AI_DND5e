@@ -47,6 +47,12 @@ body {
 }
 .topbar nav a:hover { color: var(--parchment); background: rgba(255,255,255,.04); }
 .topbar nav a.active { color: var(--gold); background: rgba(201,169,89,.1); }
+.topbar nav a.continue {
+  color: #fff7e0; background: linear-gradient(180deg, #8a6d2f, #6e5522);
+  border: 1px solid #a5853f; font-weight: 600;
+}
+.topbar nav a.continue:hover { color: #fff; border-color: var(--gold); }
+.topbar nav a.continue.active { color: #fff; }
 
 main { flex: 1; width: 100%; max-width: 1500px; margin: 0 auto; padding: 22px; }
 

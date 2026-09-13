@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { esc, toast, state as appState, charObjective } from '../app.js';
 import { createMapRenderer } from '../map.js';
 import { createMap3D } from '../map3d.js';
+import { settingsView } from './settings.js';
 import { showDice } from '../dice.js';
 import { sfx } from '../sfx.js';
 import { tts } from '../tts.js';
@@ -76,6 +77,7 @@ export async function playView(main, saveRef) {
       <h1 style="font-size:24px;">${esc(game.mapName)}</h1>
       <div>
         <a class="btn small" href="#/character/${game.characterId}">Sheet</a>
+        <button class="btn small" id="dmSettingsBtn">⚙ DM Settings</button>
         <a class="btn small" href="#/">Heroes</a>
       </div>
     </div>
@@ -350,6 +352,30 @@ export async function playView(main, saveRef) {
     else if (game.mode === 'victory') hint.textContent = 'Victory!';
     else hint.textContent = 'Click to move · click a monster to target · arrows/WASD to step';
   }
+
+  function openSettingsModal() {
+    let modal = document.getElementById('settingsModal');
+    if (modal) { modal.remove(); }
+    modal = document.createElement('div');
+    modal.className = 'modal-back';
+    modal.id = 'settingsModal';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:900px; max-height:90vh; overflow-y:auto; text-align:left;">
+        <div style="display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:var(--panel); padding:10px 6px; z-index:2;">
+          <span></span>
+          <button class="btn small" id="closeSettingsModal" style="position:absolute; right:14px; top:14px;">Done — back to the delve ✕</button>
+        </div>
+        <div id="settingsBody"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    settingsView(document.getElementById('settingsBody'));
+    document.getElementById('closeSettingsModal').addEventListener('click', () => modal.remove());
+  }
+
+  // while delving, the topbar DM Settings opens as a modal so the delve stays open
+  const settingsLink = document.querySelector('[data-nav="settings"]');
+  const onSettingsNav = (e) => { e.preventDefault(); e.stopPropagation(); openSettingsModal(); };
+  settingsLink.addEventListener('click', onSettingsNav, true);
 
   function openSummary() {
     const st = game.stats || { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
@@ -659,5 +685,5 @@ export async function playView(main, saveRef) {
     } catch {}
   }, 4000);
 
-  return () => { clearInterval(pollTimer); document.removeEventListener('keydown', onKey); tts.stop(); if (renderer3d) renderer3d.dispose(); };
+  return () => { clearInterval(pollTimer); document.removeEventListener('keydown', onKey); tts.stop(); if (renderer3d) renderer3d.dispose(); settingsLink.removeEventListener('click', onSettingsNav, true); };
 }
