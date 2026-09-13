@@ -197,12 +197,16 @@
       "y": 2,
       "icon": "🧰",
       "loot": {
-        "gold": 30,
+        "gold": "2d10",
         "potions": 1,
         "items": [
           {
             "id": "flame_dagger",
             "qty": 1
+          },
+          {
+            "id": "potion_healing",
+            "chance": 0.5
           }
         ]
       }
@@ -251,12 +255,15 @@
       "y": 17,
       "icon": "🧰",
       "loot": {
-        "gold": 25,
-        "potions": 2,
+        "gold": "3d8",
         "items": [
           {
             "id": "cloak_protection",
             "qty": 1
+          },
+          {
+            "id": "potion_healing",
+            "chance": 0.6
           }
         ]
       }
@@ -303,12 +310,15 @@
       "y": 13,
       "icon": "🧰",
       "loot": {
-        "gold": 40,
-        "potions": 1,
+        "gold": "4d10",
         "items": [
           {
             "id": "amulet_of_vigor",
             "qty": 1
+          },
+          {
+            "id": "scroll_sleep",
+            "chance": 0.5
           }
         ]
       }
@@ -414,5 +424,10 @@
         "No refunds on destiny, dear. But do come back alive."
       ]
     }
-  }
+  },
+  "wandering": [
+    "giant_rat",
+    "skeleton",
+    "goblin"
+  ]
 }

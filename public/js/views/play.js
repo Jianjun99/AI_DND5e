@@ -2,6 +2,7 @@
 import { api } from '../api.js';
 import { esc, toast, state as appState, charObjective } from '../app.js';
 import { createMapRenderer } from '../map.js';
+import { createMap3D } from '../map3d.js';
 import { showDice } from '../dice.js';
 import { sfx } from '../sfx.js';
 import { tts } from '../tts.js';
@@ -11,6 +12,7 @@ let selectedTarget = null;
 let activeNpc = null;
 let appearanceShown = null;
 let portraitShown = null;
+let summaryShown = false;
 let busy = false;
 
 export async function playView(main, saveRef) {
@@ -81,7 +83,9 @@ export async function playView(main, saveRef) {
       <div>
         <div class="map-wrap">
           <canvas id="mapCanvas"></canvas>
+          <div id="map3d" style="display:none; width:100%; height:560px;"></div>
           <div class="map-hint" id="mapHint">Click to move · click a monster to target · arrows/WASD to step</div>
+          <button class="btn small" id="viewToggle" style="position:absolute; top:8px; right:10px; z-index:5;">🗺 2D</button>
         </div>
         <div class="log-panel">
           <div class="log-entries" id="logEntries"></div>
@@ -98,8 +102,31 @@ export async function playView(main, saveRef) {
 
   const canvas = document.getElementById('mapCanvas');
   const renderer = createMapRenderer(canvas, { isSelected: e => selectedTarget && e.id === selectedTarget.id });
+  let renderer3d = null;
+  let activeView = localStorage.getItem('dnd_3d') === 'on' ? '3d' : '2d';
+
+  function activeRender(gameState) {
+    if (activeView === '3d') {
+      if (!renderer3d) {
+        renderer3d = createMap3D(document.getElementById('map3d'), {
+          onTileClick: (x, y) => handleTileClick(x, y),
+          isSelected: e => selectedTarget && e.id === selectedTarget.id
+        });
+      }
+      canvas.style.display = 'none';
+      document.getElementById('map3d').style.display = 'block';
+      renderer3d.render(gameState);
+    } else {
+      if (renderer3d) document.getElementById('map3d').style.display = 'none';
+      canvas.style.display = 'block';
+      renderer.render(gameState);
+    }
+    const vt = document.getElementById('viewToggle');
+    if (vt) vt.textContent = activeView === '3d' ? '🏰 3D' : '🗺 2D';
+  }
 
   canvas.addEventListener('click', ev => {
+    if (activeView !== '2d') return;
     const t = renderer.tileFromEvent(ev);
     handleTileClick(t.x, t.y);
   });
@@ -309,14 +336,49 @@ export async function playView(main, saveRef) {
 
   // ---------------- rendering ----------------
   function update() {
-    renderer.render(game);
+    activeRender(game);
     renderSide();
+    if ((game.mode === 'victory' || game.mode === 'over') && !summaryShown) {
+      summaryShown = true;
+      sfx.play(game.mode === 'victory' ? 'victory' : 'death');
+      openSummary();
+    }
     renderLog();
     const hint = document.getElementById('mapHint');
     if (game.mode === 'combat') hint.textContent = `Combat — round ${game.combat.round}. Click to move (movement left: ${game.combat.movementLeft} ft). Space = end turn.`;
     else if (game.mode === 'over') hint.textContent = 'You have fallen…';
     else if (game.mode === 'victory') hint.textContent = 'Victory!';
     else hint.textContent = 'Click to move · click a monster to target · arrows/WASD to step';
+  }
+
+  function openSummary() {
+    const st = game.stats || { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
+    const won = game.mode === 'victory';
+    let modal = document.getElementById('summaryModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.className = 'modal-back';
+      modal.id = 'summaryModal';
+      document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+      <div class="modal">
+        <h2>${won ? '🏆 Delve Complete!' : '💀 The Delve Ends… for now'}</h2>
+        <p class="muted small">${esc(game.character.name)} · ${esc(game.mapName)} · level ${game.character.level}</p>
+        <div class="stat-line"><span>⚔ Monsters slain</span><span>${st.kills || 0}</span></div>
+        <div class="stat-line"><span>🗡 Damage dealt</span><span>${st.dmgDealt || 0}</span></div>
+        <div class="stat-line"><span>🩸 Damage taken</span><span>${st.dmgTaken || 0}</span></div>
+        <div class="stat-line"><span>💰 Gold found</span><span>${st.goldFound || 0} gp</span></div>
+        <div class="stat-line"><span>⏱ Combat rounds</span><span>${st.rounds || 0}</span></div>
+        <div class="stat-line"><span>📜 Side quests done</span><span>${(game.quests && game.quests.completed || []).length}</span></div>
+        <div style="margin-top:14px; display:flex; gap:8px; justify-content:center;">
+          ${won
+            ? '<a class="btn primary" href="#/">Return a legend</a><a class="btn" href="#/play/new?char=' + game.characterId + '">New Delve</a>'
+            : '<button class="btn primary" id="sumRespawn">🌅 Recover at camp</button><a class="btn" href="#/">Home</a>'}
+        </div>
+      </div>`;
+    const rr = document.getElementById('sumRespawn');
+    if (rr) rr.addEventListener('click', () => { modal.remove(); summaryShown = false; act({ type: 'respawn' }); });
   }
 
   function renderSide() {
@@ -400,7 +462,8 @@ export async function playView(main, saveRef) {
         <h3>Inventory</h3>
         ${char.inventory.map(i => {
           const def = appState.rules.weapons.find(w => w.id === i.itemId) || appState.rules.armor.find(w => w.id === i.itemId) || appState.rules.gear.find(w => w.id === i.itemId);
-          return `<div class="stat-line"><span>${def ? def.name : i.itemId}</span><span>×${i.qty}</span></div>`;
+          const usable = def && (def.type === 'potion' || def.type === 'scroll');
+          return `<div class="stat-line"><span>${def ? def.name : i.itemId}</span><span>${usable && i.qty > 0 ? `<button class="btn small" data-useitem="${i.itemId}">Use</button>` : ''} ×${i.qty}</span></div>`;
         }).join('')}
       </div>
 
@@ -412,6 +475,11 @@ export async function playView(main, saveRef) {
 
     wireSide(myTurn);
     document.getElementById('sfxBtn').addEventListener('click', () => { sfx.toggle(); renderSide(); });
+    document.getElementById('viewToggle').addEventListener('click', () => {
+      activeView = activeView === '3d' ? '2d' : '3d';
+      localStorage.setItem('dnd_3d', activeView === '3d' ? 'on' : 'off');
+      activeRender(game);
+    });
     document.getElementById('ttsBtn').addEventListener('click', () => { tts.toggle(); renderSide(); toast(tts.isEnabled() ? '🗣️ AI DM voice-on' : '🤐 AI DM voice-off'); });
   }
 
@@ -500,6 +568,15 @@ export async function playView(main, saveRef) {
       if (a === 'journal') openJournal();
       if (a === 'recap') act({ type: 'recap' });
       if (a === 'askwork') act({ type: 'quest' });
+    document.querySelectorAll('[data-useitem]').forEach(b => b.addEventListener('click', () => {
+      const itemId = b.dataset.useitem;
+      const def = appState.rules.gear.find(g => g.id === itemId);
+      if (def && def.type === 'scroll' && def.spell) {
+        const sp = appState.rules.spells.find(x => x.id === def.spell);
+        if (sp && ['enemy', 'burst'].includes(sp.target) && !selectedTarget) return toast('Target a creature first.');
+        act({ type: 'useItem', itemId, targetId: selectedTarget ? selectedTarget.id : 'player' });
+      } else act({ type: 'useItem', itemId });
+    }));
       if (a === 'dodge') act({ type: 'dodge' });
       if (a === 'dash') act({ type: 'dash' });
       if (a === 'endturn') act({ type: 'endTurn' });
@@ -582,5 +659,5 @@ export async function playView(main, saveRef) {
     } catch {}
   }, 4000);
 
-  return () => { clearInterval(pollTimer); document.removeEventListener('keydown', onKey); tts.stop(); };
+  return () => { clearInterval(pollTimer); document.removeEventListener('keydown', onKey); tts.stop(); if (renderer3d) renderer3d.dispose(); };
 }

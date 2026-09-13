@@ -27,11 +27,11 @@ const SKILL_ABILITY = {
   sleight_of_hand: 'dex', stealth: 'dex', survival: 'wis'
 };
 const ALL_SKILLS = Object.keys(SKILL_ABILITY);
-const XP_THRESHOLDS = { 2: 300, 3: 900 };
+const XP_THRESHOLDS = { 2: 300, 3: 900, 4: 2700, 5: 6500 };
 const SLOTS = {
-  full: { 1: { 1: 2 }, 2: { 1: 3 }, 3: { 1: 4, 2: 2 } },
-  half: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 3 } },
-  pact: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 2 } }
+  full: { 1: { 1: 2 }, 2: { 1: 3 }, 3: { 1: 4, 2: 2 }, 4: { 1: 4, 2: 3 }, 5: { 1: 4, 2: 3, 3: 2 } },
+  half: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 3 }, 4: { 1: 3 }, 5: { 1: 4, 2: 2 } },
+  pact: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 2 }, 4: { 1: 2 }, 5: { 1: 2, 2: 2 } }
 };
 
 const byId = (arr, id) => arr.find(x => x.id === id);
@@ -51,7 +51,11 @@ const SHOP_ITEMS = [
   { id: 'potion_greater', name: 'Greater Healing Potion', price: 50, desc: 'Bonus action: regain 4d4+4 HP.' },
   { id: 'healers_kit', name: "Healer's Kit", price: 15, desc: 'Needed for the Healer feat; patches wounds.' },
   { id: 'thieves_tools', name: "Thieves' Tools", price: 25, desc: 'Pick locks and disarm traps.' },
-  { id: 'silver_sword', name: 'Silver Shortsword', price: 200, desc: 'Magic shortsword: +1 to attack and damage.' }
+  { id: 'silver_sword', name: 'Silver Shortsword', price: 200, desc: 'Magic shortsword: +1 to attack and damage.' },
+  { id: 'scroll_magic_missile', name: 'Scroll of Magic Missile', price: 75, desc: 'One-shot: 3d4+3 force damage.' },
+  { id: 'scroll_shield', name: 'Scroll of Shield', price: 75, desc: 'One-shot: +5 AC until your next turn.' },
+  { id: 'scroll_cure', name: 'Scroll of Cure Wounds', price: 60, desc: 'One-shot: heal 1d8+3 HP.' },
+  { id: 'scroll_sleep', name: 'Scroll of Sleep', price: 80, desc: 'One-shot: put a creature to sleep.' }
 ];
 
 // Weapons resolve either from the weapon table or from magic gear (built on a base weapon)
@@ -198,8 +202,9 @@ function buildCharacter(draft) {
 }
 
 // compute hp/ac/speed/attacks/uses; used at creation AND on level-up
-function applyClassAndSpecies(char, clsArg, spArg, newLevel) {
+function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = false) {
   const cls = clsArg || byId(CLASSES, char.className);
+  char.profBonus = 2 + Math.floor((Math.max(1, newLevel) - 1) / 4);
   const sp = spArg || byId(SPECIES, char.species);
   const level = char.level = newLevel || char.level;
   const eff = sp.effect || {};
@@ -209,7 +214,7 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel) {
   const hpPerLevelExtra = (eff.hpPerLevel || 0) + ((FEATS[char.feat] || {}).hpPerLevel || 0);
   let gained;
   if (char.hpMax === 0) gained = cls.hitDie + conM;
-  else gained = Math.max(1, die(cls.hitDie) + conM);
+  else gained = recomputeOnly ? 0 : Math.max(1, die(cls.hitDie) + conM);
   char.hpMax = Math.max(1, (char.hpMax || 0) + gained + hpPerLevelExtra);
 
   const armorItem = char.inventory.map(i => byId(ARMORS, i.itemId)).find(Boolean);
@@ -281,7 +286,7 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel) {
 
   if (cls.spellcasting) {
     const table = SLOTS[cls.spellcasting.slots];
-    const slotsDef = table[Math.min(level, 3)] || {};
+    const slotsDef = table[Math.min(level, 5)] || {};
     char.slotsMax = { ...slotsDef };
     char.slots = char.slots && Object.keys(char.slots).length ? char.slots : { ...slotsDef };
     char.slotsRefresh = cls.spellcasting.slots === 'pact' ? 'short' : 'long';
@@ -470,6 +475,7 @@ function startGame(character, options = {}) {
     mapId: mapDef.id, mapName: mapDef.name, map: mapDef, mode: 'explore', difficulty,
     world: {},
     quests: { active: null, completed: [] },
+    stats: { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 },
     entities: [], objects: [], discovered: [], flags: { hasRelic: false, altarBlessed: false, victory: false, failed: false },
     npcChat: {}, stealth: null, log: [], journal: [], appearances: {}, createdAt: Date.now(), updatedAt: Date.now()
   };
@@ -603,8 +609,10 @@ function tickBuffs(state) {
   state.entities.forEach(e => {
     if (!e.buffs || !e.buffs.length) return;
     e.buffs.forEach(b => b.rounds--);
-    const concExpired = e.buffs.some(b => b.id === 'concentrating') && e.buffs.find(b => b.id === 'concentrating').rounds <= 1;
+    const expiredConds = e.buffs.filter(b => b.rounds <= 0 && b.condition).map(b => b.condId);
     e.buffs = e.buffs.filter(b => b.rounds > 0);
+    (expiredConds || []).forEach(cid => { e.conditions = (e.conditions || []).filter(c => c !== cid); });
+    const concExpired = e.buffs.some(b => b.id === 'concentrating') && e.buffs.find(b => b.id === 'concentrating').rounds <= 1;
     if (concExpired) { // lost concentration -> end concentration buffs granted to others
       state.entities.forEach(t => { t.buffs = (t.buffs || []).filter(tb => !(tb.srcEntity === e.id && tb.conc)); });
       addLog(state, 'mech', `${e.name}'s concentration is broken.`);
@@ -705,6 +713,7 @@ function beginPlayerTurn(state, events = []) {
   state.flags.savage_used = false;
   c.movementLeft = currentSpeed(state, p);
   removeBuff(p, 'shield'); // Shield lasts until the start of your next turn
+  state.flags.used_extra = false;
   if (p.conditions.includes('unconscious')) {
     rollDeathSave(state, events);
     return;
@@ -718,6 +727,7 @@ function beginPlayerTurn(state, events = []) {
 
 function currentSpeed(state, ent) {
   let s = ent.speedFt || 30;
+  if (ent.enraged) s += 10;
   (ent.buffs || []).forEach(b => {
     if (b.id === 'longstrider') s += 10;
     if (b.id === 'slowed') s -= 10;
@@ -751,6 +761,8 @@ function charHasArmor(char) { return char.inventory.some(i => byId(ARMORS, i.ite
 function applyDamage(state, target, amount, dmgType, events) {
   if (!target || target.alive === false || amount <= 0) return 0;
   let dmg = amount;
+  if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
+  if (target.kind === 'player') state.stats.dmgTaken += amount;
   const resList = target.kind === 'player' ? (state.character.resistances || []) : [];
   if (target.kind === 'player' && hasBuff(target, 'rage') && ['bludgeoning', 'piercing', 'slashing'].includes(dmgType)) dmg = Math.floor(dmg / 2);
   if (resList.includes(dmgType)) dmg = Math.floor(dmg / 2);
@@ -760,12 +772,14 @@ function applyDamage(state, target, amount, dmgType, events) {
     target.tempHp -= absorbed; dmg -= absorbed;
   }
   target.hp -= dmg;
-  // wake sleeping creatures
-  if (target.conditions.includes('asleep')) {
-    target.conditions = target.conditions.filter(c => c !== 'asleep');
-    removeBuff(target, 'asleep');
-    addLog(state, 'mech', `${target.name} wakes with a jolt!`);
-  }
+  // wake sleeping / paralyzed creatures
+  ['asleep', 'paralyzed'].forEach(cTag => {
+    if (target.conditions.includes(cTag)) {
+      target.conditions = target.conditions.filter(c => c !== cTag);
+      removeBuff(target, cTag);
+      addLog(state, 'mech', `${target.name} is shaken awake by the pain!`);
+    }
+  });
   // concentration check
   const conc = getBuff(target, 'concentrating');
   if (conc && dmg > 0) {
@@ -791,7 +805,9 @@ function applyDamage(state, target, amount, dmgType, events) {
       }
     }
     target.hp = 0; target.alive = false;
+    if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
     if (target.kind === 'monster') {
+      state.stats.kills++;
       const ev = { type: 'kill', narrate: true, text: `${target.name} is destroyed! (+${target.xp} XP)`, data: { xp: target.xp } };
       events.push(ev); addLog(state, 'mech', ev.text);
       awardXp(state, target.xp, events);
@@ -884,7 +900,8 @@ function monsterAttack(state, attacker, target, atk, events) {
     const altar = getBuff(target, 'altar_blessed');
     if (altar) atkExtra += 1;
   }
-  const total = roll.natural + atk.bonus + atkExtra;
+  const enrageBonus = attacker.enraged ? 2 : 0;
+  const total = roll.natural + atk.bonus + enrageBonus + atkExtra;
   const hit = roll.natural === 20 || (roll.natural !== 1 && total >= targetAc);
   const atkStr = `${attacker.name}'s ${atk.name}`;
   if (!hit) {
@@ -896,7 +913,8 @@ function monsterAttack(state, attacker, target, atk, events) {
   const rolled = damageRoll(atk.damage, { crit });
   // difficulty scales only monster damage, never the ally's
   const dmgMult = attacker.kind === 'monster' ? DIFFICULTY[state.difficulty || 'normal'].dmgMult : 1;
-  const dmg = { total: Math.max(1, Math.round(rolled.total * dmgMult)), dice: rolled.dice };
+  const enrageFlat = attacker.enraged ? 2 : 0;
+  const dmg = { total: Math.max(1, Math.round((rolled.total + enrageFlat) * dmgMult)), dice: rolled.dice };
   let text = `${atkStr} hits ${target.name}${crit ? ' — CRITICAL HIT!' : ''} for ${dmg.total} ${atk.damageType} damage.`;
   events.push({ type: 'attack_in', narrate: true, text, data: { dmg: dmg.total, crit } });
   addLog(state, 'mech', text);
@@ -914,15 +932,21 @@ function monsterAttack(state, attacker, target, atk, events) {
   const dealt = applyDamage(state, target, dmg.total, atk.damageType, events);
   if (isPlayer) {
     addLog(state, 'mech', `${target.name} takes ${dealt} damage (${Math.max(0, target.hp)}/${target.hpMax} HP).`);
-    if (target.hp > 0 && target.hp < target.hpMax * 0.4) hint(state, 'lowhp', 'Marla the Peddler', 'You are bleeding, dear! Potions are a bonus action — drink one before you faint on me.');
+    if (target.hp > 0 && target.hp < target.hpMax * 0.4) hint(state, 'lowhp', 'Marla the Peddler', 'You are bleeding, dear! Potions are a bonus action — drink one before you faint on me.', events);
   }
   checkPlayerDeath(state, events);
 }
 
 function p_name(state) { const p = playerEntity(state); return p ? p.name : 'You'; }
 
-function playerAttack(state, targetId, weaponId, events) {
+function hasExtraAttack(char) {
+  const cls = byId(CLASSES, char.className);
+  return (cls.features || []).some(f => f.id === 'extra_attack' && f.level <= char.level);
+}
+
+function playerAttack(state, targetId, weaponId, events, opts = {}) {
   const p = playerEntity(state);
+  removeBuff(p, 'invisible'); // attacking breaks Invisibility
   const target = state.entities.find(e => e.id === targetId && e.alive !== false);
   if (!target || target.kind !== 'monster') { events.push({ type: 'error', text: 'No such target.' }); return false; }
   const char = state.character;
@@ -941,8 +965,8 @@ function playerAttack(state, targetId, weaponId, events) {
   }
 
   const mods = attackMods(state, p, target, atk, events);
-  const opts = { adv: mods.adv && !mods.dis, dis: mods.dis && !mods.adv, reroll1: char.rerollNat1 };
-  const roll = d20(opts);
+  const rollOpts = { adv: mods.adv && !mods.dis, dis: mods.dis && !mods.adv, reroll1: char.rerollNat1 };
+  const roll = d20(rollOpts);
   let atkBonus = atk.bonus + mods.bonusFlat;
   let atkExtra = 0, extraTxt = '';
   mods.atkRolls.forEach(b => { const r = rollExpr(b.dice); atkExtra += r.total; extraTxt += ` +${r.total} ${b.type}`; });
@@ -978,6 +1002,13 @@ function playerAttack(state, targetId, weaponId, events) {
   addLog(state, 'mech', text);
   const dealt = applyDamage(state, target, dmgTotal, atk.dmgType, events);
   addLog(state, 'mech', `${target.name} takes ${dealt} damage (${target.hp}/${target.hpMax} HP${target.alive === false ? ', slain' : ''}).`);
+  // Extra Attack (level 5 martials): the Attack action strikes twice
+  if (opts.allowExtra && state.mode === 'combat' && !state.flags.used_extra && hasExtraAttack(char)
+      && target.alive !== false && manhattan(p, target) <= 1 && atk.weaponId !== 'unarmed') {
+    state.flags.used_extra = true;
+    addLog(state, 'mech', `${p.name} presses the attack — Extra Attack!`);
+    playerAttack(state, targetId, atk.weaponId, events, {});
+  }
   if (char.subclass === 'fiend' && target.alive === false) fiendBlessing(state, char, events);
   if (atk.weaponId === 'unarmed' && char.tavernBrawler && target.alive !== false) {
     const dx = Math.sign(target.x - p.x), dy = Math.sign(target.y - p.y);
@@ -1008,6 +1039,7 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
   const char = state.character;
   const sp = findSpell(spellId);
   if (!sp) { events.push({ type: 'error', text: 'Unknown spell.' }); return false; }
+  removeBuff(p, 'invisible'); // casting breaks Invisibility
 
   if (sp.target === 'flavor') {
     const ev = { type: 'cast_flavor', narrate: true, text: `${p.name} casts ${sp.name}. ${sp.desc}` };
@@ -1230,9 +1262,53 @@ function movePlayer(state, targetX, targetY, events) {
     }
   }
   noticeTrapsNearby(state, events);
+  if (!inCombat) rollWanderingMonster(state, events);
   const visible = computeVision(state);
   markDiscovered(state, visible);
   if (steps > 0) { checkRoomEntry(state, events); checkVictory(state, events); }
+}
+
+// A random encounter: after enough wandering, something finds you first.
+function rollWanderingMonster(state, events) {
+  const list = state.map.wandering || [];
+  if (!list.length || state.mode !== 'explore') return;
+  state.flags.wanders = state.flags.wanders || 0;
+  if (state.flags.wanders >= 2) return;
+  const p = playerEntity(state);
+  if ((state.flags.steps || 0) < 6) { state.flags.steps = (state.flags.steps || 0) + 1; return; }
+  state.flags.steps = 0;
+  if (Math.random() > 0.22) return;
+  if (hasBuff(p, 'invisible')) return;
+  if (state.stealth && state.stealth.success) return;
+  const kind = list[die(list.length) - 1];
+  const def = content.getMonster(kind);
+  if (!def) return;
+  const spots = [];
+  for (let y = p.y - 4; y <= p.y + 4; y++) for (let x = p.x - 4; x <= p.x + 4; x++) {
+    const d = manhattan({ x, y }, p);
+    if (d < 2 || d > 4) continue;
+    if (isWall(state, x, y) || entityAt(state, x, y)) continue;
+    if (!los(state, p.x, p.y, x, y)) continue;
+    spots.push({ x, y });
+  }
+  if (!spots.length) return;
+  const spot = spots[die(spots.length) - 1];
+  const hp = Math.max(1, Math.round(rollExpr(def.hp).total * DIFFICULTY[state.difficulty || 'normal'].hpMult));
+  const mon = {
+    id: 'wander_' + Date.now().toString(36), kind: 'monster', monsterId: kind, name: def.name,
+    x: spot.x, y: spot.y, hp, hpMax: hp, ac: def.ac, speedFt: def.speed, abilities: def.abilities,
+    attacks: def.attacks, darkvision: def.darkvision || 0, xp: Math.round(def.xp * 0.8), boss: false,
+    vulnerabilities: def.vulnerabilities || [], traits: def.traits || [],
+    conditions: [], buffs: [], alive: true, aware: true, fled: false, wanderer: true, sx: spot.x, sy: spot.y
+  };
+  state.entities.push(mon);
+  state.flags.wanders++;
+  const ev = { type: 'wandering', narrate: true, text: 'A wandering ' + def.name + ' comes snuffling around the corner - it has found you!' };
+  events.push(ev); addLog(state, 'system', ev.text);
+  startCombat(state, [mon.id], events);
+}
+
+function checkRoomEntry(state, events) {
 }
 
 function checkRoomEntry(state, events) {
@@ -1308,9 +1384,18 @@ function checkVictory(state, events) {
 // ---------------------------------------------------------------- monster AI ----
 function processMonsterTurn(state, mon, events) {
   if (!mon.alive || mon.fled || state.mode !== 'combat') return;
+  if (mon.boss && !mon.enraged && mon.hp <= mon.hpMax / 2) {
+    mon.enraged = true;
+    const ev = { type: 'enrage', narrate: true, text: `${mon.name} ENRAGES — its wounds only make it faster and crueler! (+2 to hit and damage, +10 ft speed)` };
+    events.push(ev); addLog(state, 'mech', ev.text);
+  }
   if (mon.conditions.includes('asleep')) { addLog(state, 'mech', `${mon.name} sleeps soundly.`); return; }
+  if (mon.conditions.includes('paralyzed')) { addLog(state, 'mech', `${mon.name} stands frozen, muscles locked.`); return; }
   if (hasBuff(mon, 'charmed')) { addLog(state, 'mech', `${mon.name} gazes at ${p_name(state)} with vacant affection and does nothing.`); return; }
-  const targets = state.entities.filter(e => (e.kind === 'player' || e.kind === 'ally') && e.alive !== false && !(e.kind === 'player' && e.conditions.includes('unconscious')));
+  const targets = state.entities.filter(e => (e.kind === 'player' || e.kind === 'ally') && e.alive !== false
+    && !(e.kind === 'player' && e.conditions.includes('unconscious'))
+    && !(e.kind === 'player' && hasBuff(e, 'invisible')));
+  if (!targets.length) { addLog(state, 'mech', `${mon.name} sniffs the air, bewildered — its prey has vanished.`); return; }
   if (!targets.length) return;
   const target = targets.sort((a, b) => manhattan(mon, a) - manhattan(mon, b))[0];
   if (mon.conditions.includes('prone')) mon.conditions = mon.conditions.filter(c => c !== 'prone');
@@ -1388,6 +1473,8 @@ function checkCombatEnd(state, events) {
   const p = playerEntity(state);
   const downed = p && p.conditions.includes('unconscious');
   if (foes.length === 0 || (downed && p.deathSaves && p.deathSaves.stable)) {
+    if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
+    state.stats.rounds = (state.stats.rounds || 0) + (state.combat.round || 0);
     state.mode = 'explore';
     state.flags.reckless = false;
     if (downed) {
@@ -1426,8 +1513,21 @@ function levelUp(state, newLevel, events) {
   const pe = playerEntity(state);
   if (pe) { pe.hpMax = char.hpMax; pe.hp = char.hpMax; pe.ac = char.acBase; }
   if (cls.spellcasting && cls.spellcasting.type === 'known') {
-    const list = SPELLS.filter(s => s.level === 1 && s.classes.includes(char.className) && !char.spellcasting.spells.includes(s.id));
+    const wantLevel = newLevel >= 5 ? 2 : 1;
+    const list = SPELLS.filter(s => s.level === wantLevel && s.classes.includes(char.className) && !char.spellcasting.spells.includes(s.id));
     if (list.length) char.spellcasting.spells.push(list[0].id);
+  }
+  // level 4: Ability Score Improvement (auto-assigned to the class primary)
+  if (newLevel >= 4 && !char.asiDone) {
+    char.asiDone = true;
+    const primary = cls.primary || 'str';
+    char.abilities[primary] += 2;
+    applyClassAndSpecies(char, cls, null, newLevel, true); // recompute AC/attacks with the raised score
+    char.hp = char.hpMax;
+    const pe2 = playerEntity(state);
+    if (pe2) { pe2.hpMax = char.hpMax; pe2.hp = char.hpMax; pe2.ac = char.acBase; }
+    const asi = { type: 'asi', narrate: true, text: `Ability Score Improvement: ${primary.toUpperCase()} rises to ${char.abilities[primary]}!` };
+    events.push(asi); addLog(state, 'system', asi.text);
   }
   const ev = { type: 'levelup', narrate: true, text: `LEVEL UP! ${char.name} reaches level ${newLevel}! Hit points rise to ${char.hpMax} and new powers awaken.`, data: { level: newLevel } };
   events.push(ev); addLog(state, 'system', ev.text);
@@ -1540,16 +1640,22 @@ function lootChest(state, chest, events) {
   if (chest.looted) { events.push({ type: 'info', text: 'The chest is already empty.' }); return; }
   chest.looted = true;
   const char = state.character;
-  char.gold += chest.loot.gold || 0;
+  const goldRoll = typeof chest.loot.gold === 'string' ? rollExpr(chest.loot.gold).total : (chest.loot.gold || 0);
+  char.gold += goldRoll;
+  if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
+  state.stats.goldFound += goldRoll;
   const parts = [];
   for (let i = 0; i < (chest.loot.potions || 0); i++) addItemToInventory(char, 'potion_healing');
-  (chest.loot.items || []).forEach(it => { addItemToInventory(char, it.id, it.qty || 1); parts.push(itemName(it.id)); });
+  (chest.loot.items || []).forEach(it => {
+    if (it.chance !== undefined && Math.random() >= it.chance) return;
+    addItemToInventory(char, it.id, it.qty || 1); parts.push(itemName(it.id));
+  });
   applyPickupEffects(state, chest.loot.items || [], events);
   checkQuest(state, 'recover', chest.id, events);
   if (chest.loot.gold >= 20) hint(state, 'shop', 'Bram the Scout', 'Coin is no good to a corpse. Marla topside and Perra down in the vault both trade — potions, kits, even silver blades.', events);
   const ev = {
     type: 'loot', narrate: true,
-    text: `${p_name(state)} pries open the ${chest.name}: ${chest.loot.gold || 0} gold pieces` +
+    text: `${p_name(state)} pries open the ${chest.name}: ${goldRoll} gold pieces` +
       `${chest.loot.potions ? `, ${chest.loot.potions} Potion${chest.loot.potions > 1 ? 's' : ''} of Healing` : ''}` +
       `${parts.length ? ` — and ${parts.join(', ')}!` : '!'}` +
       `${parts.length ? ' A treasure of real power.' : ''}`
@@ -1565,7 +1671,7 @@ function rollLoot(state, mon, events) {
   const parts = [];
   if (def.loot.gold) {
     const g = rollExpr(def.loot.gold).total;
-    if (g > 0) { char.gold += g; parts.push(`${g} gp`); }
+    if (g > 0) { char.gold += g; if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 }; state.stats.goldFound += g; parts.push(`${g} gp`); }
   }
   const gained = [];
   (def.loot.items || []).forEach(it => {

@@ -110,6 +110,12 @@
           "button": true,
           "kind": "bonus",
           "mech": "berserker_attack"
+        },
+        {
+          "level": 5,
+          "id": "extra_attack",
+          "name": "Extra Attack",
+          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
         }
       ],
       "subclass": {
@@ -541,6 +547,12 @@
           "kind": "action",
           "uses": "1/short",
           "mech": "commanders_strike"
+        },
+        {
+          "level": 5,
+          "id": "extra_attack",
+          "name": "Extra Attack",
+          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
         }
       ],
       "subclass": {
@@ -657,6 +669,12 @@
           "name": "Unarmored Movement",
           "desc": "+10 ft speed while unarmored.",
           "mech": "unarmored_movement"
+        },
+        {
+          "level": 5,
+          "id": "extra_attack",
+          "name": "Extra Attack",
+          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
         }
       ],
       "subclass": {
@@ -787,6 +805,12 @@
           "kind": "bonus",
           "uses": "1/short",
           "mech": "sacred_weapon"
+        },
+        {
+          "level": 5,
+          "id": "extra_attack",
+          "name": "Extra Attack",
+          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
         }
       ],
       "subclass": {
@@ -905,6 +929,12 @@
           "name": "Hunter's Mark (free casts)",
           "desc": "Hunter's Mark is always prepared; cast it without a slot twice per Long Rest.",
           "mech": "hunters_mark_free"
+        },
+        {
+          "level": 5,
+          "id": "extra_attack",
+          "name": "Extra Attack",
+          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
         }
       ],
       "subclass": {

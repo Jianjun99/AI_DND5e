@@ -154,8 +154,13 @@
       "y": 1,
       "icon": "🧰",
       "loot": {
-        "gold": 20,
-        "potions": 1
+        "gold": "2d8",
+        "items": [
+          {
+            "id": "potion_healing",
+            "chance": 0.7
+          }
+        ]
       }
     },
     {
@@ -187,8 +192,17 @@
       "y": 1,
       "icon": "🧰",
       "loot": {
-        "gold": 35,
-        "potions": 1
+        "gold": "3d10",
+        "items": [
+          {
+            "id": "potion_greater",
+            "chance": 0.4
+          },
+          {
+            "id": "scroll_cure",
+            "chance": 0.4
+          }
+        ]
       }
     },
     {
@@ -213,7 +227,7 @@
       "y": 1,
       "icon": "🧰",
       "loot": {
-        "gold": 60,
+        "gold": "6d10",
         "items": [
           {
             "id": "wardens_shield",
@@ -258,11 +272,15 @@
       "y": 15,
       "icon": "🧰",
       "loot": {
-        "gold": 30,
+        "gold": "3d10",
         "items": [
           {
             "id": "potion_greater",
-            "qty": 2
+            "qty": 1
+          },
+          {
+            "id": "scroll_magic_missile",
+            "chance": 0.5
           }
         ]
       }
@@ -301,5 +319,9 @@
         "Autosave, dear — every step you take is already written in my ledger."
       ]
     }
-  }
+  },
+  "wandering": [
+    "giant_rat",
+    "crypt_hound"
+  ]
 }

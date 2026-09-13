@@ -154,10 +154,31 @@ router.post('/:id/action', async (req, res) => {
         case 'useItem': {
           const gearDef = engine.byId(engine.GEAR, action.itemId);
           const inv = state.character.inventory.find(x => x.itemId === action.itemId && x.qty > 0);
+          if (!inv) { events.push({ type: 'error', text: 'None left.' }); break; }
+          // scrolls: cast the stored spell once — no spell slot needed
+          if (gearDef && gearDef.type === 'scroll' && gearDef.spell) {
+            const spell = engine.findSpell(gearDef.spell);
+            if (!spell) { events.push({ type: 'error', text: 'The scroll is blank?!' }); break; }
+            if (state.mode === 'combat') {
+              const econErr = consumeActionEconomy(state, spell.bonusAction ? 'bonus' : 'action');
+              if (econErr) { events.push({ type: 'error', text: econErr }); break; }
+            }
+            // give scrollcasters a workable casting stat if they have none
+            if (!state.character.spellcasting) {
+              state.character.spellcasting = { ability: 'int', spellMod: 2, saveDc: 12, spellAttack: 4, cantrips: [], spells: [], freeSpell: { id: null, max: 0 } };
+            }
+            const scrollTarget = spell.target === 'self' || spell.target === 'ally' ? 'player' : action.targetId;
+            if (['enemy', 'burst'].includes(spell.target) && !scrollTarget) {
+              events.push({ type: 'error', text: 'Target a creature first, then use the scroll.' }); break;
+            }
+            inv.qty--;
+            engine.castSpell(state, gearDef.spell, scrollTarget, events, { free: true });
+            engine.addLog(state, 'mech', `${engine.playerEntity(state).name} reads a ${gearDef.name}. ${inv.qty} remaining.`);
+            break;
+          }
           if (!gearDef || gearDef.type !== 'potion' || !gearDef.heal) {
             events.push({ type: 'error', text: 'Cannot use that item right now.' }); break;
           }
-          if (!inv) { events.push({ type: 'error', text: 'None left.' }); break; }
           if (state.mode === 'combat') {
             const econErr = consumeActionEconomy(state, 'bonus');
             if (econErr) { events.push({ type: 'error', text: econErr }); break; }
