@@ -271,6 +271,26 @@ function resolveFreeform(state, text) {
     return { handled: true, events };
   }
 
+  // --- disengage ---
+  if (/(disengage|back off|withdraw)/.test(t) && state.mode === 'combat') {
+    if (state.combat && state.combat.order[state.combat.turnIdx].id !== 'player') { events.push({ type: 'error', text: 'Not your turn!' }); return { handled: true, events }; }
+    const err = state.mode === 'combat' ? null : null;
+    events.push({ type: 'disengage', narrate: true, text: p.name + ' disengages carefully, shielding against reprisal.' });
+    engine.addBuff(p, { id: 'disengaged', rounds: 1 });
+    state.flags.noOaFor = 'player';
+    if (state.mode === 'combat' && state.combat) state.combat.actionUsed = true;
+    return { handled: true, events };
+  }
+
+  // --- shove ---
+  if (/(shove|push)/.test(t) && state.mode === 'combat') {
+    const foe = state.entities.find(e => e.kind === 'monster' && e.alive && !e.fled && engine.manhattan(e, p) <= 1);
+    if (!foe) { events.push({ type: 'error', text: 'No adjacent enemy to shove.' }); return { handled: true, events }; }
+    engine.shoveTarget(state, foe.id, events);
+    if (state.combat) state.combat.actionUsed = true;
+    return { handled: true, events };
+  }
+
   // --- side quests ---
   if (/\b(quest|work|job|bounty|gig)\b/.test(t)) {
     const camp = (state.map.victory && state.map.victory.campfire) || state.map.victoryTile;

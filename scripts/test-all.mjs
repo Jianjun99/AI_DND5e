@@ -12,6 +12,7 @@ const testSuites = [
   { name: 'Unit Tests: 3D Procedural Miniatures & Walk Animations', file: 'tests/unit/models3d.test.mjs' },
   { name: 'Integration Tests: Movement, Pathfinding & Vision', file: 'tests/integration/movement.test.mjs' },
   { name: 'Integration Tests: Combat, Actions & Health', file: 'tests/integration/combat.test.mjs' },
+  { name: 'Integration Tests: Tactics (OA, Flanking, Shove)', file: 'tests/integration/tactics.test.mjs' },
   { name: 'Integration Tests: Character Progression & Delve Systems', file: 'tests/integration/progression-systems.test.mjs' },
   { name: 'End-to-End Tests: Browser 3D Rendering & Movement (CDP)', file: 'tests/e2e/browser-movement-cdp.test.mjs' }
 ];

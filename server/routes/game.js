@@ -4,6 +4,8 @@ const engine = require('../game/engine');
 const referee = require('../game/referee');
 const dm = require('../game/dm');
 const portraits = require('../portraits');
+const endless = require('../game/endless');
+const contentMod = require('../game/content');
 
 const router = express.Router();
 
@@ -47,7 +49,7 @@ function requireAlive(state, events) {
   return true;
 }
 
-const NEEDS_CONSCIOUS = ['move', 'attack', 'cast', 'dash', 'dodge', 'useItem', 'interact', 'classAction', 'freeform', 'chat', 'rest', 'quest', 'retreat', 'skillCheckObject'];
+const NEEDS_CONSCIOUS = ['move', 'attack', 'cast', 'dash', 'dodge', 'disengage', 'shove', 'useItem', 'interact', 'classAction', 'freeform', 'chat', 'rest', 'quest', 'retreat', 'skillCheckObject'];
 function requireConscious(state, events) {
   const p = state.entities.find(e => e.kind === 'player');
   if (p && p.conditions.includes('unconscious')) {
@@ -62,7 +64,11 @@ router.post('/start', async (req, res) => {
   const { characterId, bringAlly, difficulty, mapId } = req.body || {};
   const char = findCharacter(characterId);
   const allyOption = (typeof bringAlly === 'string' && bringAlly === 'none') ? false : (bringAlly || false);
+  if (mapId === 'endless_1') {
+    contentMod.injectMap(endless.generateFloor(1));
+  }
   const state = engine.startGame(char, { bringAlly: allyOption, difficulty, mapId });
+  if (mapId === 'endless_1') state.endlessDepth = 1;
   const events = [];
   const intro = {
     type: 'scene', narrate: true,
@@ -217,7 +223,38 @@ router.post('/:id/action', async (req, res) => {
           } else events.push({ type: 'error', text: 'Dodge matters only in combat.' });
           break;
         }
+        case 'disengage': {
+          if (state.mode !== 'combat') { events.push({ type: 'error', text: 'Disengage matters only in combat.' }); break; }
+          if (state.combat.order[state.combat.turnIdx].id !== 'player') { events.push({ type: 'error', text: 'Not your turn!' }); break; }
+          const econErr2 = consumeActionEconomy(state, 'action');
+          if (econErr2) { events.push({ type: 'error', text: econErr2 }); break; }
+          const pd = engine.playerEntity(state);
+          engine.addBuff(pd, { id: 'disengaged', rounds: 1 });
+          state.flags.noOaFor = 'player';
+          const ev = { type: 'disengage', narrate: true, text: `${pd.name} disengages — slips away without provoking attacks.` };
+          events.push(ev); engine.addLog(state, 'mech', ev.text);
+          break;
+        }
+        case 'shove': {
+          if (state.mode !== 'combat') { events.push({ type: 'error', text: 'Shove matters only in combat.' }); break; }
+          if (state.combat.order[state.combat.turnIdx].id !== 'player') { events.push({ type: 'error', text: 'Not your turn!' }); break; }
+          const econErr3 = consumeActionEconomy(state, 'action');
+          if (econErr3) { events.push({ type: 'error', text: econErr3 }); break; }
+          engine.shoveTarget(state, action.targetId, events);
+          break;
+        }
         case 'interact': {
+          // pre-generate the next endless floor if the stairs lead deeper
+          const stairsObj = state.objects.find(o => o.id === action.objectId && o.type === 'stairs' && o.to && o.to.mapId === '__endless_next__');
+          if (stairsObj) {
+            const nextDepth = (state.endlessDepth || 1) + 1;
+            const nextMap = endless.generateFloor(nextDepth);
+            contentMod.injectMap(nextMap);
+            state.endlessDepth = nextDepth;
+            stairsObj.to.mapId = nextMap.id;
+            stairsObj.to.x = nextMap.playerStart.x;
+            stairsObj.to.y = nextMap.playerStart.y;
+          }
           engine.interactObject(state, action.objectId, events);
           break;
         }

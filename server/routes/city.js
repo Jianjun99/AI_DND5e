@@ -134,6 +134,19 @@ const MAP_NODES = [
     icon: '🌊',
     levelRange: 'Level 3–5',
     blurb: 'Flooded stone crypts filled with waterborne terrors and submerged treasures.'
+  },
+  {
+    id: 'endless',
+    name: 'The Endless Depths',
+    region: '???',
+    type: 'endless',
+    mapId: 'endless_1',
+    safe: false,
+    x: 40,
+    y: 80,
+    icon: '🌀',
+    levelRange: 'Any Level',
+    blurb: 'A procedurally generated dungeon that never ends. Each floor is unique; each descent is harder. How deep can you go?'
   }
 ];
 

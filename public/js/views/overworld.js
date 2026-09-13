@@ -773,7 +773,7 @@ function attachMapEvents(main) {
         try {
           embarkBtn.disabled = true;
           embarkBtn.textContent = '⚔️ Embarking...';
-          const res = await api.startGame(activeChar.id, bringAlly, difficulty, mapId);
+          const res = await api.startGame(activeChar.id, bringAlly, difficulty, mapId === 'endless_1' ? 'endless_1' : mapId);
           if (res && res.state && res.state.id) {
             location.hash = `#/play/${res.state.id}`;
           } else {

@@ -152,6 +152,7 @@ function ensure() { if (!REG) scan(); return REG; }
 function reload() { return scan(); }
 
 function getMap(id) { const r = ensure(); return r.maps[id] || r.maps['crypt'] || null; }
+function injectMap(mapDef) { const r = ensure(); r.maps[mapDef.id] = mapDef; }
 function defaultMapId() { const r = ensure(); return r.maps['crypt'] ? 'crypt' : Object.keys(r.maps)[0]; }
 function listMaps() {
   const r = ensure();
@@ -171,4 +172,4 @@ function listPacks() {
 }
 function warnings() { return ensure().warnings; }
 
-module.exports = { scan, reload, getMap, defaultMapId, listMaps, getMonster, listMonsters, getGear, listGear, listPacks, warnings };
+module.exports = { scan, reload, getMap, injectMap, defaultMapId, listMaps, getMonster, listMonsters, getGear, listGear, listPacks, warnings };
