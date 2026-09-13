@@ -117,9 +117,10 @@ async function waitHealthy() {
   if (!imported.ok || !imported.pack.maps.includes('test-vault')) throw new Error('Pack import failed');
   const afterImport = await req('GET', '/api/content');
   if (!afterImport.maps.some(m => m.id === 'test-vault')) throw new Error('Imported pack map not registered');
-  console.log('✔ pack export → import roundtrip works');
-  // clean up the test copy so repeated runs stay tidy
-  await req('GET', '/api/health');
+  await fetch(BASE + '/api/content/pack/test-pack-copy', { method: 'DELETE' });
+  const afterCleanup = await req('GET', '/api/content');
+  if (afterCleanup.maps.some(m => m.id === 'test-vault')) throw new Error('Pack cleanup failed');
+  console.log('✔ pack export → import → delete roundtrip works');
 
   // Backup export endpoint
   const backup = await req('GET', '/api/data/export');

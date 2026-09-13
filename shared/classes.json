@@ -116,6 +116,12 @@
           "id": "extra_attack",
           "name": "Extra Attack",
           "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+        },
+        {
+          "level": 7,
+          "id": "feral_instinct",
+          "name": "Feral Instinct",
+          "desc": "+2 to Initiative; you are rarely caught unaware."
         }
       ],
       "subclass": {
@@ -201,6 +207,12 @@
           "name": "Expertise",
           "desc": "Double your proficiency bonus on two of your skill proficiencies.",
           "mech": "expertise_auto"
+        },
+        {
+          "level": 10,
+          "id": "insp_d10",
+          "name": "Greater Inspiration",
+          "desc": "Your Bardic Inspiration die grows to a d10 at level 10."
         }
       ],
       "subclass": {
@@ -553,6 +565,12 @@
           "id": "extra_attack",
           "name": "Extra Attack",
           "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+        },
+        {
+          "level": 9,
+          "id": "indomitable",
+          "name": "Indomitable",
+          "desc": "Once per Long Rest, reroll a failed saving throw."
         }
       ],
       "subclass": {
@@ -675,6 +693,12 @@
           "id": "extra_attack",
           "name": "Extra Attack",
           "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+        },
+        {
+          "level": 10,
+          "id": "monk_dice10",
+          "name": "Martial Arts (1d10)",
+          "desc": "Your unarmed strikes deal 1d10 damage at level 10."
         }
       ],
       "subclass": {
@@ -811,6 +835,12 @@
           "id": "extra_attack",
           "name": "Extra Attack",
           "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+        },
+        {
+          "level": 6,
+          "id": "aura_protection",
+          "name": "Aura of Protection",
+          "desc": "You and companions near you add your CHA modifier to saving throws (you always do)."
         }
       ],
       "subclass": {
@@ -935,6 +965,12 @@
           "id": "extra_attack",
           "name": "Extra Attack",
           "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+        },
+        {
+          "level": 6,
+          "id": "roving",
+          "name": "Roving",
+          "desc": "Your speed increases by 10 ft."
         }
       ],
       "subclass": {
@@ -1060,6 +1096,12 @@
           "button": true,
           "kind": "bonus",
           "mech": "steady_aim"
+        },
+        {
+          "level": 7,
+          "id": "evasion",
+          "name": "Evasion",
+          "desc": "On DEX saves that deal half damage on a success, you take none on a success and half on a failure."
         }
       ],
       "subclass": {

@@ -158,7 +158,7 @@ function listMaps() {
   const packOf = (mapId) => (r.packs.find(p => p.maps.includes(mapId)) || {}).name || 'Core';
   return Object.values(r.maps).map(m => ({
     id: m.id, name: m.name, blurb: m.blurb || (m.rooms || [])[0]?.desc || '',
-    objectiveText: m.objectiveText || '', pack: packOf(m.id)
+    objectiveText: m.objectiveText || '', recommended: m.recommended || '', pack: packOf(m.id)
   }));
 }
 function getMonster(id) { return ensure().monsters[id] || null; }

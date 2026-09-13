@@ -1,12 +1,22 @@
-// sfx.js — tiny synthesized sound effects via Web Audio (no asset files, fully offline).
+// sfx.js — tiny synthesized sound effects + ambient dungeon audio via Web Audio
+// (no asset files, fully offline). Master volume is controllable.
 let ctx = null;
+let master = null;
 let enabled = localStorage.getItem('dnd_sfx') !== 'off';
+let volume = parseFloat(localStorage.getItem('dnd_vol') ?? '0.6');
+if (isNaN(volume)) volume = 0.6;
 
 function ac() {
-  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!ctx) {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain();
+    master.gain.value = volume;
+    master.connect(ctx.destination);
+  }
   if (ctx.state === 'suspended') ctx.resume();
   return ctx;
 }
+function out() { ac(); return master; }
 
 function tone(freq, dur, type = 'sine', vol = 0.12, delay = 0, slideTo = null) {
   const c = ac(), t = c.currentTime + delay;
@@ -15,7 +25,7 @@ function tone(freq, dur, type = 'sine', vol = 0.12, delay = 0, slideTo = null) {
   if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(c.destination);
+  o.connect(g); g.connect(out());
   o.start(t); o.stop(t + dur + 0.02);
 }
 
@@ -28,7 +38,7 @@ function noise(dur = 0.08, vol = 0.1, delay = 0) {
   const src = c.createBufferSource(); src.buffer = buf;
   const g = c.createGain(); g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  src.connect(g); g.connect(c.destination);
+  src.connect(g); g.connect(out());
   src.start(t);
 }
 
@@ -49,6 +59,50 @@ const SOUNDS = {
   spell: () => tone(700, 0.18, 'sine', 0.09, 0, 1400)
 };
 
+// ---- ambient loop: a low dungeon drone (crypt) or hillside wind (hills) ----
+let ambient = null; // { nodes: [...], theme }
+function startAmbient(theme = 'crypt') {
+  if (!enabled || volume <= 0) return;
+  stopAmbient();
+  const c = ac();
+  const nodes = [];
+  // looping noise bed
+  const len = c.sampleRate * 3;
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < len; i++) { // brown-ish noise
+    const white = Math.random() * 2 - 1;
+    last = (last + 0.02 * white) / 1.02;
+    d[i] = last * 3.5;
+  }
+  const src = c.createBufferSource(); src.buffer = buf; src.loop = true;
+  const filter = c.createBiquadFilter();
+  const g = c.createGain();
+  if (theme === 'hills') {
+    filter.type = 'bandpass'; filter.frequency.value = 420; filter.Q.value = 0.6;
+    g.gain.value = 0.05; // wind
+  } else {
+    filter.type = 'lowpass'; filter.frequency.value = 160;
+    g.gain.value = 0.07; // deep drone
+  }
+  // slow breathing LFO so it never feels static
+  const lfo = c.createOscillator(), lg = c.createGain();
+  lfo.frequency.value = theme === 'hills' ? 0.09 : 0.06;
+  lg.gain.value = g.gain.value * 0.6;
+  lfo.connect(lg); lg.connect(g.gain);
+  src.connect(filter); filter.connect(g); g.connect(out());
+  src.start(); lfo.start();
+  nodes.push(src, lfo);
+  ambient = { nodes, theme };
+}
+
+function stopAmbient() {
+  if (!ambient) return;
+  ambient.nodes.forEach(n => { try { n.stop(); } catch {} });
+  ambient = null;
+}
+
 export const sfx = {
   play(name) {
     if (!enabled || !SOUNDS[name]) return;
@@ -57,7 +111,16 @@ export const sfx = {
   toggle() {
     enabled = !enabled;
     localStorage.setItem('dnd_sfx', enabled ? 'on' : 'off');
+    if (!enabled) { stopAmbient(); } 
     return enabled;
   },
-  isEnabled() { return enabled; }
+  isEnabled() { return enabled; },
+  setVolume(v) {
+    volume = Math.max(0, Math.min(1, v));
+    localStorage.setItem('dnd_vol', String(volume));
+    if (ctx && master) master.gain.value = volume;
+  },
+  getVolume() { return volume; },
+  startAmbient(theme) { if (enabled) startAmbient(theme); },
+  stopAmbient
 };

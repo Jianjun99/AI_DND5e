@@ -1,0 +1,20 @@
+{
+  "gear": [
+    {
+      "id": "warboss_banner",
+      "name": "Warboss's Banner",
+      "type": "banner",
+      "attackBonus": 1,
+      "cost": 300,
+      "desc": "+1 to attack rolls while carried — the hills remember who owns this banner now."
+    },
+    {
+      "id": "wolf_cloak",
+      "name": "Wolf-Fur Cloak",
+      "type": "magic_armor",
+      "acBonus": 1,
+      "cost": 150,
+      "desc": "+1 AC while worn. Smells faintly of wet dog, in a reassuring way."
+    }
+  ]
+}

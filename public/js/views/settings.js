@@ -1,5 +1,6 @@
 // settings.js — LLM (AI DM) configuration
 import { api } from '../api.js';
+import { tts } from '../tts.js';
 import { esc, toast } from '../app.js';
 
 export async function settingsView(main) {
@@ -70,7 +71,16 @@ export async function settingsView(main) {
           <p class="small muted">Google's free image quota is small — limited portraits may fall back to the procedural sigil and retry the next time you meet that creature.</p>
         </div>
         <div class="card" style="margin-top:12px;">
-          <h3>How to connect your local model</h3>
+          <h3>🗣 AI DM Voice-over</h3>
+          <p class="small muted" style="margin-bottom:8px;">Let the DM speak its narration aloud. Toggle the 🗣 button inside a delve. Default voice is your browser's built-in speech — for a natural neural voice, run a Piper HTTP server locally and point this at it.</p>
+          <div class="field">
+            <label>Piper HTTP server URL (optional)</label>
+            <input type="text" id="piperUrl" placeholder="http://localhost:5000/api/tts" value="">
+          </div>
+          <p class="small muted">Example: <code>docker run -p 5000:5000 fedirz/piper-http-server -m en_US-lessac-medium</code> — then paste the URL and toggle 🗣 in a delve.</p>
+        </div>
+        <div class="card" style="margin-top:12px;">
+          <h3>How to connect your local model</h3
         <p class="small muted" style="margin-bottom:10px;">The game talks to your LLM from the server side, so there are no
         CORS problems. When running in Docker, use <code>host.docker.internal</code> to reach servers on your own computer.</p>
         <h2 style="font-size:15px;">Ollama</h2>
@@ -96,6 +106,12 @@ export async function settingsView(main) {
     const p = presets[$('preset').value];
     if (p && p.baseUrl) { $('baseUrl').value = p.baseUrl; $('model').value = p.model || ''; }
   });
+
+  const piperInput = document.getElementById('piperUrl');
+  if (piperInput) {
+    piperInput.value = tts.getPiper();
+    piperInput.addEventListener('change', () => { tts.setPiper(piperInput.value); toast('Voice-over server saved.'); });
+  }
 
   const collect = () => ({
     enabled: $('llmEnabled').checked,

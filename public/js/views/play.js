@@ -37,6 +37,7 @@ export async function playView(main, saveRef) {
               <label style="display:block; margin:8px 0; color:var(--text); cursor:pointer;">
                 <input type="radio" name="mapPick" value="${esc(m.id)}" ${i === 0 ? 'checked' : ''} style="width:auto">
                 <b>${esc(m.name)}</b> <span class="chip">${esc(m.pack)}</span>
+                ${m.recommended ? `<span class="chip blue">${esc(m.recommended)}</span>` : ''}
                 <span class="muted small">— ${esc(m.blurb || m.objectiveText || '')}</span>
               </label>`).join('')}
           </div>
@@ -70,6 +71,7 @@ export async function playView(main, saveRef) {
   }
   const data = await api.getGame(saveRef);
   game = data.state;
+  sfx.startAmbient((game.map && game.map.theme) || 'crypt');
   selectedTarget = null; activeNpc = null; appearanceShown = null; portraitShown = null;
 
   main.innerHTML = `
@@ -428,6 +430,7 @@ export async function playView(main, saveRef) {
           <span style="flex:1"></span>
           <button class="btn small" id="sfxBtn" title="Sound effects">${sfx.isEnabled() ? '🔊' : '🔇'}</button>
           <button class="btn small" id="ttsBtn" title="AI DM voice-over">${tts.isEnabled() ? '🗣️' : '🤐'}</button>
+          <input type="range" id="volSlider" min="0" max="100" value="${Math.round(sfx.getVolume() * 100)}" style="width:70px;" title="Volume">
         </div>
         <div class="hp-bar"><div class="fill" style="width:${Math.max(0, (p.hp / p.hpMax) * 100)}%"></div></div>
         <div class="hp-text"><span>${p.hp}/${p.hpMax} HP${p.tempHp ? ` (+${p.tempHp} temp)` : ''}</span><span>AC ${acNow()}</span></div>
@@ -501,6 +504,7 @@ export async function playView(main, saveRef) {
 
     wireSide(myTurn);
     document.getElementById('sfxBtn').addEventListener('click', () => { sfx.toggle(); renderSide(); });
+    document.getElementById('volSlider').addEventListener('input', (e) => { sfx.setVolume(+(e.target.value) / 100); });
     document.getElementById('viewToggle').addEventListener('click', () => {
       activeView = activeView === '3d' ? '2d' : '3d';
       localStorage.setItem('dnd_3d', activeView === '3d' ? 'on' : 'off');
@@ -685,5 +689,6 @@ export async function playView(main, saveRef) {
     } catch {}
   }, 4000);
 
-  return () => { clearInterval(pollTimer); document.removeEventListener('keydown', onKey); tts.stop(); if (renderer3d) renderer3d.dispose(); settingsLink.removeEventListener('click', onSettingsNav, true); };
+  sfx.stopAmbient();
+  return () => { clearInterval(pollTimer); document.removeEventListener('keydown', onKey); tts.stop(); sfx.stopAmbient(); if (renderer3d) renderer3d.dispose(); settingsLink.removeEventListener('click', onSettingsNav, true); };
 }

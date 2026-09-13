@@ -27,11 +27,11 @@ const SKILL_ABILITY = {
   sleight_of_hand: 'dex', stealth: 'dex', survival: 'wis'
 };
 const ALL_SKILLS = Object.keys(SKILL_ABILITY);
-const XP_THRESHOLDS = { 2: 300, 3: 900, 4: 2700, 5: 6500 };
+const XP_THRESHOLDS = { 2: 300, 3: 900, 4: 2700, 5: 6500, 6: 8500, 7: 13000, 8: 19000, 9: 26000, 10: 34000 };
 const SLOTS = {
-  full: { 1: { 1: 2 }, 2: { 1: 3 }, 3: { 1: 4, 2: 2 }, 4: { 1: 4, 2: 3 }, 5: { 1: 4, 2: 3, 3: 2 } },
-  half: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 3 }, 4: { 1: 3 }, 5: { 1: 4, 2: 2 } },
-  pact: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 2 }, 4: { 1: 2 }, 5: { 1: 2, 2: 2 } }
+  full: { 1: { 1: 2 }, 2: { 1: 3 }, 3: { 1: 4, 2: 2 }, 4: { 1: 4, 2: 3 }, 5: { 1: 4, 2: 3, 3: 2 }, 6: { 1: 4, 2: 3, 3: 3 }, 7: { 1: 4, 2: 3, 3: 3, 4: 1 }, 8: { 1: 4, 2: 3, 3: 3, 4: 2 }, 9: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }, 10: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 } },
+  half: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 3 }, 4: { 1: 3 }, 5: { 1: 4, 2: 2 }, 6: { 1: 4, 2: 2 }, 7: { 1: 4, 2: 3 }, 8: { 1: 4, 2: 3 }, 9: { 1: 4, 2: 3, 3: 2 }, 10: { 1: 4, 2: 3, 3: 2 } },
+  pact: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 2 }, 4: { 1: 2 }, 5: { 1: 2, 2: 2 }, 6: { 1: 2, 2: 2 }, 7: { 1: 2, 2: 3 }, 8: { 1: 2, 2: 3 }, 9: { 1: 2, 2: 3, 3: 1 }, 10: { 1: 2, 2: 3, 3: 1 } }
 };
 
 const byId = (arr, id) => arr.find(x => x.id === id);
@@ -242,6 +242,7 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
 
   char.speedFt = eff.speed || sp.speed || 30;
   if (cls.id === 'monk' && level >= 2) char.speedFt += 10;
+  if (cls.id === 'ranger' && level >= 6) char.speedFt += 10; // Roving
   char.darkvision = eff.darkvision || 0;
   char.resistances = [...(eff.resistances || [])];
   if (sp.id === 'dragonborn') char.resistances.push(char.choices.species.ancestry || 'fire');
@@ -254,7 +255,8 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
   char.saveAdvConditions = eff.saveAdvConditions || [];
   char.saveAdvAbilities = eff.saveAdvAbilities || [];
   char.poisonAdv = !!eff.poisonAdv;
-  char.initBonus = dexM + ((FEATS[char.feat] || {}).initBonus || 0);
+  char.initBonus = dexM + ((FEATS[char.feat] || {}).initBonus || 0)
+    + (cls.id === 'barbarian' && level >= 7 ? 2 : 0); // Feral Instinct
 
   char.attacks = char.inventory.map(inv => {
     const w = resolveWeapon(inv.itemId);
@@ -280,13 +282,13 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
   const unarmedAb = abilities.str >= abilities.dex ? abilities.str : abilities.dex;
   char.attacks.push({
     weaponId: 'unarmed', name: 'Unarmed Strike', bonus: char.profBonus + mod(unarmedAb),
-    dmgDice: cls.id === 'monk' ? '1d6' : '1', dmgMod: mod(unarmedAb), dmgType: 'bludgeoning',
+    dmgDice: cls.id === 'monk' ? (level >= 10 ? '1d10' : level >= 5 ? '1d8' : '1d6') : '1', dmgMod: mod(unarmedAb), dmgType: 'bludgeoning',
     ranged: false, range: 5, props: [], heavy: false, light: false, twoHanded: false, finesse: false
   });
 
   if (cls.spellcasting) {
     const table = SLOTS[cls.spellcasting.slots];
-    const slotsDef = table[Math.min(level, 5)] || {};
+    const slotsDef = table[Math.min(level, 10)] || {};
     char.slotsMax = { ...slotsDef };
     char.slots = char.slots && Object.keys(char.slots).length ? char.slots : { ...slotsDef };
     char.slotsRefresh = cls.spellcasting.slots === 'pact' ? 'short' : 'long';
@@ -1207,17 +1209,37 @@ function applyCondition(cond, target) {
 // ---------------------------------------------------------------- movement ----
 function stepCost(state, x, y) { return isDifficult(state, x, y) ? 2 : 1; }
 
+function playerSaveBonus(state, ability) {
+  const char = state.character;
+  let bonus = 0;
+  if (char.className === 'paladin' && char.level >= 6) bonus += Math.max(1, mod(char.abilities.cha)); // Aura of Protection
+  return bonus;
+}
+
 function triggerTrap(state, trap, events) {
   const p = playerEntity(state);
   trap.triggered = true; trap.revealed = true;
-  const saveRoll = d20({ reroll1: state.character.rerollNat1 });
-  const saveMod = mod(state.character.abilities[trap.save || 'dex']);
+  const char = state.character;
+  const isDex = String(trap.save || 'dex') === 'dex';
+  const evasion = char.className === 'rogue' && char.level >= 7 && isDex; // Evasion
+  let saveMod = mod(state.character.abilities[trap.save || 'dex']) + playerSaveBonus(state, trap.save || 'dex');
   const altar = getBuff(p, 'altar_blessed');
-  const success = saveRoll.natural + saveMod + (altar ? 1 : 0) >= (trap.dc || 13);
-  const text = `A ${trap.name}! ${p.name} ${String(trap.save || 'dex').toUpperCase()} save: ${saveRoll.natural}+${saveMod} vs DC ${trap.dc} — ${success ? 'they dodge aside!' : 'they are hit!'}`;
+  if (altar) saveMod += 1;
+  let success = saveRoll.natural + saveMod >= (trap.dc || 13);
+  // Fighter Indomitable (level 9+): reroll a failed save once per long rest
+  if (!success && char.className === 'fighter' && char.level >= 9 && !char.uses.indomitable_used) {
+    char.uses = char.uses || {};
+    char.uses.indomitable_used = true;
+    const reroll = d20({ reroll1: state.character.rerollNat1 });
+    success = reroll.natural + saveMod >= (trap.dc || 13);
+    addLog(state, 'mech', 'Indomitable! ' + p.name + ' rerolls the save: d20 ' + reroll.natural + '+' + saveMod + '.');
+  }
+  const damageMult = evasion ? (success ? 0 : 0.5) : 1;
+  const text = `A ${trap.name}! ${p.name} ${String(trap.save || 'dex').toUpperCase()} save: ${saveRoll.natural}+${saveMod} vs DC ${trap.dc} — ${success ? 'they dodge aside!' : 'they are hit!'}${evasion ? ' (Evasion)' : ''}`;
   events.push({ type: 'trap', narrate: true, text }); addLog(state, 'mech', text);
   if (!success) {
-    const dmg = rollExpr(trap.damage).total;
+    let dmg = rollExpr(trap.damage).total;
+    if (evasion) dmg = Math.floor(dmg / 2);
     const dealt = applyDamage(state, p, dmg, trap.damageType || 'piercing', events);
     addLog(state, 'mech', `${p.name} takes ${dealt} damage.`);
     checkPlayerDeath(state, events);
@@ -1513,22 +1535,27 @@ function levelUp(state, newLevel, events) {
   const pe = playerEntity(state);
   if (pe) { pe.hpMax = char.hpMax; pe.hp = char.hpMax; pe.ac = char.acBase; }
   if (cls.spellcasting && cls.spellcasting.type === 'known') {
-    const wantLevel = newLevel >= 5 ? 2 : 1;
-    const list = SPELLS.filter(s => s.level === wantLevel && s.classes.includes(char.className) && !char.spellcasting.spells.includes(s.id));
-    if (list.length) char.spellcasting.spells.push(list[0].id);
+    const maxSlot = Math.max(0, ...Object.keys(char.slotsMax || {}).map(Number));
+    const want = SPELLS.filter(x => x.level >= 1 && x.level <= maxSlot && x.classes.includes(char.className) && !char.spellcasting.spells.includes(x.id));
+    want.sort((a, b) => b.level - a.level);
+    if (want.length) char.spellcasting.spells.push(want[0].id);
   }
-  // level 4: Ability Score Improvement (auto-assigned to the class primary)
-  if (newLevel >= 4 && !char.asiDone) {
-    char.asiDone = true;
-    const primary = cls.primary || 'str';
-    char.abilities[primary] += 2;
-    applyClassAndSpecies(char, cls, null, newLevel, true); // recompute AC/attacks with the raised score
-    char.hp = char.hpMax;
-    const pe2 = playerEntity(state);
-    if (pe2) { pe2.hpMax = char.hpMax; pe2.hp = char.hpMax; pe2.ac = char.acBase; }
-    const asi = { type: 'asi', narrate: true, text: `Ability Score Improvement: ${primary.toUpperCase()} rises to ${char.abilities[primary]}!` };
-    events.push(asi); addLog(state, 'system', asi.text);
-  }
+  // Ability Score Improvements at level 4 and 8 (auto-assigned to the class primary)
+  char.asiCount = char.asiCount || 0;
+  const asiLevels = [4, 8];
+  asiLevels.forEach(asiLevel => {
+    if (newLevel >= asiLevel && char.asiCount < asiLevels.indexOf(asiLevel) + 1) {
+      char.asiCount++;
+      const primary = cls.primary || 'str';
+      char.abilities[primary] += 2;
+      applyClassAndSpecies(char, cls, null, newLevel, true);
+      char.hp = char.hpMax;
+      const pe2 = playerEntity(state);
+      if (pe2) { pe2.hpMax = char.hpMax; pe2.hp = char.hpMax; pe2.ac = char.acBase; }
+      const asi = { type: 'asi', narrate: true, text: `Ability Score Improvement: ${primary.toUpperCase()} rises to ${char.abilities[primary]}!` };
+      events.push(asi); addLog(state, 'system', asi.text);
+    }
+  });
   const ev = { type: 'levelup', narrate: true, text: `LEVEL UP! ${char.name} reaches level ${newLevel}! Hit points rise to ${char.hpMax} and new powers awaken.`, data: { level: newLevel } };
   events.push(ev); addLog(state, 'system', ev.text);
   // subclass arrives at level 3

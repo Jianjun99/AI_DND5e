@@ -147,6 +147,15 @@ A map is an ASCII grid. `#` = wall, `.` = floor, `,` = rubble (costs double move
   optional `bonusDamage` adds elemental dice on every hit.
 - `type: "potion"` — `heal` dice; usable with the Potion button or "drink a potion".
 
+## Share with the community
+
+- **Export & import** (in-game) works one-on-one: pack → JSON file → friend imports it.
+- **Pull requests**: add your pack under  and open a PR — good packs ship
+  with the game for everyone.
+- **Showcase issue**: opened something cool? Post it with the
+  [content-pack template](https://github.com/Jianjun99/AI_DND5e/issues/new?template=content-pack.md)
+  so players can find it.
+
 ## Testing & sharing
 
 - **Test locally:** restart the container (or `npm start`) after editing files in `content/` — the

@@ -28,6 +28,16 @@ router.get('/pack/:id/export', (req, res) => {
   res.json(bundle);
 });
 
+router.delete('/pack/:id', (req, res) => {
+  const reg = content.reload();
+  const pack = reg.packs.find(p => p.id === req.params.id);
+  if (!pack || pack.id === 'core') return res.status(404).json({ error: 'Pack not found (or built-in)' });
+  if (!pack.installed) return res.status(400).json({ error: 'Shipped packs cannot be deleted — they are part of the game.' });
+  fs.rmSync(pack.dir, { recursive: true, force: true });
+  content.reload();
+  res.json({ ok: true });
+});
+
 router.post('/import', (req, res) => {
   const bundle = req.body || {};
   if (bundle.format !== 'ai-dnd-pack' || !bundle.pack || !bundle.pack.id) {

@@ -1,0 +1,49 @@
+{
+  "patches": [
+    { "name": "Howling Hills pack manifest", "jsonWrite": {
+        "path": "content/howling-hills/pack.json",
+        "data": {
+          "id": "howling-hills",
+          "name": "The Howling Hills",
+          "author": "Jianjun99",
+          "blurb": "An outdoor bandit stronghold in the wind-scoured hills. A tougher delve for heroes of level 5-10, with a warboss on a war-drum."
+        }
+    } },
+    { "name": "Howling Hills monsters", "jsonWrite": {
+        "path": "content/howling-hills/monsters.json",
+        "data": { "monsters": [
+          { "id": "bandit", "name": "Hills Bandit", "xp": 25, "ac": 12, "hp": "2d8+2", "speed": 30, "darkvision": 0,
+            "abilities": { "str": 12, "dex": 12, "con": 12, "int": 10, "wis": 10, "cha": 10 },
+            "attacks": [{ "name": "Scimitar", "bonus": 3, "range": 5, "damage": "1d6+1", "damageType": "slashing" }],
+            "loot": { "gold": "2d6", "items": [{ "id": "potion_healing", "chance": 0.15 }] },
+            "blurb": "A wind-burned cutthroat in scavenged leathers, more dangerous at counting coin than swinging a blade." },
+          { "id": "dire_wolf", "name": "Dire Wolf", "xp": 100, "ac": 14, "hp": "3d10+6", "speed": 40, "darkvision": 60,
+            "abilities": { "str": 17, "dex": 15, "con": 15, "int": 3, "wis": 12, "cha": 7 },
+            "attacks": [{ "name": "Bite", "bonus": 5, "range": 5, "damage": "2d6+3", "damageType": "piercing" }],
+            "loot": { "gold": "1d8" },
+            "blurb": "A pony-sized wolf with winter-pale eyes; the warboss's hunt-beasts answer only his drum." },
+          { "id": "bandit_captain", "name": "Bandit Lieutenant", "xp": 200, "ac": 15, "hp": "5d10+10", "speed": 30, "darkvision": 0,
+            "abilities": { "str": 15, "dex": 16, "con": 14, "int": 12, "wis": 12, "cha": 14 },
+            "attacks": [{ "name": "Longsword", "bonus": 5, "range": 5, "damage": "1d8+3", "damageType": "slashing" }],
+            "loot": { "gold": "5d10", "items": [{ "id": "potion_greater", "chance": 0.5 }] },
+            "blurb": "A scarred veteran who kept his post out of greed rather than loyalty; he fights like a man with something to prove." },
+          { "id": "ogre_warboss", "name": "Gorrash the Warboss", "xp": 700, "ac": 14, "hp": "9d10+27", "speed": 40, "darkvision": 60,
+            "abilities": { "str": 21, "dex": 10, "con": 16, "int": 8, "wis": 8, "cha": 12 },
+            "attacks": [{ "name": "Drum-Club", "bonus": 8, "range": 5, "damage": "2d12+6", "damageType": "bludgeoning" }],
+            "loot": { "gold": "12d10", "items": [{ "id": "warboss_banner", "qty": 1 }] },
+            "boss": true,
+            "traits": ["Bound to the drum: Gorrash never strays from his war-drum."],
+            "blurb": "A mountain of muscle and war-paint beating a drum made from a cart wheel — every beat drives the camp into a frenzy." }
+        ] }
+    } },
+    { "name": "Howling Hills items", "jsonWrite": {
+        "path": "content/howling-hills/gear.json",
+        "data": { "gear": [
+          { "id": "warboss_banner", "name": "Warboss's Banner", "type": "banner", "attackBonus": 1, "cost": 300,
+            "desc": "+1 to attack rolls while carried — the hills remember who owns this banner now." },
+          { "id": "wolf_cloak", "name": "Wolf-Fur Cloak", "type": "magic_armor", "acBonus": 1, "cost": 150,
+            "desc": "+1 AC while worn. Smells faintly of wet dog, in a reassuring way." }
+        ] }
+    } }
+  ]
+}

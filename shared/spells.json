@@ -616,6 +616,26 @@
         "rounds": 30
       },
       "desc": "You vanish for up to 30 rounds — monsters cannot target you until you attack or cast."
+    },
+    {
+      "id": "fireball",
+      "name": "Fireball",
+      "level": 3,
+      "classes": [
+        "wizard",
+        "sorcerer"
+      ],
+      "target": "burst",
+      "range": 15,
+      "save": {
+        "ability": "dex",
+        "onSave": "half"
+      },
+      "damage": {
+        "dice": "6d6",
+        "type": "fire"
+      },
+      "desc": "A bright streak blossoms into a roiling flower of flame: DEX save or 6d6 fire damage, half on a success."
     }
   ]
 }

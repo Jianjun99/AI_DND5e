@@ -23,9 +23,15 @@ export function createMapRenderer(canvas, opts = {}) {
 
   function px(x) { return x * TILE; }
 
+  const THEMES = {
+    crypt: { floor: ['#2a241d', '#2e2820', '#282219'], wall: ['#3b332a', '#403730', '#362e26'] },
+    hills: { floor: ['#28331e', '#2c3822', '#25301c'], wall: ['#4a3b28', '#503f2c', '#443624'] }
+  };
+
   function drawFloor(x, y, dim) {
     const r = hash(x, y);
-    ctx.fillStyle = dim ? '#16130f' : ['#2a241d', '#2e2820', '#282219'][Math.floor(r * 3)];
+    const th = THEMES[(currentGame && currentGame.map && currentGame.map.theme) || 'crypt'] || THEMES.crypt;
+    ctx.fillStyle = dim ? '#16130f' : th.floor[Math.floor(r * 3)];
     ctx.fillRect(px(x), px(y), TILE, TILE);
     // grout lines
     ctx.strokeStyle = dim ? 'rgba(255,255,255,.02)' : 'rgba(0,0,0,.25)';
@@ -41,7 +47,8 @@ export function createMapRenderer(canvas, opts = {}) {
 
   function drawWall(x, y, dim) {
     const r = hash(x, y);
-    ctx.fillStyle = dim ? '#100e0c' : ['#3b332a', '#403730', '#362e26'][Math.floor(r * 3)];
+    const th = THEMES[(currentGame && currentGame.map && currentGame.map.theme) || 'crypt'] || THEMES.crypt;
+    ctx.fillStyle = dim ? '#100e0c' : th.wall[Math.floor(r * 3)];
     ctx.fillRect(px(x), px(y), TILE, TILE);
     ctx.fillStyle = 'rgba(0,0,0,.35)';
     ctx.fillRect(px(x), px(y) + TILE - 4, TILE, 4);

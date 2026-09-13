@@ -44,8 +44,10 @@ export function createMap3D(container, opts = {}) {
   renderer.domElement.style.display = 'block';
   renderer.domElement.style.cursor = 'crosshair';
 
-  scene.add(new THREE.AmbientLight(0x554433, 0.9));
-  scene.add(new THREE.HemisphereLight(0x886644, 0x0c0a08, 0.5));
+  const ambient = new THREE.AmbientLight(0x554433, 0.9);
+  scene.add(ambient);
+  const hemi = new THREE.HemisphereLight(0x886644, 0x0c0a08, 0.5);
+  scene.add(hemi);
   const torch = new THREE.PointLight(0xffb066, 18, 9, 1.8);
   scene.add(torch);
 
@@ -57,6 +59,10 @@ export function createMap3D(container, opts = {}) {
 
   let hoverTile = null;
   let currentGame = null;
+  const THEMES = {
+    crypt: { bg: 0x0a0806, ambient: 0x554433, hemi: [0x886644, 0x0c0a08], floor: [0.18, 0.155, 0.13], wall: [0.24, 0.21, 0.18] },
+    hills: { bg: 0x2a2f20, ambient: 0x88806a, hemi: [0x9aa878, 0x1a1c12], floor: [0.15, 0.2, 0.11], wall: [0.26, 0.2, 0.13] }
+  };
   let entityNodes = new Map(); // entId -> { group, target: Vector3 }
   let camTarget = new THREE.Vector3();
 
@@ -70,12 +76,9 @@ export function createMap3D(container, opts = {}) {
 
   function floorColor(x, y, lit, isWall) {
     const r = hash(x * 3 + 1, y * 7 + 2);
-    if (isWall) {
-      const base = dim([0.24, 0.21, 0.18], lit);
-      return new THREE.Color(base[0] + r * 0.03, base[1] + r * 0.03, base[2] + r * 0.02);
-    }
-    const base = dim([0.18, 0.155, 0.13], lit);
-    return new THREE.Color(base[0] + r * 0.025, base[1] + r * 0.02, base[2] + r * 0.015);
+    const th = THEMES[(currentGame && currentGame.map && currentGame.map.theme) || 'crypt'] || THEMES.crypt;
+    const base = dim(isWall ? th.wall : th.floor, lit);
+    return new THREE.Color(base[0] + r * 0.03, base[1] + r * 0.03, base[2] + r * 0.02);
   }
   function dim(rgb, lit) { const k = lit ? 1 : 0.32; return [rgb[0] * k, rgb[1] * k, rgb[2] * k]; }
 
@@ -251,6 +254,11 @@ export function createMap3D(container, opts = {}) {
 
   function render(game) {
     if (!game) return;
+    const th = THEMES[(game.map && game.map.theme) || 'crypt'] || THEMES.crypt;
+    scene.background = new THREE.Color(th.bg);
+    ambient.color = new THREE.Color(th.ambient);
+    hemi.color = new THREE.Color(th.hemi[0]);
+    hemi.groundColor = new THREE.Color(th.hemi[1]);
     clearWorld();
     currentGame = game;
     const hover = buildTiles(game);
