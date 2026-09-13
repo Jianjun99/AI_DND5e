@@ -85,8 +85,11 @@ const browserProc = spawn(browserBin, [
   '--headless=new',
   `--remote-debugging-port=${CDP_PORT}`,
   '--disable-gpu',
+  '--no-sandbox',
+  '--disable-dev-shm-usage',
   '--no-first-run',
   '--no-default-browser-check',
+  '--window-size=1280,800',
   targetUrl
 ]);
 
@@ -95,14 +98,14 @@ browserProc.on('error', (err) => {
 });
 
 async function waitForCDP() {
-  for (let i = 0; i < 35; i++) {
+  for (let i = 0; i < 60; i++) {
     try {
       const res = await fetch(`http://127.0.0.1:${CDP_PORT}/json`);
       const tabs = await res.json();
-      const tab = tabs.find(t => t.url && t.url.includes(delveId));
-      if (tab) return tab;
+      const tab = tabs.find(t => t.type === 'page' && t.url && t.url.includes(delveId));
+      if (tab && tab.webSocketDebuggerUrl) return tab;
     } catch {}
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise(r => setTimeout(r, 300));
   }
   throw new Error('CDP target tab not reachable');
 }
