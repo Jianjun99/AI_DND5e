@@ -161,6 +161,72 @@ export function createMap3D(container, opts = {}) {
       const m = new THREE.Mesh(track(new THREE.BoxGeometry(0.7, 0.03, 0.7)), new THREE.MeshBasicMaterial({ color: 0xb8433a }));
       m.position.set(o.x + 0.5, 0.015, o.y + 0.5);
       g.add(m);
+    } else if (o.type === 'barrel') {
+      if (!o.exploded) {
+        const keg = new THREE.Mesh(track(new THREE.CylinderGeometry(0.24, 0.24, 0.5, 10)), mat(0x6b421a));
+        keg.position.set(o.x + 0.5, 0.25, o.y + 0.5);
+        g.add(keg);
+        const rim = new THREE.Mesh(track(new THREE.CylinderGeometry(0.25, 0.25, 0.08, 10)), mat(0x2a1f18));
+        rim.position.set(o.x + 0.5, 0.25, o.y + 0.5);
+        g.add(rim);
+        const topMark = new THREE.Mesh(track(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 8)), new THREE.MeshBasicMaterial({ color: 0xcc3322 }));
+        topMark.position.set(o.x + 0.5, 0.51, o.y + 0.5);
+        g.add(topMark);
+      } else {
+        const charred = new THREE.Mesh(track(new THREE.CylinderGeometry(0.3, 0.35, 0.04, 8)), mat(0x1a1614));
+        charred.position.set(o.x + 0.5, 0.02, o.y + 0.5);
+        g.add(charred);
+      }
+    } else if (o.type === 'font') {
+      const basin = new THREE.Mesh(track(new THREE.CylinderGeometry(0.38, 0.28, 0.35, 12)), mat(0x444b50));
+      basin.position.set(o.x + 0.5, 0.175, o.y + 0.5);
+      g.add(basin);
+      const waterColor = o.used ? 0x2a3338 : 0x38bdf8;
+      const water = new THREE.Mesh(track(new THREE.CylinderGeometry(0.33, 0.33, 0.05, 12)), new THREE.MeshBasicMaterial({ color: waterColor }));
+      water.position.set(o.x + 0.5, 0.33, o.y + 0.5);
+      g.add(water);
+      if (!o.used && lit) {
+        const fontLight = new THREE.PointLight(0x38bdf8, 2, 3, 2);
+        fontLight.position.set(o.x + 0.5, 0.45, o.y + 0.5);
+        g.add(fontLight);
+      }
+    } else if (o.type === 'lever') {
+      const base = new THREE.Mesh(track(new THREE.BoxGeometry(0.35, 0.08, 0.35)), mat(0x3d3a37));
+      base.position.set(o.x + 0.5, 0.04, o.y + 0.5);
+      g.add(base);
+      const stick = new THREE.Mesh(track(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6)), mat(0x8c7853));
+      stick.rotation.z = o.pulled ? 0.4 : -0.4;
+      stick.position.set(o.x + 0.5 + (o.pulled ? 0.08 : -0.08), 0.22, o.y + 0.5);
+      g.add(stick);
+      const knob = new THREE.Mesh(track(new THREE.SphereGeometry(0.06, 8, 8)), new THREE.MeshBasicMaterial({ color: o.pulled ? 0x44bb55 : 0xcc4433 }));
+      knob.position.set(o.x + 0.5 + (o.pulled ? 0.15 : -0.15), 0.38, o.y + 0.5);
+      g.add(knob);
+    } else if (o.type === 'spores') {
+      if (!o.burst) {
+        const pod1 = new THREE.Mesh(track(new THREE.SphereGeometry(0.2, 8, 8)), mat(0x5c8a32));
+        pod1.position.set(o.x + 0.5, 0.18, o.y + 0.5);
+        g.add(pod1);
+        const pod2 = new THREE.Mesh(track(new THREE.SphereGeometry(0.14, 8, 8)), mat(0x7a3e8d));
+        pod2.position.set(o.x + 0.62, 0.14, o.y + 0.58);
+        g.add(pod2);
+        const pod3 = new THREE.Mesh(track(new THREE.SphereGeometry(0.12, 8, 8)), mat(0x4a7a2d));
+        pod3.position.set(o.x + 0.4, 0.12, o.y + 0.42);
+        g.add(pod3);
+      } else {
+        const husk = new THREE.Mesh(track(new THREE.CylinderGeometry(0.25, 0.3, 0.04, 8)), mat(0x2d331e));
+        husk.position.set(o.x + 0.5, 0.02, o.y + 0.5);
+        g.add(husk);
+      }
+    } else if (o.type === 'hazard') {
+      const slime = new THREE.Mesh(track(new THREE.CylinderGeometry(0.42, 0.45, 0.03, 12)), track(new THREE.MeshLambertMaterial({ color: 0x22c55e, transparent: true, opacity: 0.75 })));
+      slime.position.set(o.x + 0.5, 0.02, o.y + 0.5);
+      g.add(slime);
+      const b1 = new THREE.Mesh(track(new THREE.SphereGeometry(0.06, 6, 6)), new THREE.MeshBasicMaterial({ color: 0x86efac }));
+      b1.position.set(o.x + 0.4, 0.05, o.y + 0.46);
+      g.add(b1);
+      const b2 = new THREE.Mesh(track(new THREE.SphereGeometry(0.04, 6, 6)), new THREE.MeshBasicMaterial({ color: 0x86efac }));
+      b2.position.set(o.x + 0.58, 0.04, o.y + 0.56);
+      g.add(b2);
     }
     world.add(g);
   }
@@ -169,7 +235,7 @@ export function createMap3D(container, opts = {}) {
     const g = new THREE.Group();
     let bodyColor = 0x6b6b6b, headColor = 0xc8a888, emoji = '';
     if (ent.kind === 'player') { bodyColor = 0x8a6d2f; emoji = '🗡️'; }
-    else if (ent.kind === 'ally') { bodyColor = 0x3f5c74; emoji = '🏹'; }
+    else if (ent.kind === 'ally') { bodyColor = ent.role && ent.role.includes('Tank') ? 0x3d5a42 : (ent.role && ent.role.includes('Healer') ? 0x8a7a2f : 0x3f5c74); emoji = ent.icon || '🏹'; }
     else if (ent.kind === 'npc') { bodyColor = 0x5f3f74; emoji = ent.icon || '🗣️'; }
     else {
       bodyColor = ent.boss ? 0x7a2020 : 0x6b2f2a;
@@ -363,13 +429,15 @@ export function createMap3D(container, opts = {}) {
 
   window.addEventListener('resize', resize);
 
-  function dispose() {
-    cancelAnimationFrame(raf);
-    window.removeEventListener('resize', resize);
-    disposables.forEach(d => { try { d.dispose && d.dispose(); } catch {} });
-    renderer.dispose();
-    if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
+  function tileToScreen(x, y) {
+    const v = new THREE.Vector3(x + 0.5, 0.6, y + 0.5);
+    v.project(camera);
+    const rect = renderer.domElement.getBoundingClientRect();
+    return {
+      x: (v.x * 0.5 + 0.5) * rect.width,
+      y: (-(v.y * 0.5) + 0.5) * rect.height
+    };
   }
 
-  return { render, dispose, kind: '3d' };
+  return { render, dispose, kind: '3d', tileToScreen };
 }

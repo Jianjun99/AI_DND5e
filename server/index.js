@@ -6,6 +6,7 @@ const gameRoute = require('./routes/game');
 const settingsRoute = require('./routes/settings');
 const dataRoute = require('./routes/data');
 const contentRoute = require('./routes/content');
+const cityRoute = require('./routes/city');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,6 +39,7 @@ app.get('/api/rules', (req, res) => {
     skillAbility: engine.SKILL_ABILITY,
     shop: engine.SHOP_ITEMS,
     difficulty: engine.DIFFICULTY,
+    allies: engine.ALLIES,
     gear: require('./game/content').listGear()
   });
 });
@@ -47,6 +49,7 @@ app.use('/api/settings', settingsRoute);
 app.use('/api/game', gameRoute);
 app.use('/api/data', dataRoute);
 app.use('/api/content', contentRoute);
+app.use('/api/city', cityRoute);
 
 // Static frontend + SPA fallback
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');

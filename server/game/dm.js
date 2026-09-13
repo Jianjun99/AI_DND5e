@@ -5,14 +5,74 @@ const retrieval = require('./retrieval');
 const llm = require('../llm/client');
 const engine = require('./engine');
 
-const SYSTEM_DM = `You are the Dungeon Master's narrative voice for a game of D&D (2024 rules) taking place in "The Sunless Crypt", a dungeon delve.
+const DM_PERSONAS = {
+  classic: {
+    id: 'classic',
+    name: 'Classic Tabletop',
+    icon: '🎲',
+    tagline: 'Balanced & Immersive',
+    blurb: 'Traditional D&D adventure tone. Clear sensory descriptions, steady pacing, and heroic stakes.',
+    promptStyle: 'Traditional high-adventure tabletop tone with balanced sensory detail and steady heroic stakes.'
+  },
+  grimdark: {
+    id: 'grimdark',
+    name: 'Grimdark & Gritty',
+    icon: '💀',
+    tagline: 'Bleak & Visceral',
+    blurb: 'Dark Souls & Ravenloft style. Cold stone, stale blood, reeking rot, biting agony, and relentless dread.',
+    promptStyle: 'Visceral grimdark tone: describe wounds, stale blood, suffocating dread, grinding bones, and oppressive claustrophobia. Treat every victory as hard-won survival against a merciless world.'
+  },
+  epic: {
+    id: 'epic',
+    name: 'High Fantasy Epic',
+    icon: '⚔️',
+    tagline: 'Grand & Mythic',
+    blurb: 'Lord of the Rings style. Soaring cadence, ancient prophecy, glorious heroics, and resonant majesty.',
+    promptStyle: 'High-epic mythic cadence: sweeping poetic descriptions, legendary weight, heroic valor, and ancient majesty. Frame the hero\'s struggles as fateful deeds echoing through song and legend.'
+  },
+  snarky: {
+    id: 'snarky',
+    name: 'Snarky & Irreverent',
+    icon: '🃏',
+    tagline: 'Witty & Sarcastic',
+    blurb: 'Tongue-in-cheek DM who delivers dry wit, playful quips on questionable choices, and comedic timing.',
+    promptStyle: 'Snarky, dryly witty tabletop DM tone: humorous commentary on narrow escapes, clumsy monsters, and dubious player heroics, while strictly honoring the exact outcomes with playful irony.'
+  },
+  eldritch: {
+    id: 'eldritch',
+    name: 'Eldritch Cosmic Dread',
+    icon: '👁️',
+    tagline: 'Surreal & Psychological',
+    blurb: 'Lovecraftian horror. Whispering shadows, geometry gone wrong, ancient forbidden secrets, and creeping madness.',
+    promptStyle: 'Eldritch cosmic horror tone: unsettling psychological tension, whispering shadows at the edge of sanity, wrong angles in the stone, and the terrifying insignificance of mortals against ancient abyssal things.'
+  }
+};
+
+function getDmSystem(personaKey = 'classic', mapName = 'The Sunless Crypt') {
+  const p = DM_PERSONAS[personaKey] || DM_PERSONAS.classic;
+  return `You are the Dungeon Master's narrative voice for a game of D&D (2024 rules) taking place in "${mapName}".
+Persona style: ${p.name} — ${p.promptStyle}
 The game engine has ALREADY resolved the mechanics and gives you the exact outcomes. Your job is ONLY to narrate them.
 Rules you must obey:
 - Write 2-4 vivid sentences, second person ("you"), addressing the player hero by name if natural.
+- Tone: strictly embody the "${p.name}" persona style (${p.promptStyle}).
 - Narrate EXACTLY the outcomes given: never invent hits, misses, damage, loot, deaths, or discoveries that are not in the event data.
 - Never offer mechanical choices or ask the player for a roll; the game UI handles that.
-- Dark fantasy tone, concrete sensory detail, a little drama. No lists, no headings, no dice notation unless echoing given results.
-- If the player succeeded, make it feel earned; if they failed or were hurt, make the danger feel real. Never apologize or break character.`;
+- If the player succeeded, make it feel earned; if they failed or were hurt, make the danger feel real according to your persona style. Never apologize or break character.`;
+}
+
+function getFreeformSystem(personaKey = 'classic', mapName = 'The Sunless Crypt') {
+  const p = DM_PERSONAS[personaKey] || DM_PERSONAS.classic;
+  return `You are the Dungeon Master's narrative voice for a D&D dungeon crawl in "${mapName}".
+Persona style: ${p.name} — ${p.promptStyle}
+The player attempts something freeform that the game engine did NOT map to a mechanic (no dice were rolled, nothing changed).
+Narrate their attempt in 1-3 sentences, second person: describe them trying and the reaction of the dungeon through your persona lens.
+DO NOT invent any mechanical outcome: no damage, no items found, no combat starting, no movement. If the attempt clearly maps to a
+game action (attack, search, listen, hide, pick a lock, drink a potion, pray at the altar, rest, talk), gently note in-character that
+they should use the game buttons or phrase it that way — without listing commands like a manual.`;
+}
+
+const SYSTEM_DM = getDmSystem('classic');
 
 const SYSTEM_NPC = (npcDef, npcName) => `You are role-playing ${npcName}, an NPC in the D&D dungeon "The Sunless Crypt".
 Character: ${npcDef.persona}
@@ -52,6 +112,7 @@ async function narrateEvents(state, events) {
   if (!(await available())) return null;
   if (!events.length) return null;
   const cfg = store.getSettings().llm;
+  const personaKey = (state && state.dmPersona) || (cfg && cfg.persona) || 'classic';
   const p = engine.playerEntity(state);
   const room = engine.roomAt(state, p.x, p.y);
   const payload = events.filter(e => e.narrate).slice(0, 6).map(e => ({
@@ -60,7 +121,7 @@ async function narrateEvents(state, events) {
     data: e.data ? { dmg: e.data.dmg, crit: e.data.crit, room: e.data.roomName, xp: e.data.xp } : undefined
   }));
   const messages = [
-    { role: 'system', content: SYSTEM_DM },
+    { role: 'system', content: getDmSystem(personaKey, state.mapName || 'The Sunless Crypt') },
     { role: 'user', content: `Hero: ${state.character.name}, level ${state.character.level} ${state.character.className} (${state.character.species}), ${p.hp}/${p.hpMax} HP.
 Location: ${room ? room.name : 'a corridor of the crypt'}${state.mode === 'combat' ? ' — IN COMBAT' : ''}.
 Recent events: ${recentHistory(state, 4) || '(the delve just began)'}
@@ -102,10 +163,11 @@ async function npcChat(state, npcId, playerText) {
 async function freeformFlavor(state, text) {
   if (await available()) {
     const cfg = store.getSettings().llm;
+    const personaKey = (state && state.dmPersona) || (cfg && cfg.persona) || 'classic';
     const p = engine.playerEntity(state);
     const room = engine.roomAt(state, p.x, p.y);
     const messages = [
-      { role: 'system', content: SYSTEM_FREEFORM },
+      { role: 'system', content: getFreeformSystem(personaKey, state.mapName || 'The Sunless Crypt') },
       { role: 'user', content: `Hero: ${state.character.name} (level ${state.character.level} ${state.character.className}), ${p.hp}/${p.hpMax} HP.
 Location: ${room ? room.name : 'a corridor of the crypt'}. Mode: ${state.mode}.
 The player attempts: "${text}"
@@ -162,8 +224,10 @@ async function describeEntity(state, ent) {
   }
   if (await available()) {
     const cfg = store.getSettings().llm;
+    const personaKey = (state && state.dmPersona) || (cfg && cfg.persona) || 'classic';
+    const pStyle = (DM_PERSONAS[personaKey] || DM_PERSONAS.classic).promptStyle;
     const messages = [
-      { role: 'system', content: `You describe creatures for a D&D game. Given the facts, write the creature's appearance in 1-2 vivid sentences, present tense, framed as what the player sees ("You see..."). Use ONLY the facts given — never invent abilities, names, or story details. No headings.` },
+      { role: 'system', content: `You describe creatures for a D&D game. Tone style: ${pStyle}. Given the facts, write the creature's appearance in 1-2 vivid sentences, present tense, framed as what the player sees ("You see..."). Use ONLY the facts given — never invent abilities, names, or story details. No headings.` },
       { role: 'user', content: `Creature: ${ent.name}${ent.boss ? ' (a boss)' : ''}. Facts: ${blurb || 'an inhabitant of the Sunless Crypt'}\n\nDescribe its appearance.` }
     ];
     const reply = await tryChat(messages, cfg);
@@ -188,4 +252,12 @@ Write the quest hook now.` }
   return tryChat(messages, cfg);
 }
 
-module.exports = { narrateEvents, npcChat, freeformFlavor, writeRecap, describeEntity, questText, available };
+module.exports = { narrateEvents, npcChat, freeformFlavor, writeRecap, describeEntity, questText, available, callLlm, DM_PERSONAS, getDmSystem, getFreeformSystem };
+
+// Generic one-shot LLM helper for other server modules (tavern rumors, etc).
+// Returns text or null when the LLM is off/unreachable.
+async function callLlm(messages) {
+  if (!(await available())) return null;
+  const cfg = store.getSettings().llm;
+  return tryChat(messages, cfg);
+}

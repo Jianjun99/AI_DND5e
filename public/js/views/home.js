@@ -145,11 +145,20 @@ function charCard(c, saveList) {
   const slots = saveList.slice(0, 3);
   return `
     <div class="card char-card">
-      <div class="name">${esc(c.name)}</div>
-      <div class="meta">Level ${c.level} ${esc(spName)} ${esc(clsName)} · ${c.xp} XP · ${c.gold ?? 50} gp</div>
+      <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px;">
+        <img src="${c.portraitUrl || '/portraits/hero_' + c.id + '.svg'}"
+             alt="Hero"
+             style="width:48px; height:56px; object-fit:cover; border-radius:6px; border:1.5px solid var(--border); background:#15120e; flex-shrink:0;"
+             onerror="this.src='/portraits/hero_${c.id}.svg'">
+        <div style="min-width:0; flex:1;">
+          <div class="name" style="margin:0 0 2px;">${esc(c.name)}</div>
+          <div class="meta">Level ${c.level} ${esc(spName)} ${esc(clsName)} · ${c.xp} XP</div>
+        </div>
+      </div>
       <div class="stats">
         <span><b>${c.hpMax}</b> HP</span>
         <span><b>${c.acBase}</b> AC</span>
+        <span><b>${c.gold ?? 50}</b> gp</span>
       </div>
       ${slots.length ? slots.map(sv => `
         <div class="stat-line" style="align-items:center;">
@@ -161,7 +170,7 @@ function charCard(c, saveList) {
         </div>`).join('') : ''}
         ${saveList.length > 3 ? `<div class="meta small muted">+ ${saveList.length - 3} older delve(s)</div>` : ''}
       <div class="actions">
-        <a class="btn" href="#/play/new?char=${c.id}">⚔ New Delve</a>
+        <a class="btn primary" href="#/overworld?char=${c.id}">🗺️ Overworld</a>
         <a class="btn" href="#/character/${c.id}">Sheet</a>
         <button class="btn danger small" data-del="${c.id}">Delete</button>
       </div>

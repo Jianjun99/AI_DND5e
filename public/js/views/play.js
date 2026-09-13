@@ -4,7 +4,7 @@ import { esc, toast, state as appState, charObjective } from '../app.js';
 import { createMapRenderer } from '../map.js';
 import { createMap3D } from '../map3d.js';
 import { settingsView } from './settings.js';
-import { showDice } from '../dice.js';
+import { showDice, rollAnimated } from '../dice.js';
 import { sfx } from '../sfx.js';
 import { tts } from '../tts.js';
 
@@ -50,9 +50,16 @@ export async function playView(main, saveRef) {
               </label>`).join('')}
           </div>
           <div class="card" style="margin:12px 0;">
-            <label style="display:block; margin:0; color:var(--text);">
-              <input type="checkbox" id="allyToggle" checked style="width:auto">
-              🏹 Bring <b>Bram the Scout</b> as an AI companion <span class="muted small">(recommended for solo balance)</span>
+            <h3 style="margin-top:0;">Mercenary Companion</h3>
+            ${((rules.allies && rules.allies.length) ? rules.allies : [{ id: 'bram', name: 'Bram the Scout', role: 'Ranger / Archer', icon: '🏹', blurb: 'A wiry hunter who strikes from the dark with a longbow.' }]).map((a, i) => `
+              <label style="display:block; margin:8px 0; color:var(--text); cursor:pointer;">
+                <input type="radio" name="companionPick" value="${a.id}" ${i === 0 ? 'checked' : ''} style="width:auto">
+                ${a.icon || '🏹'} <b>${esc(a.name)}</b> <span class="chip blue" style="font-size:11px; padding:1px 6px;">${esc(a.role || 'Companion')}</span>
+                <div class="muted small" style="margin-left:22px;">${esc(a.blurb || '')}</div>
+              </label>`).join('')}
+            <label style="display:block; margin:8px 0; color:var(--text); cursor:pointer;">
+              <input type="radio" name="companionPick" value="none" style="width:auto">
+              👤 <b>Solo Expedition</b> <span class="muted small">— Brave the crypt alone (hardcore challenge)</span>
             </label>
           </div>
           <button class="btn primary big" id="beginBtn" style="width:100%;">⚔ Descend</button>
@@ -61,7 +68,8 @@ export async function playView(main, saveRef) {
     document.getElementById('beginBtn').addEventListener('click', async () => {
       const mapId = (document.querySelector('input[name="mapPick"]:checked') || {}).value || 'crypt';
       const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
-      const bringAlly = document.getElementById('allyToggle').checked;
+      const companionChoice = (document.querySelector('input[name="companionPick"]:checked') || {}).value || 'bram';
+      const bringAlly = companionChoice === 'none' ? false : companionChoice;
       try {
         const { state } = await api.startGame(charId, { bringAlly, difficulty, mapId });
         location.hash = `#/play/${state.id}`;
@@ -75,8 +83,17 @@ export async function playView(main, saveRef) {
   selectedTarget = null; activeNpc = null; appearanceShown = null; portraitShown = null;
 
   main.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:baseline;">
-      <h1 style="font-size:24px;">${esc(game.mapName)}</h1>
+    <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:4px;">
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <h1 style="font-size:24px; margin:0;">${esc(game.mapName)}</h1>
+        <select id="personaQuickSelect" class="small" style="background:var(--card); border:1px solid var(--border); color:var(--text); padding:3px 8px; border-radius:4px; font-size:12px; cursor:pointer;" title="Change AI DM Narrative Persona">
+          <option value="classic">🎲 Classic DM</option>
+          <option value="grimdark">💀 Grimdark DM</option>
+          <option value="epic">⚔️ Epic DM</option>
+          <option value="snarky">🃏 Snarky DM</option>
+          <option value="eldritch">👁️ Eldritch DM</option>
+        </select>
+      </div>
       <div>
         <a class="btn small" href="#/character/${game.characterId}">Sheet</a>
         <button class="btn small" id="dmSettingsBtn">⚙ DM Settings</button>
@@ -85,11 +102,26 @@ export async function playView(main, saveRef) {
     </div>
     <div class="play-layout">
       <div>
-        <div class="map-wrap">
-          <canvas id="mapCanvas"></canvas>
-          <div id="map3d" style="display:none; width:100%; height:560px;"></div>
+        <div class="map-wrap" id="mapWrap">
+          <div id="map3d" style="width:100%; height:560px;"></div>
+          
+          <!-- 2D Minimap (Corner overlay in 3D mode, full in 2D mode) -->
+          <div id="minimapContainer" class="minimap-container">
+            <div class="minimap-header">
+              <span class="minimap-title">🧭 Minimap</span>
+              <div class="minimap-controls">
+                <button class="minimap-btn" id="minimapExpandBtn" title="Toggle Minimap Size">⤢</button>
+                <button class="minimap-btn" id="viewToggleMinimap" title="Switch to Full 2D View">2D Full</button>
+              </div>
+            </div>
+            <div class="minimap-body">
+              <canvas id="mapCanvas"></canvas>
+            </div>
+          </div>
+
+          <div id="fctLayer" class="fct-layer"></div>
           <div class="map-hint" id="mapHint">Click to move · click a monster to target · arrows/WASD to step</div>
-          <button class="btn small" id="viewToggle" style="position:absolute; top:8px; right:10px; z-index:5;">🗺 2D</button>
+          <button class="btn small" id="viewToggle2D" style="display:none; position:absolute; top:8px; right:10px; z-index:5;">🏰 3D View</button>
         </div>
         <div class="log-panel">
           <div class="log-entries" id="logEntries"></div>
@@ -107,36 +139,72 @@ export async function playView(main, saveRef) {
   const canvas = document.getElementById('mapCanvas');
   const renderer = createMapRenderer(canvas, { isSelected: e => selectedTarget && e.id === selectedTarget.id });
   let renderer3d = null;
-  let activeView = localStorage.getItem('dnd_3d') === 'on' ? '3d' : '2d';
+  // Default to 3D mode unless explicitly turned off
+  let activeView = localStorage.getItem('dnd_3d') === 'off' ? '2d' : '3d';
+
+  function toggleView() {
+    activeView = activeView === '3d' ? '2d' : '3d';
+    localStorage.setItem('dnd_3d', activeView === '3d' ? 'on' : 'off');
+    if (game) activeRender(game);
+  }
+
+  const vt2D = document.getElementById('viewToggle2D');
+  if (vt2D) vt2D.onclick = toggleView;
+
+  const vtMini = document.getElementById('viewToggleMinimap');
+  if (vtMini) vtMini.onclick = toggleView;
+
+  const mmExp = document.getElementById('minimapExpandBtn');
+  if (mmExp) {
+    mmExp.onclick = () => {
+      const container = document.getElementById('minimapContainer');
+      if (container) {
+        container.classList.toggle('minimap-expanded');
+        mmExp.textContent = container.classList.contains('minimap-expanded') ? '⤡' : '⤢';
+        if (game) renderer.render(game);
+      }
+    };
+  }
 
   function activeRender(gameState) {
+    const wrap = document.getElementById('mapWrap');
+    const map3dEl = document.getElementById('map3d');
+    const btn2D = document.getElementById('viewToggle2D');
+
     if (activeView === '3d') {
       if (!renderer3d) {
-        renderer3d = createMap3D(document.getElementById('map3d'), {
+        renderer3d = createMap3D(map3dEl, {
           onTileClick: (x, y) => handleTileClick(x, y),
           isSelected: e => selectedTarget && e.id === selectedTarget.id
         });
       }
-      canvas.style.display = 'none';
-      document.getElementById('map3d').style.display = 'block';
+      if (wrap) {
+        wrap.classList.remove('view-2d');
+        wrap.classList.add('view-3d');
+      }
+      if (map3dEl) map3dEl.style.display = 'block';
+      if (btn2D) btn2D.style.display = 'none';
       renderer3d.render(gameState);
+      // Simultaneously render the 2D map inside the live minimap!
+      renderer.render(gameState);
     } else {
-      if (renderer3d) document.getElementById('map3d').style.display = 'none';
-      canvas.style.display = 'block';
+      if (wrap) {
+        wrap.classList.remove('view-3d');
+        wrap.classList.add('view-2d');
+      }
+      if (renderer3d && map3dEl) map3dEl.style.display = 'none';
+      if (btn2D) btn2D.style.display = 'block';
       renderer.render(gameState);
     }
-    const vt = document.getElementById('viewToggle');
-    if (vt) vt.textContent = activeView === '3d' ? '🏰 3D' : '🗺 2D';
   }
 
   canvas.addEventListener('click', ev => {
-    if (activeView !== '2d') return;
     const t = renderer.tileFromEvent(ev);
-    handleTileClick(t.x, t.y);
+    if (t) handleTileClick(t.x, t.y);
   });
 
   const onKey = (e) => {
-    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
     const dirs = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] };
     const d = dirs[e.key];
     if (d) {
@@ -145,6 +213,10 @@ export async function playView(main, saveRef) {
       act({ type: 'move', x: p.x + d[0], y: p.y + d[1] });
     }
     if (e.key === ' ' && game.mode === 'combat') { e.preventDefault(); act({ type: 'endTurn' }); }
+    if (['1', '2', '3', '4', '5'].includes(e.key)) {
+      const idx = parseInt(e.key, 10) - 1;
+      useQuickSlot(idx);
+    }
   };
   document.addEventListener('keydown', onKey);
 
@@ -165,7 +237,13 @@ export async function playView(main, saveRef) {
   function atCampfire() {
     const camp = (game.map.victory && game.map.victory.campfire) || game.map.victoryTile;
     const p = player();
-    return p.x === camp.x && p.y === camp.y;
+    return camp && Math.abs(p.x - camp.x) <= 1 && Math.abs(p.y - camp.y) <= 1;
+  }
+
+  function atEntrance() {
+    const start = game.map.playerStart;
+    const p = player();
+    return start && Math.abs(p.x - start.x) <= 1 && Math.abs(p.y - start.y) <= 1;
   }
 
   // Fetch (and cache server-side) a vivid appearance description for a monster/NPC
@@ -269,12 +347,138 @@ export async function playView(main, saveRef) {
     document.getElementById('closeJournal').addEventListener('click', () => modal.remove());
   }
 
+  function openSkillCheckModal(obj) {
+    let modal = document.getElementById('skillCheckModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.className = 'modal-back';
+      modal.id = 'skillCheckModal';
+      document.body.appendChild(modal);
+    }
+    const char = game.character;
+    const isTrap = obj.type === 'trap';
+    const strMod = Math.floor(((char.abilities?.str || 10) - 10) / 2);
+    const dexMod = Math.floor(((char.abilities?.dex || 10) - 10) / 2);
+    const profBonus = Math.floor(((char.level || 1) - 1) / 4) + 2;
+    const hasTools = (char.inventory || []).some(i => i.itemId === 'thieves_tools' || i.itemId === 'tool_thieves');
+    const hasSleight = (char.skills || []).includes('sleight_of_hand');
+    const hasAthletics = (char.skills || []).includes('athletics');
+
+    const pickMod = dexMod + ((hasTools || hasSleight) ? profBonus : 0);
+    const forceMod = strMod + (hasAthletics ? profBonus : 0);
+    const disarmMod = dexMod + ((hasTools || hasSleight) ? profBonus : 0);
+
+    const pickDc = obj.pickDc || 12;
+    const forceDc = obj.forceDc || 14;
+    const trapDc = obj.dc || 12;
+
+    const render = () => {
+      if (isTrap) {
+        modal.innerHTML = `
+          <div class="modal" style="max-width:440px;">
+            <h2>⚠️ ${esc(obj.name || 'Concealed Trap')}</h2>
+            <p class="small muted">A mechanical hazard is revealed before you. You can attempt to disable its triggers, but tripping it will detonate the mechanism.</p>
+            <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:8px; padding:12px; margin:12px 0;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span><b>Disarm Mechanism</b></span>
+                <span class="badge" style="color:var(--accent);">DC ${trapDc}</span>
+              </div>
+              <p class="small muted" style="margin:0 0 10px 0;">Sleight of Hand: DEX (${dexMod >= 0 ? '+'+dexMod : dexMod})${hasTools ? ' + ' + profBonus + ' Tools' : hasSleight ? ' + ' + profBonus + ' Prof' : ''} = <b>${disarmMod >= 0 ? '+'+disarmMod : disarmMod}</b></p>
+              <button class="btn primary" id="btnDisarm" style="width:100%;">🎲 Roll d20 Disarm Check</button>
+            </div>
+            <div style="text-align:center; margin-top:8px;">
+              <button class="btn small" id="closeSkillModal">Step Away</button>
+            </div>
+          </div>`;
+      } else {
+        modal.innerHTML = `
+          <div class="modal" style="max-width:460px;">
+            <h2>🔒 ${esc(obj.name || 'Locked Chest')}</h2>
+            <p class="small muted">The iron hinges and lock hold firm against casual inspection. Choose an approach to crack the lock.</p>
+            <div style="display:flex; flex-direction:column; gap:10px; margin:14px 0;">
+              <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:8px; padding:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <span>🗝️ <b>Pick Tumbler Lock</b></span>
+                  <span class="badge" style="color:var(--accent);">DC ${pickDc}</span>
+                </div>
+                <p class="small muted" style="margin:0 0 10px 0;">Sleight of Hand: DEX (${dexMod >= 0 ? '+'+dexMod : dexMod})${hasTools ? ' + ' + profBonus + ' Tools' : hasSleight ? ' + ' + profBonus + ' Prof' : ''} = <b>${pickMod >= 0 ? '+'+pickMod : pickMod}</b></p>
+                <button class="btn" id="btnPick" style="width:100%;">🎲 Pick Lock (Roll d20 + ${pickMod})</button>
+              </div>
+
+              <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:8px; padding:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <span>🔨 <b>Pry / Shatter Lock</b></span>
+                  <span class="badge" style="color:var(--accent);">DC ${forceDc}</span>
+                </div>
+                <p class="small muted" style="margin:0 0 10px 0;">Athletics / Force: STR (${strMod >= 0 ? '+'+strMod : strMod})${hasAthletics ? ' + ' + profBonus + ' Prof' : ''} = <b>${forceMod >= 0 ? '+'+forceMod : forceMod}</b></p>
+                <button class="btn" id="btnForce" style="width:100%;">🔨 Force Open (Roll d20 + ${forceMod})</button>
+              </div>
+            </div>
+            <div style="text-align:center; margin-top:8px;">
+              <button class="btn small" id="closeSkillModal">Leave Chest</button>
+            </div>
+          </div>`;
+      }
+
+      document.getElementById('closeSkillModal').addEventListener('click', () => modal.remove());
+
+      if (isTrap) {
+        document.getElementById('btnDisarm').addEventListener('click', async () => {
+          document.getElementById('btnDisarm').disabled = true;
+          const nat = await rollAnimated(20, 'Disarm Trap');
+          const total = nat + disarmMod;
+          modal.remove();
+          await act({ type: 'skillCheckObject', objectId: obj.id, rollTotal: total });
+        });
+      } else {
+        document.getElementById('btnPick').addEventListener('click', async () => {
+          document.getElementById('btnPick').disabled = true;
+          const nat = await rollAnimated(20, 'Pick Lock');
+          const total = nat + pickMod;
+          modal.remove();
+          await act({ type: 'skillCheckObject', objectId: obj.id, method: 'pick', rollTotal: total });
+        });
+        document.getElementById('btnForce').addEventListener('click', async () => {
+          document.getElementById('btnForce').disabled = true;
+          const nat = await rollAnimated(20, 'Force Lock');
+          const total = nat + forceMod;
+          modal.remove();
+          await act({ type: 'skillCheckObject', objectId: obj.id, method: 'force', rollTotal: total });
+        });
+      }
+    };
+    render();
+  }
+
   const SFX_MAP = {
     attack: 'attack', attack_in: 'attack', spell_hit: 'spell', cast_flavor: 'spell', save: 'dice',
     combat_start: 'dice', miss: 'miss', heal: 'heal', levelup: 'levelup', subclass: 'levelup',
     quest_done: 'quest', quest_offer: 'quest', loot: 'coin', magic_item: 'coin', trap: 'trap',
-    trap_spotted: 'trap', dying: 'death', player_down: 'death', victory: 'victory', door: 'door', blessing: 'heal'
+    trap_spotted: 'trap', trap_disarmed: 'victory', trap_disarm_failed: 'trap',
+    chest_unlocked: 'coin', chest_locked: 'miss',
+    dying: 'death', player_down: 'death', victory: 'victory', door: 'door', blessing: 'heal'
   };
+
+  function spawnFloatingText(tileX, tileY, text, kind = 'damage') {
+    const layer = document.getElementById('fctLayer');
+    if (!layer || tileX == null || tileY == null) return;
+    const r = (activeView === '3d' && renderer3d) ? renderer3d : renderer;
+    if (!r || !r.tileToScreen) return;
+    const pos = r.tileToScreen(tileX, tileY);
+    if (!pos || (!pos.x && !pos.y && tileX !== 0 && tileY !== 0)) return;
+
+    const offsetX = (Math.random() - 0.5) * 16;
+    const offsetY = (Math.random() - 0.5) * 10;
+
+    const el = document.createElement('div');
+    el.className = `fct-popup fct-${kind}`;
+    el.textContent = text;
+    el.style.left = `${Math.round(pos.x + offsetX)}px`;
+    el.style.top = `${Math.round(pos.y + offsetY)}px`;
+    layer.appendChild(el);
+
+    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 1250);
+  }
 
   async function act(action) {
     if (busy) return;
@@ -286,6 +490,33 @@ export async function playView(main, saveRef) {
       // dice flourish on notable rolls
       const dmg = res.events.find(e => ['attack', 'spell_hit', 'attack_in', 'save'].includes(e.type));
       if (dmg && dmg.data && dmg.data.dmg) showDice(20, dmg.data.dmg, 'damage');
+      // floating combat text popups for hits, crits, misses, heals, kills
+      res.events.forEach((e, idx) => {
+        let x = e.data?.targetX;
+        let y = e.data?.targetY;
+        if (x == null || y == null) {
+          const tid = e.data?.targetId || (e.type === 'attack_in' ? 'player' : (selectedTarget?.id || action.targetId));
+          const ent = game.entities.find(ent => ent.id === tid);
+          if (ent) { x = ent.x; y = ent.y; }
+          else if (tid === 'player' && player()) { x = player().x; y = player().y; }
+        }
+        if (x == null || y == null) return;
+
+        const delay = idx * 90;
+        setTimeout(() => {
+          if (['attack', 'attack_in', 'spell_hit'].includes(e.type) && e.data?.dmg) {
+            spawnFloatingText(x, y, (e.data.crit ? '💥 CRIT! -' : '-') + e.data.dmg, e.data.crit ? 'crit' : 'damage');
+          } else if (e.type === 'save' && e.data?.dmg) {
+            spawnFloatingText(x, y, `-${e.data.dmg}`, 'damage');
+          } else if (e.type === 'miss') {
+            spawnFloatingText(x, y, 'MISS', 'miss');
+          } else if (e.type === 'heal' && e.data?.heal) {
+            spawnFloatingText(x, y, `+${e.data.heal} HP`, 'heal');
+          } else if (e.type === 'kill') {
+            spawnFloatingText(x, y, '💀 DEFEATED', 'kill');
+          }
+        }, delay);
+      });
       // sounds for the notable events of this action
       res.events.forEach(e => { if (SFX_MAP[e.type]) sfx.play(e.type === 'attack' && e.data && e.data.crit ? 'crit' : SFX_MAP[e.type]); });
       if (res.events.some(e => e.type === 'chat_open')) {
@@ -332,7 +563,23 @@ export async function playView(main, saveRef) {
     if (obj) {
       const p = player();
       const dist = Math.abs(p.x - x) + Math.abs(p.y - y);
-      if (dist <= 1 && ['door', 'chest', 'stairs'].includes(obj.type)) { act({ type: 'interact', objectId: obj.id }); return; }
+      if (vis.has(x + ',' + y) && ((obj.type === 'barrel' && !obj.exploded) || (obj.type === 'spores' && !obj.burst))) {
+        if (game.mode === 'combat' || dist > 1) {
+          selectedTarget = obj;
+          appearanceShown = null;
+          update();
+          return;
+        }
+      }
+      if (dist <= 1 && obj.type === 'trap' && obj.revealed && !obj.triggered && !obj.disarmed) {
+        openSkillCheckModal(obj);
+        return;
+      }
+      if (dist <= 1 && obj.type === 'chest' && !obj.looted && obj.locked && !obj.unlocked) {
+        openSkillCheckModal(obj);
+        return;
+      }
+      if (dist <= 1 && ['door', 'chest', 'stairs', 'barrel', 'font', 'lever', 'spores'].includes(obj.type)) { act({ type: 'interact', objectId: obj.id }); return; }
       if (dist <= 1 && ['relic', 'altar', 'campfire'].includes(obj.id)) { act({ type: 'interact', objectId: obj.id }); return; }
     }
     act({ type: 'move', x, y });
@@ -342,9 +589,9 @@ export async function playView(main, saveRef) {
   function update() {
     activeRender(game);
     renderSide();
-    if ((game.mode === 'victory' || game.mode === 'over') && !summaryShown) {
+    if ((game.mode === 'victory' || game.mode === 'over' || game.mode === 'retreat') && !summaryShown) {
       summaryShown = true;
-      sfx.play(game.mode === 'victory' ? 'victory' : 'death');
+      sfx.play((game.mode === 'victory' || game.mode === 'retreat') ? 'victory' : 'death');
       openSummary();
     }
     renderLog();
@@ -374,6 +621,27 @@ export async function playView(main, saveRef) {
     document.getElementById('closeSettingsModal').addEventListener('click', () => modal.remove());
   }
 
+  const dmSettingsBtn = document.getElementById('dmSettingsBtn');
+  if (dmSettingsBtn) dmSettingsBtn.addEventListener('click', openSettingsModal);
+
+  const pSelect = document.getElementById('personaQuickSelect');
+  if (pSelect) {
+    pSelect.value = game.dmPersona || (appState.settings && appState.settings.llm && appState.settings.llm.persona) || 'classic';
+    pSelect.addEventListener('change', async () => {
+      game.dmPersona = pSelect.value;
+      try {
+        const s = await api.getSettings();
+        if (s && s.settings && s.settings.llm) {
+          s.settings.llm.persona = pSelect.value;
+          await api.saveSettings(s.settings);
+        }
+        toast(`DM Persona switched to ${pSelect.options[pSelect.selectedIndex].text}`);
+      } catch (e) {
+        toast(`DM Persona set to ${pSelect.options[pSelect.selectedIndex].text}`);
+      }
+    });
+  }
+
   // while delving, the topbar DM Settings opens as a modal so the delve stays open
   const settingsLink = document.querySelector('[data-nav="settings"]');
   const onSettingsNav = (e) => { e.preventDefault(); e.stopPropagation(); openSettingsModal(); };
@@ -382,6 +650,7 @@ export async function playView(main, saveRef) {
   function openSummary() {
     const st = game.stats || { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
     const won = game.mode === 'victory';
+    const retreated = game.mode === 'retreat';
     let modal = document.getElementById('summaryModal');
     if (!modal) {
       modal = document.createElement('div');
@@ -391,20 +660,28 @@ export async function playView(main, saveRef) {
     }
     modal.innerHTML = `
       <div class="modal">
-        <h2>${won ? '🏆 Delve Complete!' : '💀 The Delve Ends… for now'}</h2>
+        <h2>${won ? '🏆 Delve Complete!' : (retreated ? '🏃 Retreated to Safety' : '💀 The Delve Ends… for now')}</h2>
         <p class="muted small">${esc(game.character.name)} · ${esc(game.mapName)} · level ${game.character.level}</p>
         <div class="stat-line"><span>⚔ Monsters slain</span><span>${st.kills || 0}</span></div>
         <div class="stat-line"><span>🗡 Damage dealt</span><span>${st.dmgDealt || 0}</span></div>
         <div class="stat-line"><span>🩸 Damage taken</span><span>${st.dmgTaken || 0}</span></div>
-        <div class="stat-line"><span>💰 Gold found</span><span>${st.goldFound || 0} gp</span></div>
+        <div class="stat-line"><span>💰 Gold banked</span><span>${game.character.gold || 0} gp (+${st.goldFound || 0} found)</span></div>
         <div class="stat-line"><span>⏱ Combat rounds</span><span>${st.rounds || 0}</span></div>
         <div class="stat-line"><span>📜 Side quests done</span><span>${(game.quests && game.quests.completed || []).length}</span></div>
-        <div style="margin-top:14px; display:flex; gap:8px; justify-content:center;">
-          ${won
-            ? '<a class="btn primary" href="#/">Return a legend</a><a class="btn" href="#/play/new?char=' + game.characterId + '">New Delve</a>'
-            : '<button class="btn primary" id="sumRespawn">🌅 Recover at camp</button><a class="btn" href="#/">Home</a>'}
+        <div style="margin-top:14px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+          ${(won || retreated)
+            ? `<a class="btn primary" href="#/overworld?char=${game.characterId}&return=${won ? 'victory' : 'retreat'}">🏰 Return to Oakhaven</a>
+               <a class="btn" href="#/overworld?char=${game.characterId}">🗺️ Region Map</a>
+               <a class="btn" href="#/">Home</a>`
+            : `<button class="btn primary" id="sumRespawn">🌅 Recover at camp</button>
+               <a class="btn" href="#/overworld?char=${game.characterId}">🏰 Retreat to Town</a>
+               <a class="btn" href="#/">Home</a>`}
         </div>
       </div>`;
+    // Automatically commit delve loot and progression back to persistent character
+    if (game.characterId && game.id) {
+      api.citySyncDelve({ charId: game.characterId, delveStateId: game.id }).catch(() => {});
+    }
     const rr = document.getElementById('sumRespawn');
     if (rr) rr.addEventListener('click', () => { modal.remove(); summaryShown = false; act({ type: 'respawn' }); });
   }
@@ -422,10 +699,24 @@ export async function playView(main, saveRef) {
 
     document.getElementById('sidePanel').innerHTML = `
       <div class="card">
-        <h3>${esc(char.name)} <span class="muted" style="text-transform:none;">Lv ${char.level} ${esc(cls.name)}</span></h3>
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+          <img src="${char.portraitUrl || '/portraits/hero_' + (char.id || game.characterId) + '.svg'}"
+               alt="Hero"
+               style="width:44px; height:50px; object-fit:cover; border-radius:6px; border:1.5px solid var(--border); background:#15120e; flex-shrink:0;"
+               onerror="this.style.display='none'">
+          <div style="min-width:0; flex:1;">
+            <h3 style="margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(char.name)}</h3>
+            <div class="muted small">Lv ${char.level} ${esc(cls.name)}</div>
+          </div>
+        </div>
         <div style="margin-bottom:6px; display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
           <span class="chip ${game.difficulty === 'hard' ? 'red' : game.difficulty === 'easy' ? 'blue' : ''}">${esc((appState.rules.difficulty || {})[game.difficulty]?.label || 'Normal')}</span>
-          ${game.flags.ally ? '<span class="chip blue">🏹 Bram</span>' : ''}
+          ${(() => {
+            const allyEnt = (game.entities || []).find(e => e.kind === 'ally');
+            if (!allyEnt) return '';
+            const status = allyEnt.alive ? `${allyEnt.hp}/${allyEnt.hpMax} HP` : 'Downed';
+            return `<span class="chip blue" title="${esc(allyEnt.name)} (${status})">${allyEnt.icon || '🏹'} ${esc(allyEnt.name.split(' ')[0])} (${allyEnt.hp} HP)</span>`;
+          })()}
           ${subDef ? `<span class="chip">⚔ ${esc(subDef.name)}</span>` : ''}
           <span style="flex:1"></span>
           <button class="btn small" id="sfxBtn" title="Sound effects">${sfx.isEnabled() ? '🔊' : '🔇'}</button>
@@ -473,15 +764,16 @@ export async function playView(main, saveRef) {
         <button class="btn primary" data-act="respawn">🌅 Recover at camp (half HP)</button>
       </div>
       ` : game.mode === 'combat' ? combatHud(myTurn) : `
+      ${renderQuickSlots(true)}
       <div class="card">
         <h3>Actions</h3>
         <div class="action-grid">
           <button class="btn" data-act="rest">🛏 Short Rest</button>
           <button class="btn" data-act="longrest">🔥 Long Rest</button>
           <button class="btn" data-act="potion">🧪 Potion (${potCount})</button>
-          <button class="btn" data-act="search">🔍 Search</button>
           ${atCampfire() ? `<button class="btn" data-act="recap" style="grid-column:1 / -1;">✍ Write journal entry</button>` : ''}
           ${atCampfire() && !(game.quests && game.quests.active) ? '<button class="btn" data-act="askwork" style="grid-column:1 / -1;">🎲 Ask around for work</button>' : ''}
+          ${(atCampfire() || atEntrance()) ? '<button class="btn primary" data-act="retreat" style="grid-column:1 / -1; background:linear-gradient(180deg, #3d5a42, #29422e); border-color:#508059;">🏰 Retreat to Oakhaven</button>' : ''}
           <button class="btn" data-act="journal" style="grid-column:1 / -1;">📖 Journal${(game.journal || []).length ? ` (${game.journal.length})` : ''}</button>
         </div>
         <div style="margin-top:8px;">${classActions()}</div>
@@ -505,12 +797,100 @@ export async function playView(main, saveRef) {
     wireSide(myTurn);
     document.getElementById('sfxBtn').addEventListener('click', () => { sfx.toggle(); renderSide(); });
     document.getElementById('volSlider').addEventListener('input', (e) => { sfx.setVolume(+(e.target.value) / 100); });
-    document.getElementById('viewToggle').addEventListener('click', () => {
-      activeView = activeView === '3d' ? '2d' : '3d';
-      localStorage.setItem('dnd_3d', activeView === '3d' ? 'on' : 'off');
-      activeRender(game);
-    });
+    const vt = document.getElementById('viewToggle');
+    if (vt) vt.onclick = toggleView;
     document.getElementById('ttsBtn').addEventListener('click', () => { tts.toggle(); renderSide(); toast(tts.isEnabled() ? '🗣️ AI DM voice-on' : '🤐 AI DM voice-off'); });
+  }
+
+  function getConsumables() {
+    const inv = game.character.inventory || [];
+    const list = [];
+    for (const it of inv) {
+      if (!it.qty || it.qty <= 0) continue;
+      const def = (appState.rules.weapons || []).find(w => w.id === it.itemId)
+        || (appState.rules.armor || []).find(w => w.id === it.itemId)
+        || (appState.rules.gear || []).find(w => w.id === it.itemId);
+      const isPotion = (def && def.type === 'potion') || it.itemId.startsWith('potion_');
+      const isScroll = (def && def.type === 'scroll') || it.itemId.startsWith('scroll_');
+      if (isPotion || isScroll) {
+        let shortName = def ? def.name : it.itemId;
+        shortName = shortName.replace(/^Potion of /, '').replace(/^Scroll of /, '').replace(/ Potion$/, '');
+        list.push({
+          itemId: it.itemId,
+          name: def ? def.name : it.itemId,
+          shortName,
+          qty: it.qty,
+          isPotion,
+          isScroll,
+          icon: isPotion ? '🧪' : '📜',
+          def
+        });
+      }
+    }
+    return list;
+  }
+
+  function renderQuickSlots(myTurn = true) {
+    const items = getConsumables().slice(0, 5);
+    const slots = [];
+    for (let i = 0; i < 5; i++) {
+      const item = items[i];
+      if (item) {
+        const disClass = (game.mode === 'combat' && !myTurn) ? 'disabled' : '';
+        slots.push(`
+          <div class="quick-slot-card ${disClass}" data-quickslot="${i}" title="${esc(item.name)} (Key [${i + 1}])">
+            <span class="slot-key-badge">${i + 1}</span>
+            <span class="slot-icon">${item.icon}</span>
+            <span class="slot-label">${esc(item.shortName)}</span>
+            <span class="slot-qty-badge">×${item.qty}</span>
+          </div>
+        `);
+      } else {
+        slots.push(`
+          <div class="quick-slot-card slot-empty" title="Empty quick-slot (Key [${i + 1}])">
+            <span class="slot-key-badge">${i + 1}</span>
+            <span style="opacity:0.35;">—</span>
+          </div>
+        `);
+      }
+    }
+    return `
+      <div class="quickbar-wrap">
+        <div class="quickbar-header">
+          <span>⚡ Quick-Slots Belt</span>
+          <span class="muted" style="font-weight:normal; font-size:10px;">Hotkeys [1–5]</span>
+        </div>
+        <div class="quickbar-grid">
+          ${slots.join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function useQuickSlot(slotIdx) {
+    if (busy) return;
+    if (game.mode === 'combat') {
+      const actor = game.combat && game.combat.order ? game.combat.order[game.combat.turnIdx] : null;
+      if (!actor || actor.id !== 'player') return toast("Wait for your turn in combat.");
+    }
+    const items = getConsumables();
+    const item = items[slotIdx];
+    if (!item) return;
+
+    if (item.isScroll) {
+      const def = item.def;
+      if (def && def.spell) {
+        const sp = (appState.rules.spells || []).find(x => x.id === def.spell);
+        if (sp && ['enemy', 'burst'].includes(sp.target) && !selectedTarget) {
+          return toast(`Target a monster first to use ${item.name}.`);
+        }
+        act({ type: 'useItem', itemId: item.itemId, targetId: selectedTarget ? selectedTarget.id : 'player' });
+      } else {
+        act({ type: 'useItem', itemId: item.itemId });
+      }
+    } else {
+      act({ type: 'useItem', itemId: item.itemId });
+    }
   }
 
   function acNow() {
@@ -534,8 +914,8 @@ export async function playView(main, saveRef) {
   function combatHud(myTurn) {
     const c = game.combat;
     const targetLine = selectedTarget
-      ? `Target: <b>${esc(selectedTarget.name)}</b> (${selectedTarget.hp}/${selectedTarget.hpMax} HP, AC ${selectedTarget.ac})`
-      : 'Click a monster on the map to target it.';
+      ? `Target: <b>${esc(selectedTarget.name)}</b> (${selectedTarget.hpMax ? selectedTarget.hp + '/' + selectedTarget.hpMax + ' HP, ' : 'Object, '}AC ${selectedTarget.ac || 10})`
+      : 'Click a monster or object on the map to target it.';
     return `
       <div class="combat-banner">
         <span class="round">⚔ Round ${c.round}</span> — ${myTurn ? '<b style="color:var(--gold);">Your turn!</b>' : '<span class="muted">Enemies act…</span>'}
@@ -546,6 +926,7 @@ export async function playView(main, saveRef) {
       </div>
       <div class="card">
         <p class="target-line">${targetLine}</p>
+        ${renderQuickSlots(myTurn)}
         <h3>Your turn</h3>
         <div class="action-grid">
           <button class="btn" data-act="attack" ${myTurn ? '' : 'disabled'}>🗡 Attack</button>
@@ -583,6 +964,21 @@ export async function playView(main, saveRef) {
   }
 
   function wireSide(myTurn) {
+    document.querySelectorAll('[data-quickslot]').forEach(b => b.addEventListener('click', () => {
+      const idx = parseInt(b.dataset.quickslot, 10);
+      useQuickSlot(idx);
+    }));
+
+    document.querySelectorAll('[data-useitem]').forEach(b => b.addEventListener('click', () => {
+      const itemId = b.dataset.useitem;
+      const def = appState.rules.gear.find(g => g.id === itemId);
+      if (def && def.type === 'scroll' && def.spell) {
+        const sp = appState.rules.spells.find(x => x.id === def.spell);
+        if (sp && ['enemy', 'burst'].includes(sp.target) && !selectedTarget) return toast('Target a creature first.');
+        act({ type: 'useItem', itemId, targetId: selectedTarget ? selectedTarget.id : 'player' });
+      } else act({ type: 'useItem', itemId });
+    }));
+
     document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
       const a = b.dataset.act;
       if (a === 'rest') act({ type: 'rest', kind: 'short' });
@@ -598,20 +994,12 @@ export async function playView(main, saveRef) {
       if (a === 'journal') openJournal();
       if (a === 'recap') act({ type: 'recap' });
       if (a === 'askwork') act({ type: 'quest' });
-    document.querySelectorAll('[data-useitem]').forEach(b => b.addEventListener('click', () => {
-      const itemId = b.dataset.useitem;
-      const def = appState.rules.gear.find(g => g.id === itemId);
-      if (def && def.type === 'scroll' && def.spell) {
-        const sp = appState.rules.spells.find(x => x.id === def.spell);
-        if (sp && ['enemy', 'burst'].includes(sp.target) && !selectedTarget) return toast('Target a creature first.');
-        act({ type: 'useItem', itemId, targetId: selectedTarget ? selectedTarget.id : 'player' });
-      } else act({ type: 'useItem', itemId });
-    }));
+      if (a === 'retreat') act({ type: 'retreat' });
       if (a === 'dodge') act({ type: 'dodge' });
       if (a === 'dash') act({ type: 'dash' });
       if (a === 'endturn') act({ type: 'endTurn' });
       if (a === 'attack') {
-        if (!selectedTarget) return toast('Click a monster first to target it.');
+        if (!selectedTarget) return toast('Click a monster or object first to target it.');
         const char = game.character;
         const melee = char.attacks.find(x => !x.ranged && x.weaponId !== 'unarmed');
         const atk = selectedTarget && Math.abs(player().x - selectedTarget.x) + Math.abs(player().y - selectedTarget.y) <= 1
@@ -661,7 +1049,7 @@ export async function playView(main, saveRef) {
     menu.querySelectorAll('[data-cast]').forEach(b => b.addEventListener('click', () => {
       const spell = appState.rules.spells.find(s => s.id === b.dataset.cast);
       if (['self', 'flavor'].includes(spell.target)) act({ type: 'cast', spellId: spell.id });
-      else if (!selectedTarget) toast('Target a monster first (or yourself for buffs via "self").');
+      else if (!selectedTarget) toast('Target a monster or object first (or yourself for buffs via "self").');
       else act({ type: 'cast', spellId: spell.id, targetId: spell.target === 'ally' ? 'player' : selectedTarget.id });
       menu.innerHTML = '';
     }));

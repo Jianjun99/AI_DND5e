@@ -196,6 +196,9 @@
       "x": 30,
       "y": 2,
       "icon": "🧰",
+      "locked": true,
+      "pickDc": 12,
+      "forceDc": 14,
       "loot": {
         "gold": "2d10",
         "potions": 1,
@@ -379,6 +382,62 @@
         "y": 14
       },
       "desc": "Steps behind the altar spiral down into flooded dark — the vault lies beneath the crypt."
+    },
+    {
+      "type": "font",
+      "id": "font1",
+      "name": "Sacred Healing Font",
+      "x": 20,
+      "y": 2,
+      "icon": "⛲",
+      "desc": "An ancient stone basin fed by an underground holy spring. Its azure waters glow with divine restoration."
+    },
+    {
+      "type": "lever",
+      "id": "lever1",
+      "name": "Rusted Iron Lever",
+      "x": 10,
+      "y": 10,
+      "icon": "🕹️",
+      "targetTrapIds": ["trap1", "trap2"],
+      "desc": "A heavy iron lever set into the alcove wall, linked to counterweight wires that run into the corridors."
+    },
+    {
+      "type": "barrel",
+      "id": "barrel1",
+      "name": "Explosive Oil Barrel",
+      "x": 21,
+      "y": 14,
+      "icon": "🛢️",
+      "desc": "A sealed wooden keg stamped with an alchemical skull, leaking volatile pitch and black powder."
+    },
+    {
+      "type": "barrel",
+      "id": "barrel2",
+      "name": "Explosive Oil Barrel",
+      "x": 23,
+      "y": 16,
+      "icon": "🛢️",
+      "desc": "A volatile powder keg nestled near the goblin barricade. Highly flammable."
+    },
+    {
+      "type": "spores",
+      "id": "spores1",
+      "name": "Poison Spore Pods",
+      "x": 5,
+      "y": 15,
+      "icon": "🍄",
+      "desc": "Swollen fungal pods pulsing with sickly viridian gas. Vulnerable to punctures and open flame."
+    },
+    {
+      "type": "hazard",
+      "id": "acid1",
+      "name": "Acid Slime Pool",
+      "x": 8,
+      "y": 16,
+      "hazardType": "acid",
+      "icon": "🧪",
+      "desc": "A bubbling pool of corrosive sewer runoff that eats through leather and flesh."
     }
   ],
   "npcs": {

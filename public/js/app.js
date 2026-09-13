@@ -5,6 +5,7 @@ import { creatorView } from './views/creator.js';
 import { sheetView } from './views/sheet.js';
 import { playView } from './views/play.js';
 import { settingsView } from './views/settings.js';
+import { overworldView } from './views/overworld.js';
 
 export const state = {
   rules: null,
@@ -45,6 +46,7 @@ export function esc(s) {
 const routes = [
   { re: /^#\/$/, view: homeView, nav: 'home' },
   { re: /^#\/create$/, view: creatorView, nav: 'create' },
+  { re: /^#\/overworld(?:\?.*)?$/, view: overworldView, nav: 'overworld' },
   { re: /^#\/character\/([\w-]+)$/, view: sheetView, nav: 'home' },
   { re: /^#\/play\/([\w-]+)(\?.*)?$/, view: playView, nav: 'home' },
   { re: /^#\/settings$/, view: settingsView, nav: 'settings' }

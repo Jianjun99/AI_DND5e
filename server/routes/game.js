@@ -43,11 +43,11 @@ function consumeActionEconomy(state, kind) {
 
 function requireAlive(state, events) {
   if (state.mode === 'over') { events.push({ type: 'error', text: 'You have fallen. Recover at camp to continue.' }); return false; }
-  if (state.mode === 'victory') { events.push({ type: 'error', text: 'The delve is complete — victory!' }); return false; }
+  if (state.mode === 'victory' || state.mode === 'retreat') { events.push({ type: 'error', text: 'The delve is complete.' }); return false; }
   return true;
 }
 
-const NEEDS_CONSCIOUS = ['move', 'attack', 'cast', 'dash', 'dodge', 'useItem', 'interact', 'classAction', 'freeform', 'chat', 'rest', 'quest'];
+const NEEDS_CONSCIOUS = ['move', 'attack', 'cast', 'dash', 'dodge', 'useItem', 'interact', 'classAction', 'freeform', 'chat', 'rest', 'quest', 'retreat', 'skillCheckObject'];
 function requireConscious(state, events) {
   const p = state.entities.find(e => e.kind === 'player');
   if (p && p.conditions.includes('unconscious')) {
@@ -61,8 +61,8 @@ function requireConscious(state, events) {
 router.post('/start', async (req, res) => {
   const { characterId, bringAlly, difficulty, mapId } = req.body || {};
   const char = findCharacter(characterId);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
-  const state = engine.startGame(char, { bringAlly: !!bringAlly, difficulty, mapId });
+  const allyOption = (typeof bringAlly === 'string' && bringAlly === 'none') ? false : (bringAlly || false);
+  const state = engine.startGame(char, { bringAlly: allyOption, difficulty, mapId });
   const events = [];
   const intro = {
     type: 'scene', narrate: true,
@@ -113,8 +113,9 @@ router.post('/:id/action', async (req, res) => {
         }
         case 'attack': {
           const target = state.entities.find(e => e.id === action.targetId && e.kind === 'monster' && e.alive);
-          if (!target) { events.push({ type: 'error', text: 'Choose a target first.' }); break; }
-          if (state.mode === 'explore') {
+          const objTarget = (!target) ? state.objects.find(o => o.id === action.targetId && (o.type === 'barrel' || o.type === 'spores') && !o.exploded && !o.burst) : null;
+          if (!target && !objTarget) { events.push({ type: 'error', text: 'Choose a target first.' }); break; }
+          if (target && state.mode === 'explore') {
             target.aware = true;
             const nearby = state.entities.filter(m => m.kind === 'monster' && m.alive && !m.fled && engine.manhattan(m, engine.playerEntity(state)) <= 3).map(m => m.id);
             engine.startCombat(state, [target.id, ...nearby], events);
@@ -124,7 +125,7 @@ router.post('/:id/action', async (req, res) => {
           }
           const econErr = consumeActionEconomy(state, 'action');
           if (econErr) { events.push({ type: 'error', text: econErr }); break; }
-          engine.playerAttack(state, target.id, action.weaponId, events);
+          engine.playerAttack(state, target ? target.id : objTarget.id, action.weaponId, events);
           break;
         }
         case 'cast': {
@@ -333,6 +334,40 @@ router.post('/:id/action', async (req, res) => {
           engine.addLog(state, 'system', `📜 New side quest: ${quest.shortText} (${quest.reward.gold} gp, ${quest.reward.xp} XP)`);
           break;
         }
+        case 'retreat': {
+          if (!requireAlive(state, events)) break;
+          const camp = (state.map.victory && state.map.victory.campfire) || state.map.victoryTile || state.map.playerStart;
+          const p = engine.playerEntity(state);
+          const atCamp = camp && engine.manhattan(p, camp) <= 1;
+          const atStart = state.map.playerStart && engine.manhattan(p, state.map.playerStart) <= 1;
+          if (!atCamp && !atStart) {
+            events.push({ type: 'error', text: 'You can only retreat back to town from the campfire or the dungeon entrance.' });
+            break;
+          }
+          state.mode = 'retreat';
+          state.flags = state.flags || {};
+          state.flags.retreated = true;
+          const ev = {
+            type: 'retreat', narrate: true,
+            text: `${p.name} retreats through the dungeon threshold and returns safely to Oakhaven with their hard-won spoils!`
+          };
+          events.push(ev);
+          engine.addLog(state, 'system', ev.text);
+          break;
+        }
+        case 'skillCheckObject': {
+          if (!requireAlive(state, events)) break;
+          const obj = state.objects.find(o => o.id === action.objectId);
+          if (!obj) { events.push({ type: 'error', text: 'Object not found.' }); break; }
+          const p = engine.playerEntity(state);
+          if (engine.manhattan(p, obj) > 1) { events.push({ type: 'error', text: 'Move closer first.' }); break; }
+          if (obj.type === 'trap') {
+            engine.disarmTrap(state, obj, action.rollTotal || 10, events);
+          } else if (obj.type === 'chest') {
+            engine.unlockChest(state, obj, action.method || 'pick', action.rollTotal || 10, events);
+          }
+          break;
+        }
         default:
           handled = false;
           events.push({ type: 'error', text: 'Unknown action.' });
@@ -343,7 +378,7 @@ router.post('/:id/action', async (req, res) => {
     events.push({ type: 'error', text: 'Something went wrong: ' + e.message });
   }
 
-  if (state.mode !== 'over' && state.mode !== 'victory') engine.checkCombatEnd(state, events);
+  if (state.mode !== 'over' && state.mode !== 'victory' && state.mode !== 'retreat') engine.checkCombatEnd(state, events);
   state.updatedAt = Date.now();
   store.saveGame(state);
   if (handled) await narrate(state, events, logStart);
@@ -414,7 +449,8 @@ function respawnAtCamp(state, events) {
     const ally = state.entities.find(e => e.kind === 'ally');
     if (ally) { ally.alive = true; ally.hp = ally.hpMax; ally.x = p.x + 1; ally.y = p.y; }
   }
-  const ev = { type: 'respawn', narrate: true, text: `Cold water. Torchlight. ${state.character.name} wakes at the camp, aching but alive — dragged back by Bram, the dungeon's monsters having returned to their posts. Half your strength remains (${p.hp}/${p.hpMax} HP).` };
+  const rescuer = (state.flags.ally && (state.entities.find(e => e.kind === 'ally') || {}).name) || 'a mysterious watcher';
+  const ev = { type: 'respawn', narrate: true, text: `Cold water. Torchlight. ${state.character.name} wakes at the camp, aching but alive — dragged back by ${rescuer}, the dungeon's monsters having returned to their posts. Half your strength remains (${p.hp}/${p.hpMax} HP).` };
   events.push(ev); engine.addLog(state, 'system', ev.text);
 }
 

@@ -15,9 +15,11 @@ export function createMapRenderer(canvas, opts = {}) {
 
   function tileFromEvent(ev) {
     const rect = canvas.getBoundingClientRect();
-    const scale = canvas.width / rect.width;
-    const px = (ev.clientX - rect.left) * scale;
-    const py = (ev.clientY - rect.top) * scale;
+    if (!rect.width || !rect.height) return { x: 0, y: 0 };
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const px = (ev.clientX - rect.left) * scaleX;
+    const py = (ev.clientY - rect.top) * scaleY;
     return { x: Math.floor(px / TILE), y: Math.floor(py / TILE) };
   }
 
@@ -145,6 +147,15 @@ export function createMapRenderer(canvas, opts = {}) {
       else if (o.id === 'campfire') drawToken(o.x, o.y, '#5a3a1d', '🔥');
       else if (o.id === 'altar') drawToken(o.x, o.y, '#3a2f4a', '🕯️');
       else if (o.id === 'relic' && !o.taken) drawToken(o.x, o.y, '#4a3a6b', '💎');
+      else if (o.type === 'font') drawToken(o.x, o.y, o.used ? '#2a3a40' : '#1e4d58', o.used ? '⛲' : '✨');
+      else if (o.type === 'lever') drawToken(o.x, o.y, o.pulled ? '#2d4d30' : '#4a3a2d', o.pulled ? '✅' : '🕹️');
+      else if (o.type === 'barrel') drawToken(o.x, o.y, o.exploded ? '#222222' : '#6b421a', o.exploded ? '💥' : '🛢️', { selected: opts.isSelected && opts.isSelected(o) });
+      else if (o.type === 'spores') drawToken(o.x, o.y, o.burst ? '#2a3320' : '#3d5c22', o.burst ? '💨' : '🍄', { selected: opts.isSelected && opts.isSelected(o) });
+      else if (o.type === 'hazard') {
+        ctx.fillStyle = 'rgba(76, 175, 80, 0.4)';
+        ctx.fillRect(px(o.x) + 2, px(o.y) + 2, TILE - 4, TILE - 4);
+        drawToken(o.x, o.y, 'rgba(46, 125, 50, 0.7)', '🧪');
+      }
       else if (o.type === 'trap') {
         ctx.strokeStyle = '#b8433a'; ctx.lineWidth = 2;
         ctx.beginPath();
@@ -170,8 +181,15 @@ export function createMapRenderer(canvas, opts = {}) {
         ctx.restore(); return;
       }
       if (dim && e.kind !== 'player') { ctx.restore(); return; }
-      if (e.kind === 'player') drawToken(e.x, e.y, '#8a6d2f', '🗡️', { selected: opts.isSelected && opts.isSelected(e) });
-      else if (e.kind === 'ally') drawToken(e.x, e.y, '#3f5c74', '🏹');
+      if (e.kind === 'player') {
+        drawToken(e.x, e.y, '#8a6d2f', '🗡️', { selected: opts.isSelected && opts.isSelected(e) });
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.8)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(px(e.x) + TILE / 2, px(e.y) + TILE / 2, TILE / 2 + 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      else if (e.kind === 'ally') drawToken(e.x, e.y, '#3f5c74', e.icon || '🏹');
       else if (e.kind === 'npc') drawToken(e.x, e.y, '#5f3f74', e.icon || '🗣️');
       else if (e.kind === 'monster') {
         const glyph = e.boss ? '👹' : e.monsterId === 'giant_rat' ? '🐀' : e.monsterId === 'skeleton' ? '💀' : e.monsterId === 'zombie' ? '🧟' : e.monsterId === 'goblin' ? '👺' : '🧙';
@@ -197,5 +215,15 @@ export function createMapRenderer(canvas, opts = {}) {
   let currentGame = null;
   function renderStore(game) { currentGame = game; render(game); }
 
-  return { render: renderStore, tileFromEvent };
+  function tileToScreen(x, y) {
+    const rect = canvas.getBoundingClientRect();
+    if (!canvas.width) return { x: 0, y: 0 };
+    const scale = rect.width / canvas.width;
+    return {
+      x: (x * TILE + TILE / 2) * scale,
+      y: (y * TILE + TILE / 2) * scale
+    };
+  }
+
+  return { render: renderStore, tileFromEvent, tileToScreen };
 }

@@ -226,9 +226,62 @@
       }
     }
   ],
+  "allies": [
+    {
+      "id": "bram",
+      "name": "Bram the Scout",
+      "role": "Ranger / Archer",
+      "icon": "🏹",
+      "ac": 13,
+      "hp": 16,
+      "speed": 30,
+      "darkvision": 60,
+      "abilities": { "str": 10, "dex": 16, "con": 12, "int": 10, "wis": 14, "cha": 10 },
+      "attacks": [
+        { "name": "Longbow", "bonus": 5, "range": 25, "damage": "1d8+3", "damageType": "piercing", "ranged": true },
+        { "name": "Shortsword", "bonus": 5, "range": 5, "damage": "1d6+3", "damageType": "piercing" }
+      ],
+      "blurb": "A wiry hunter who strikes from the dark with a longbow."
+    },
+    {
+      "id": "valeria",
+      "name": "Valeria Ironheart",
+      "role": "Fighter / Tank",
+      "icon": "🛡️",
+      "ac": 17,
+      "hp": 22,
+      "speed": 30,
+      "darkvision": 60,
+      "abilities": { "str": 16, "dex": 10, "con": 14, "int": 10, "wis": 12, "cha": 12 },
+      "attacks": [
+        { "name": "Warhammer", "bonus": 5, "range": 5, "damage": "1d8+3", "damageType": "bludgeoning" },
+        { "name": "Javelin", "bonus": 5, "range": 15, "damage": "1d6+3", "damageType": "piercing", "ranged": true }
+      ],
+      "blurb": "A stern veteran in chain mail and steel shield who holds the frontline."
+    },
+    {
+      "id": "aldous",
+      "name": "Brother Aldous",
+      "role": "Cleric / Healer",
+      "icon": "✨",
+      "ac": 15,
+      "hp": 15,
+      "speed": 30,
+      "darkvision": 60,
+      "abilities": { "str": 12, "dex": 10, "con": 12, "int": 10, "wis": 16, "cha": 12 },
+      "spells": ["cure_wounds"],
+      "attacks": [
+        { "name": "Sacred Flame", "bonus": 5, "range": 20, "damage": "1d8", "damageType": "radiant", "ranged": true },
+        { "name": "Mace", "bonus": 3, "range": 5, "damage": "1d6+1", "damageType": "bludgeoning" }
+      ],
+      "blurb": "A traveling priest who channels radiant light and heals wounds in battle."
+    }
+  ],
   "ally": {
     "id": "bram",
     "name": "Bram the Scout",
+    "role": "Ranger / Archer",
+    "icon": "🏹",
     "ac": 13,
     "hp": 16,
     "speed": 30,

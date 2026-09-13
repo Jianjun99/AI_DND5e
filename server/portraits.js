@@ -134,4 +134,79 @@ function cachedOrSigilOnly(state, ent, key) {
   return '/portraits/' + key + '.svg';
 }
 
-module.exports = { ensurePortrait };
+function proceduralHeroSvg(char) {
+  let h = 0;
+  for (const ch of ((char.name || '') + (char.species || '') + (char.className || ''))) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const palettes = [
+    ['#2a1f18', '#e0be6c'], ['#1a2433', '#7fb2d9'], ['#281a33', '#c68ad9'],
+    ['#331a1a', '#d97f7f'], ['#1a3324', '#7fd9a6'], ['#332f1a', '#e6d87e']
+  ];
+  const [dark, glow] = palettes[h % palettes.length];
+  const classEmojis = {
+    barbarian: '🪓', bard: '🪕', cleric: '✨', druid: '🌿', fighter: '🛡️',
+    monk: '🥋', paladin: '⚔️', ranger: '🏹', rogue: '🗡️', sorcerer: '🔮',
+    warlock: '👁️', wizard: '📜'
+  };
+  const emoji = classEmojis[char.className] || '🗡️';
+  const runes = ['ᚠ', 'ᚱ', 'ᚦ', 'ᚨ', 'ᛃ', 'ᛇ', 'ᛉ', 'ᛟ'];
+  const ring = runes.map((r, i) => {
+    const a = (i / runes.length) * Math.PI * 2 + (h % 20) / 20;
+    return `<text x="${80 + Math.cos(a) * 62}" y="${92 + Math.sin(a) * 62}" fill="${glow}" font-size="13" opacity="0.7" text-anchor="middle">${r}</text>`;
+  }).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="184" viewBox="0 0 160 184">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%"><stop offset="0%" stop-color="${glow}" stop-opacity="0.3"/><stop offset="100%" stop-color="${dark}"/></radialGradient>
+  </defs>
+  <rect width="160" height="184" rx="10" fill="url(#bg)" stroke="#3d352b"/>
+  <rect x="6" y="6" width="148" height="172" rx="7" fill="none" stroke="${glow}" stroke-opacity="0.35"/>
+  <circle cx="80" cy="92" r="72" fill="none" stroke="${glow}" stroke-opacity="0.25"/>
+  ${ring}
+  <text x="80" y="112" font-size="64" text-anchor="middle">${emoji}</text>
+  <text x="80" y="172" font-size="11" fill="${glow}" text-anchor="middle" opacity="0.85">${(char.name || 'Hero').slice(0, 22)}</text>
+</svg>`;
+}
+
+function characterPortraitUrl(charId) {
+  const key = 'hero_' + charId;
+  const png = cachePath(key, 'png');
+  if (fs.existsSync(png)) return '/portraits/' + key + '.png?v=' + fs.statSync(png).mtimeMs;
+  const svg = cachePath(key, 'svg');
+  if (fs.existsSync(svg)) return '/portraits/' + key + '.svg?v=' + fs.statSync(svg).mtimeMs;
+  return null;
+}
+
+async function ensureCharacterPortrait(char, force = false) {
+  const key = 'hero_' + char.id;
+  if (!force) {
+    const hit = cached(key);
+    if (hit) return hit;
+  }
+  const settings = store.getSettings();
+  const portraitsCfg = settings.portraits || { enabled: true, sdUrl: '' };
+
+  const style = 'Dark fantasy digital oil painting portrait, hero, head and shoulders, atmospheric dungeon lighting, painterly brushwork, muted palette, high detail, no text, no border';
+  const prompt = `${char.name}, a heroic ${char.species || ''} ${char.className || 'adventurer'} with ${char.background || 'wanderer'} background. ${style}`;
+
+  if (portraitsCfg.enabled !== false) {
+    // 1. Google (same key as the DM voice)
+    try {
+      const buf = await googleImage(prompt, settings.llm || {});
+      fs.writeFileSync(cachePath(key, 'png'), buf);
+      return { url: '/portraits/' + key + '.png?v=' + Date.now(), kind: 'ai' };
+    } catch { /* try next */ }
+
+    // 2. local SD WebUI if configured
+    try {
+      const buf = await sdWebuiImage(prompt, portraitsCfg.sdUrl);
+      fs.writeFileSync(cachePath(key, 'png'), buf);
+      return { url: '/portraits/' + key + '.png?v=' + Date.now(), kind: 'sd' };
+    } catch { /* not configured or unreachable */ }
+  }
+
+  // 3. procedural hero sigil (deterministic, always offline)
+  const svg = proceduralHeroSvg(char);
+  fs.writeFileSync(cachePath(key, 'svg'), svg);
+  return { url: '/portraits/' + key + '.svg?v=' + Date.now(), kind: 'sigil' };
+}
+
+module.exports = { ensurePortrait, ensureCharacterPortrait, characterPortraitUrl };

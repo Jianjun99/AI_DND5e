@@ -15,8 +15,10 @@ const WEAPONS = load('equipment.json').weapons;
 const ARMORS = load('equipment.json').armor;
 const GEAR = load('equipment.json').gear;
 const SPELLS = load('spells.json').spells;
-const MONSTERS = load('monsters.json').monsters;
-const ALLY_DEF = load('monsters.json').ally;
+const MONSTER_DATA = load('monsters.json');
+const MONSTERS = MONSTER_DATA.monsters;
+const ALLY_DEF = MONSTER_DATA.ally;
+const ALLIES = MONSTER_DATA.allies || [ALLY_DEF];
 const MAPS = { crypt: load('maps/crypt.json') };
 
 const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
@@ -188,13 +190,26 @@ function buildCharacter(draft) {
   if (bg.feat === 'healer') addItems([{ id: 'healers_kit', qty: 3 }]);
   if (bg.tools === "Thieves' Tools" || cls.id === 'rogue') addItems([{ id: 'thieves_tools', qty: 1 }]);
 
+  const startingArmor = armorOpt && armorOpt.items ? armorOpt.items.find(it => byId(ARMORS, it.id)) : null;
+  const startingWeapon = weaponOpt && weaponOpt.items ? weaponOpt.items.find(it => resolveWeapon(it.id)) : null;
+  const startingShield = (armorOpt && armorOpt.items && armorOpt.items.some(it => it.id === 'shield')) ||
+                         (weaponOpt && weaponOpt.items && weaponOpt.items.some(it => it.id === 'shield'));
+  const equipped = {
+    armor: startingArmor ? startingArmor.id : null,
+    mainHand: startingWeapon ? startingWeapon.id : null,
+    offHand: startingShield ? 'shield' : null,
+    cloak: null,
+    amulet: null,
+    ring1: null
+  };
+
   const char = {
     id: draft.id || null, name: draft.name, species: sp.id, className: cls.id, background: bg.id,
     level: 1, xp: 0, abilities, profBonus, skills: finalSkills, expertise: validExp,
     feat: bg.feat, featNote: bg.featNote, fightingStyle: draft.fightingStyle || null,
     invocations: draft.invocations || [],
     choices: { species: draft.speciesChoices || {}, bgPlus2: draft.bgPlus2, bgPlus1: draft.bgPlus1 },
-    inventory, gold: 50, spellcasting: sc,
+    inventory, gold: 50, spellcasting: sc, equipped,
     hpMax: 0, uses: {}, pools: {}, freeSpellUses: 0, hdUsed: 0
   };
   applyClassAndSpecies(char, cls, sp, 1);
@@ -344,7 +359,16 @@ function isWall(state, x, y) {
   const d = doorAt(state, x, y);
   return !!(d && !d.open);
 }
-function isDifficult(state, x, y) { return tileChar(state.map, x, y) === ','; }
+function isBlocked(state, x, y) {
+  if (isWall(state, x, y)) return true;
+  if (state.objects && state.objects.some(o => o.type === 'barrel' && !o.exploded && o.x === x && o.y === y)) return true;
+  return false;
+}
+function isDifficult(state, x, y) {
+  if (tileChar(state.map, x, y) === ',') return true;
+  if (state.objects && state.objects.some(o => o.type === 'hazard' && o.x === x && o.y === y)) return true;
+  return false;
+}
 function entityAt(state, x, y, includeDead = false) {
   return state.entities.find(e => e.x === x && e.y === y && (includeDead || e.alive !== false));
 }
@@ -382,7 +406,7 @@ function bfsPath(state, from, goals, opts = {}) {
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = cur.x + dx, ny = cur.y + dy, k = key(nx, ny);
       if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen.has(k)) continue;
-      if (isWall(state, nx, ny)) continue;
+      if (isBlocked(state, nx, ny)) continue;
       if (occupied.has(k) && !goalSet.has(k)) continue;
       seen.add(k); prev.set(k, cur); q.push({ x: nx, y: ny });
     }
@@ -430,6 +454,16 @@ function generateMapState(mapDef, difficulty) {
       objects.push({ ...e, type: 'npcMarker' });
     } else if (e.type === 'trap') {
       objects.push({ ...e, revealed: false, disarmed: false, triggered: false });
+    } else if (e.type === 'barrel') {
+      objects.push({ ...e, exploded: false, hp: 1 });
+    } else if (e.type === 'spores') {
+      objects.push({ ...e, burst: false, hp: 1 });
+    } else if (e.type === 'font') {
+      objects.push({ ...e, used: false });
+    } else if (e.type === 'lever') {
+      objects.push({ ...e, pulled: false });
+    } else if (e.type === 'hazard') {
+      objects.push({ ...e });
     } else {
       objects.push({ ...e, open: e.type === 'door' ? false : undefined, looted: false, unlocked: !e.locked });
     }
@@ -493,13 +527,18 @@ function startGame(character, options = {}) {
   });
 
   if (options.bringAlly) {
-    const a = ALLY_DEF;
+    let allyId = typeof options.bringAlly === 'string' ? options.bringAlly : 'bram';
+    if (allyId === 'true') allyId = 'bram';
+    const a = ALLIES.find(x => x.id === allyId) || ALLY_DEF;
     state.entities.push({
-      id: 'ally', kind: 'ally', name: a.name, x: mapDef.playerStart.x + 1, y: mapDef.playerStart.y,
+      id: 'ally', kind: 'ally', allyId: a.id, role: a.role || 'Companion',
+      icon: a.icon || '🏹', name: a.name, x: mapDef.playerStart.x + 1, y: mapDef.playerStart.y,
       hp: a.hp, hpMax: a.hp, ac: a.ac, speedFt: a.speed, abilities: a.abilities,
-      attacks: a.attacks, darkvision: a.darkvision, conditions: [], buffs: [], alive: true
+      attacks: a.attacks, spells: a.spells || [], spellSlots: (a.spells && a.spells.length) ? 3 : 0,
+      darkvision: a.darkvision, conditions: [], buffs: [], alive: true
     });
     state.flags.ally = true;
+    state.flags.allyId = a.id;
   }
 
   // hydrate this map (and warn about unknown monster kinds once)
@@ -810,13 +849,13 @@ function applyDamage(state, target, amount, dmgType, events) {
     if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
     if (target.kind === 'monster') {
       state.stats.kills++;
-      const ev = { type: 'kill', narrate: true, text: `${target.name} is destroyed! (+${target.xp} XP)`, data: { xp: target.xp } };
+      const ev = { type: 'kill', narrate: true, text: `${target.name} is destroyed! (+${target.xp} XP)`, data: { xp: target.xp, targetId: target.id, targetX: target.x, targetY: target.y } };
       events.push(ev); addLog(state, 'mech', ev.text);
       awardXp(state, target.xp, events);
       rollLoot(state, target, events);
       checkQuest(state, 'slay', target.monsterId, events);
     } else if (target.kind === 'ally') {
-      const ev = { type: 'ally_down', narrate: true, text: `${target.name} collapses!` };
+      const ev = { type: 'ally_down', narrate: true, text: `${target.name} collapses!`, data: { targetId: target.id, targetX: target.x, targetY: target.y } };
       events.push(ev); addLog(state, 'mech', ev.text);
     }
   }
@@ -826,7 +865,7 @@ function applyDamage(state, target, amount, dmgType, events) {
 function healEntity(state, ent, amt, events, source) {
   const healed = Math.max(0, Math.min(amt, ent.hpMax - ent.hp));
   ent.hp += healed;
-  const ev = { type: 'heal', narrate: healed > 0, text: healed > 0 ? `${source}: ${ent.name} regains ${healed} HP (${ent.hp}/${ent.hpMax}).` : `${ent.name} is already at full health.` };
+  const ev = { type: 'heal', narrate: healed > 0, text: healed > 0 ? `${source}: ${ent.name} regains ${healed} HP (${ent.hp}/${ent.hpMax}).` : `${ent.name} is already at full health.`, data: { heal: healed, targetId: ent.id, targetX: ent.x, targetY: ent.y } };
   events.push(ev); addLog(state, 'mech', ev.text);
   return healed;
 }
@@ -908,7 +947,7 @@ function monsterAttack(state, attacker, target, atk, events) {
   const atkStr = `${attacker.name}'s ${atk.name}`;
   if (!hit) {
     const text = `${atkStr} misses ${target.name} (d20 ${roll.natural}${atk.bonus >= 0 ? '+' + atk.bonus : atk.bonus}${extraTxt} = ${total} vs AC ${targetAc}).`;
-    events.push({ type: 'miss', narrate: false, text }); addLog(state, 'mech', text);
+    events.push({ type: 'miss', narrate: false, text, data: { targetId: target.id, targetX: target.x, targetY: target.y } }); addLog(state, 'mech', text);
     return;
   }
   const crit = roll.natural === 20;
@@ -918,7 +957,7 @@ function monsterAttack(state, attacker, target, atk, events) {
   const enrageFlat = attacker.enraged ? 2 : 0;
   const dmg = { total: Math.max(1, Math.round((rolled.total + enrageFlat) * dmgMult)), dice: rolled.dice };
   let text = `${atkStr} hits ${target.name}${crit ? ' — CRITICAL HIT!' : ''} for ${dmg.total} ${atk.damageType} damage.`;
-  events.push({ type: 'attack_in', narrate: true, text, data: { dmg: dmg.total, crit } });
+  events.push({ type: 'attack_in', narrate: true, text, data: { dmg: dmg.total, crit, targetId: target.id, targetX: target.x, targetY: target.y } });
   addLog(state, 'mech', text);
   // Stone's Endurance (Goliath reaction, auto-used on heavy hits)
   if (isPlayer && state.character.stonesEndurance && (state.character.uses.stones_endurance === undefined || state.character.uses.stones_endurance > 0) && dmg.total >= 6) {
@@ -950,13 +989,44 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
   const p = playerEntity(state);
   removeBuff(p, 'invisible'); // attacking breaks Invisibility
   const target = state.entities.find(e => e.id === targetId && e.alive !== false);
-  if (!target || target.kind !== 'monster') { events.push({ type: 'error', text: 'No such target.' }); return false; }
+  const objTarget = (!target) ? state.objects.find(o => o.id === targetId && (o.type === 'barrel' || o.type === 'spores')) : null;
+  if (!target && !objTarget) { events.push({ type: 'error', text: 'No such target.' }); return false; }
   const char = state.character;
   let atk = char.attacks.find(a => a.weaponId === weaponId) || char.attacks[0];
   if (!atk) { events.push({ type: 'error', text: 'You have no weapon.' }); return false; }
   if (hasBuff(p, 'shillelagh') && ['club', 'quarterstaff'].includes(atk.weaponId)) {
     atk = { ...atk, bonus: char.profBonus + char.spellcasting.spellMod, dmgDice: '1d8', dmgMod: char.spellcasting.spellMod };
   }
+
+  if (objTarget) {
+    if ((objTarget.type === 'barrel' && objTarget.exploded) || (objTarget.type === 'spores' && objTarget.burst)) {
+      events.push({ type: 'error', text: `${objTarget.name} is already destroyed.` }); return false;
+    }
+    const dist = manhattan(p, objTarget);
+    if (atk.ranged ? dist > Math.floor((atk.range || 30) / 5) : dist > 1) {
+      events.push({ type: 'error', text: atk.ranged ? `${objTarget.name} is out of range (${atk.range} ft).` : `${objTarget.name} is not adjacent — move closer first.` });
+      return false;
+    }
+    if (atk.ranged && !los(state, p.x, p.y, objTarget.x, objTarget.y)) {
+      events.push({ type: 'error', text: 'You have no clear shot — something blocks the way.' }); return false;
+    }
+    const roll = d20({ reroll1: char.rerollNat1 });
+    const total = roll.natural + atk.bonus;
+    const hit = roll.natural === 20 || (roll.natural !== 1 && total >= 10);
+    if (!hit) {
+      const text = `${p.name}'s ${atk.name} misses the ${objTarget.name} (d20 ${roll.natural}+${atk.bonus} = ${total} vs AC 10).`;
+      events.push({ type: 'miss', narrate: true, text, data: { targetId: objTarget.id, targetX: objTarget.x, targetY: objTarget.y } });
+      addLog(state, 'mech', text);
+      return true;
+    }
+    const text = `${p.name} strikes the ${objTarget.name} with ${atk.name}!`;
+    events.push({ type: 'attack', narrate: true, text, data: { dmg: 1, crit: roll.natural === 20, target: objTarget.name, targetId: objTarget.id, targetX: objTarget.x, targetY: objTarget.y } });
+    addLog(state, 'mech', text);
+    if (objTarget.type === 'barrel') detonateBarrel(state, objTarget, events, `${p.name}'s ${atk.name}`);
+    else if (objTarget.type === 'spores') triggerSpores(state, objTarget, events);
+    return true;
+  }
+
   const dist = manhattan(p, target);
   if (atk.ranged ? dist > Math.floor((atk.range || 30) / 5) : dist > 1) {
     events.push({ type: 'error', text: atk.ranged ? `${target.name} is out of range (${atk.range} ft).` : `${target.name} is not adjacent — move closer first.` });
@@ -978,7 +1048,7 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
 
   if (!hit) {
     const text = `${p.name}'s ${atk.name} misses ${target.name} (d20 ${roll.natural}${atkBonus >= 0 ? '+' + atkBonus : atkBonus}${extraTxt} = ${total} vs AC ${target.ac}).`;
-    events.push({ type: 'miss', narrate: true, text }); addLog(state, 'mech', text);
+    events.push({ type: 'miss', narrate: true, text, data: { targetId: target.id, targetX: target.x, targetY: target.y } }); addLog(state, 'mech', text);
     return true;
   }
   const crit = roll.natural === 20;
@@ -1000,7 +1070,7 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
     bonusTxts.push(`+${r.total} ${atk.bonusDamage.type}`);
   }
   const text = `${p.name} strikes ${target.name} with ${atk.name}${crit ? ' — CRITICAL HIT!' : ''}: ${dmg.total}${bonusTxts.length ? ' ' + bonusTxts.join(' ') : ''} = ${dmgTotal} ${atk.dmgType} damage.`;
-  events.push({ type: 'attack', narrate: true, text, data: { dmg: dmgTotal, crit, target: target.name } });
+  events.push({ type: 'attack', narrate: true, text, data: { dmg: dmgTotal, crit, target: target.name, targetId: target.id, targetX: target.x, targetY: target.y } });
   addLog(state, 'mech', text);
   const dealt = applyDamage(state, target, dmgTotal, atk.dmgType, events);
   addLog(state, 'mech', `${target.name} takes ${dealt} damage (${target.hp}/${target.hpMax} HP${target.alive === false ? ', slain' : ''}).`);
@@ -1015,7 +1085,7 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
   if (atk.weaponId === 'unarmed' && char.tavernBrawler && target.alive !== false) {
     const dx = Math.sign(target.x - p.x), dy = Math.sign(target.y - p.y);
     const nx = target.x + dx, ny = target.y + dy;
-    if (!isWall(state, nx, ny) && !entityAt(state, nx, ny)) { target.x = nx; target.y = ny; addLog(state, 'mech', `${target.name} is shoved 5 ft!`); }
+    if (!isBlocked(state, nx, ny) && !entityAt(state, nx, ny)) { target.x = nx; target.y = ny; addLog(state, 'mech', `${target.name} is shoved 5 ft!`); }
   }
   return true;
 }
@@ -1107,6 +1177,21 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
   }
 
   const target = resolveTarget();
+  const objTarget = (!target) ? state.objects.find(o => o.id === targetId && (o.type === 'barrel' || o.type === 'spores')) : null;
+  if (objTarget) {
+    if ((objTarget.type === 'barrel' && objTarget.exploded) || (objTarget.type === 'spores' && objTarget.burst)) {
+      events.push({ type: 'error', text: `${objTarget.name} is already destroyed.` }); return true;
+    }
+    const dist = manhattan(p, objTarget);
+    const rangeTiles = Math.max(1, Math.floor((sp.range || 30) / 5));
+    if (dist > rangeTiles) { events.push({ type: 'error', text: `${objTarget.name} is out of range (${sp.range} ft).` }); return true; }
+    if (!los(state, p.x, p.y, objTarget.x, objTarget.y)) { events.push({ type: 'error', text: 'You have no clear shot — something blocks the way.' }); return true; }
+    const ev = { type: 'spell_hit', narrate: true, text: `${p.name}'s ${sp.name} strikes the ${objTarget.name}!`, data: { targetId: objTarget.id, targetX: objTarget.x, targetY: objTarget.y } };
+    events.push(ev); addLog(state, 'mech', ev.text);
+    if (objTarget.type === 'barrel') detonateBarrel(state, objTarget, events, `${p.name}'s ${sp.name}`);
+    else if (objTarget.type === 'spores') triggerSpores(state, objTarget, events);
+    return true;
+  }
   if (!target || target.kind !== 'monster') { events.push({ type: 'error', text: 'Choose an enemy target.' }); return true; }
   const dist = manhattan(p, target);
   const rangeTiles = Math.max(1, Math.floor((sp.range || 30) / 5));
@@ -1138,20 +1223,20 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
     mods.atkRolls.forEach(b => { atkExtra += rollExpr(b.dice).total; });
     const total = roll.natural + spAtk + atkExtra + mods.bonusFlat;
     if (roll.natural !== 20 && (roll.natural === 1 || total < target.ac)) {
-      const ev = { type: 'miss', narrate: true, text: `${p.name}'s ${sp.name} misses ${target.name} (d20 ${roll.natural}+${spAtk} = ${total} vs AC ${target.ac}).` };
+      const ev = { type: 'miss', narrate: true, text: `${p.name}'s ${sp.name} misses ${target.name} (d20 ${roll.natural}+${spAtk} = ${total} vs AC ${target.ac}).`, data: { targetId: target.id, targetX: target.x, targetY: target.y } };
       events.push(ev); addLog(state, 'mech', ev.text); return true;
     }
     const crit = roll.natural === 20;
     const dmg = damageRoll(sp.damage.dice, { crit });
     if (char.subclass === 'evoker') dmg.total += spMod;
-    const ev = { type: 'spell_hit', narrate: true, text: `${p.name}'s ${sp.name} strikes ${target.name}${crit ? ' — CRITICAL!' : ''}: ${dmg.total} ${sp.damage.type} damage.` };
+    const ev = { type: 'spell_hit', narrate: true, text: `${p.name}'s ${sp.name} strikes ${target.name}${crit ? ' — CRITICAL!' : ''}: ${dmg.total} ${sp.damage.type} damage.`, data: { dmg: dmg.total, crit, targetId: target.id, targetX: target.x, targetY: target.y } };
     events.push(ev); addLog(state, 'mech', ev.text);
     applyDamage(state, target, dmg.total, sp.damage.type, events);
     if (char.subclass === 'fiend' && target.alive === false) fiendBlessing(state, char, events);
     if (sp.condition && target.alive !== false) applyCondition(sp.condition, target);
     if (sp.id === 'eldritch_blast' && char.invocations.includes('repelling_blast') && target.alive !== false) {
       const dx = Math.sign(target.x - p.x), dy = Math.sign(target.y - p.y);
-      if (!isWall(state, target.x + dx, target.y + dy) && !entityAt(state, target.x + dx, target.y + dy)) {
+      if (!isBlocked(state, target.x + dx, target.y + dy) && !entityAt(state, target.x + dx, target.y + dy)) {
         target.x += dx; target.y += dy;
         addLog(state, 'mech', `${target.name} is hurled back 10 ft!`);
       }
@@ -1171,7 +1256,7 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
     }
     let text = `${target.name} ${sp.save.ability.toUpperCase()} save: d20 ${saveRoll.natural}+${saveMod} = ${total} vs DC ${dc} — ${success ? 'success' : 'failure'}.`;
     if (sp.damage) text += ` ${dmgTotal} ${sp.damage.type} damage.`;
-    events.push({ type: 'save', narrate: true, text }); addLog(state, 'mech', text);
+    events.push({ type: 'save', narrate: true, text, data: { success, dmg: dmgTotal, targetId: target.id, targetX: target.x, targetY: target.y } }); addLog(state, 'mech', text);
     if (sp.damage && dmgTotal) { applyDamage(state, target, dmgTotal, sp.damage.type, events); if (char.subclass === 'fiend' && target.alive === false) fiendBlessing(state, char, events); }
     if (!success && target.alive !== false) {
       if (sp.save.onSave === 'prone') { if (!target.conditions.includes('prone')) target.conditions.push('prone'); addLog(state, 'mech', `${target.name} slips and falls prone!`); }
@@ -1180,7 +1265,7 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
         const dx = Math.sign(target.x - p.x), dy = Math.sign(target.y - p.y);
         for (let i = 0; i < sp.push; i++) {
           const nx = target.x + dx, ny = target.y + dy;
-          if (isWall(state, nx, ny) || entityAt(state, nx, ny)) break;
+          if (isBlocked(state, nx, ny) || entityAt(state, nx, ny)) break;
           target.x = nx; target.y = ny;
         }
         addLog(state, 'mech', `${target.name} is hurled backward by the thunder!`);
@@ -1190,7 +1275,7 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
   }
   if (sp.auto && sp.damage) {
     const dmg = rollExpr(sp.damage.dice);
-    const ev = { type: 'spell_hit', narrate: true, text: `${sp.name} slams into ${target.name} unerringly: ${dmg.total} ${sp.damage.type} damage.` };
+    const ev = { type: 'spell_hit', narrate: true, text: `${sp.name} slams into ${target.name} unerringly: ${dmg.total} ${sp.damage.type} damage.`, data: { dmg: dmg.total, targetId: target.id, targetX: target.x, targetY: target.y } };
     events.push(ev); addLog(state, 'mech', ev.text);
     applyDamage(state, target, dmg.total, sp.damage.type, events);
     if (char.subclass === 'fiend' && target.alive === false) fiendBlessing(state, char, events);
@@ -1200,10 +1285,11 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
 }
 
 function applyCondition(cond, target) {
-  if (!target.conditions.includes(cond.id)) target.conditions.push(cond.id);
-  if (cond.rounds) addBuff(target, { id: 'cond_' + cond.id, rounds: cond.rounds, condId: cond.id, speedPenalty: cond.speedPenalty || 0, condition: true });
-  if (cond.id === 'slowed') addBuff(target, { id: 'slowed', rounds: cond.rounds || 1 });
-  if (cond.id === 'disadv_next') addBuff(target, { id: 'disadv_next', rounds: 1 });
+  const c = typeof cond === 'string' ? { id: cond, rounds: 3 } : cond;
+  if (!target.conditions.includes(c.id)) target.conditions.push(c.id);
+  if (c.rounds) addBuff(target, { id: 'cond_' + c.id, rounds: c.rounds, condId: c.id, speedPenalty: c.speedPenalty || 0, condition: true });
+  if (c.id === 'slowed') addBuff(target, { id: 'slowed', rounds: c.rounds || 1 });
+  if (c.id === 'disadv_next') addBuff(target, { id: 'disadv_next', rounds: 1 });
 }
 
 // ---------------------------------------------------------------- movement ----
@@ -1225,6 +1311,7 @@ function triggerTrap(state, trap, events) {
   let saveMod = mod(state.character.abilities[trap.save || 'dex']) + playerSaveBonus(state, trap.save || 'dex');
   const altar = getBuff(p, 'altar_blessed');
   if (altar) saveMod += 1;
+  const saveRoll = d20({ reroll1: state.character.rerollNat1 });
   let success = saveRoll.natural + saveMod >= (trap.dc || 13);
   // Fighter Indomitable (level 9+): reroll a failed save once per long rest
   if (!success && char.className === 'fighter' && char.level >= 9 && !char.uses.indomitable_used) {
@@ -1261,6 +1348,167 @@ function noticeTrapsNearby(state, events) {
   });
 }
 
+function disarmTrap(state, trap, rollTotal, events) {
+  const p = playerEntity(state);
+  if (trap.triggered || trap.disarmed) {
+    events.push({ type: 'info', text: 'This trap is already disarmed.' });
+    return;
+  }
+  const dc = trap.dc || 12;
+  const success = rollTotal >= dc;
+  if (success) {
+    trap.disarmed = true;
+    trap.triggered = true;
+    awardXp(state, 25, events);
+    const text = `Success! ${p.name} disarms the ${trap.name} (roll ${rollTotal} vs DC ${dc}). (+25 XP)`;
+    events.push({ type: 'trap_disarmed', narrate: true, text, data: { trapId: trap.id, dc, rollTotal, success: true } });
+    addLog(state, 'mech', text);
+  } else {
+    const text = `Failed check (roll ${rollTotal} vs DC ${dc})! The mechanism snaps!`;
+    events.push({ type: 'trap_disarm_failed', narrate: true, text, data: { trapId: trap.id, dc, rollTotal, success: false } });
+    addLog(state, 'mech', text);
+    triggerTrap(state, trap, events);
+  }
+}
+
+function unlockChest(state, chest, method, rollTotal, events) {
+  const p = playerEntity(state);
+  if (chest.looted) {
+    events.push({ type: 'info', text: 'The chest is already empty.' });
+    return;
+  }
+  const dc = method === 'force' ? (chest.forceDc || 14) : (chest.pickDc || 12);
+  const success = rollTotal >= dc;
+  if (success) {
+    chest.locked = false;
+    chest.unlocked = true;
+    const text = method === 'force'
+      ? `${p.name} shatters the lock with raw force (roll ${rollTotal} vs DC ${dc})!`
+      : `Click! ${p.name} picks the tumbler lock (roll ${rollTotal} vs DC ${dc})!`;
+    events.push({ type: 'chest_unlocked', narrate: true, text, data: { chestId: chest.id, success: true } });
+    addLog(state, 'mech', text);
+    lootChest(state, chest, events);
+  } else {
+    const text = method === 'force'
+      ? `The iron bands withstand ${p.name}'s blow (roll ${rollTotal} vs DC ${dc}).`
+      : `The lock tumblers jam and resist ${p.name}'s lockpick (roll ${rollTotal} vs DC ${dc}).`;
+    events.push({ type: 'chest_locked', narrate: true, text, data: { chestId: chest.id, success: false } });
+    addLog(state, 'mech', text);
+  }
+}
+
+function detonateBarrel(state, barrel, events, source = 'impact') {
+  if (!barrel || barrel.exploded) return;
+  barrel.exploded = true;
+  const dmgRoll = rollExpr('2d8');
+  const text = `💥 BOOM! The ${barrel.name} detonates (${source})! Fire erupts across the area for ${dmgRoll.total} fire damage!`;
+  events.push({ type: 'barrel_detonate', narrate: true, text, data: { barrelId: barrel.id, x: barrel.x, y: barrel.y, dmg: dmgRoll.total } });
+  addLog(state, 'mech', text);
+
+  // Affect all entities within 1 tile (3x3 grid)
+  const victims = state.entities.filter(e => e.alive !== false && Math.abs(e.x - barrel.x) <= 1 && Math.abs(e.y - barrel.y) <= 1);
+  for (const victim of victims) {
+    const isPlayer = victim.kind === 'player';
+    const saveMod = isPlayer ? (mod(state.character.abilities.dex) + playerSaveBonus(state, 'dex')) : mod((victim.abilities || {}).dex || 10);
+    const roll = d20(isPlayer ? { reroll1: state.character.rerollNat1 } : {});
+    const success = (roll.natural + saveMod) >= 12;
+    const evasion = isPlayer && state.character.className === 'rogue' && state.character.level >= 7;
+    let dealtDmg = success ? (evasion ? 0 : Math.floor(dmgRoll.total / 2)) : dmgRoll.total;
+    const saveTxt = `${victim.name} DEX save vs Explosion: ${roll.natural}+${saveMod} vs DC 12 — ${success ? 'half damage' : 'direct hit!'}${evasion && success ? ' (Evasion: 0)' : ''}`;
+    events.push({ type: 'save', narrate: true, text: saveTxt, data: { success, targetId: victim.id, targetX: victim.x, targetY: victim.y } });
+    addLog(state, 'mech', saveTxt);
+    if (dealtDmg > 0) {
+      applyDamage(state, victim, dealtDmg, 'fire', events);
+      if (isPlayer) checkPlayerDeath(state, events);
+    }
+  }
+
+  // Chain reaction with any unexploded barrels within 1 tile
+  const nearbyBarrels = (state.objects || []).filter(o => o.type === 'barrel' && !o.exploded && Math.abs(o.x - barrel.x) <= 1 && Math.abs(o.y - barrel.y) <= 1);
+  for (const nb of nearbyBarrels) {
+    detonateBarrel(state, nb, events, 'Chain Reaction');
+  }
+
+  // Chain reaction with any unburst spore pods within 1 tile
+  const nearbySpores = (state.objects || []).filter(o => o.type === 'spores' && !o.burst && Math.abs(o.x - barrel.x) <= 1 && Math.abs(o.y - barrel.y) <= 1);
+  for (const ns of nearbySpores) {
+    triggerSpores(state, ns, events);
+  }
+}
+
+function triggerSpores(state, spores, events) {
+  if (!spores || spores.burst) return;
+  spores.burst = true;
+  const dmgRoll = rollExpr('1d6');
+  const text = `🍄 Toxic rupture! The ${spores.name} burst, venting a choking cloud of virulent spores!`;
+  events.push({ type: 'spore_burst', narrate: true, text, data: { sporesId: spores.id, x: spores.x, y: spores.y, dmg: dmgRoll.total } });
+  addLog(state, 'mech', text);
+
+  const victims = state.entities.filter(e => e.alive !== false && Math.abs(e.x - spores.x) <= 1 && Math.abs(e.y - spores.y) <= 1);
+  for (const victim of victims) {
+    const isPlayer = victim.kind === 'player';
+    const saveMod = isPlayer ? (mod(state.character.abilities.con) + playerSaveBonus(state, 'con')) : mod((victim.abilities || {}).con || 10);
+    const roll = d20(isPlayer ? { reroll1: state.character.rerollNat1 } : {});
+    const success = (roll.natural + saveMod) >= 12;
+    let dealtDmg = success ? Math.floor(dmgRoll.total / 2) : dmgRoll.total;
+    const saveTxt = `${victim.name} CON save vs Spores: ${roll.natural}+${saveMod} vs DC 12 — ${success ? 'resists the poison!' : 'poisoned!'}`;
+    events.push({ type: 'save', narrate: true, text: saveTxt, data: { success, targetId: victim.id, targetX: victim.x, targetY: victim.y } });
+    addLog(state, 'mech', saveTxt);
+    if (!success) {
+      applyCondition({ id: 'poisoned', rounds: 3 }, victim);
+    }
+    if (dealtDmg > 0) {
+      applyDamage(state, victim, dealtDmg, 'poison', events);
+      if (isPlayer) checkPlayerDeath(state, events);
+    }
+  }
+}
+
+function useFont(state, font, events) {
+  const p = playerEntity(state);
+  if (font.used) {
+    events.push({ type: 'info', text: "The font's basin is dry and silent. Its miraculous waters have been depleted." });
+    return;
+  }
+  font.used = true;
+  const healAmount = rollExpr('2d4+2').total;
+  if (p.conditions && p.conditions.includes('poisoned')) {
+    p.conditions = p.conditions.filter(c => c !== 'poisoned');
+    p.buffs = (p.buffs || []).filter(b => b.condId !== 'poisoned');
+  }
+  healEntity(state, p, healAmount, events, 'Sacred Healing Font');
+  const text = `✨ ${p.name} drinks from the ${font.name}. Azure light surges through their veins, cleansing poison and restoring ${healAmount} HP!`;
+  events.push({ type: 'font_heal', narrate: true, text, data: { fontId: font.id, heal: healAmount } });
+  addLog(state, 'mech', text);
+}
+
+function pullLever(state, lever, events) {
+  lever.pulled = !lever.pulled;
+  const targets = lever.targetTrapIds || [];
+  targets.forEach(trapId => {
+    const trap = (state.objects || []).find(o => o.id === trapId);
+    if (trap) {
+      trap.disarmed = lever.pulled;
+      trap.revealed = true;
+    }
+  });
+  const stateStr = lever.pulled ? 'disarming connected mechanisms' : 're-arming connected mechanisms';
+  const text = `⚙️ ${p_name(state)} throws the ${lever.name} with a resonant CLANK. Heavy counterweights shift behind the stone walls, ${stateStr}!`;
+  events.push({ type: 'lever_pull', narrate: true, text, data: { leverId: lever.id, pulled: lever.pulled } });
+  addLog(state, 'mech', text);
+}
+
+function triggerHazard(state, hazard, creature, events) {
+  if (!creature || creature.alive === false) return;
+  const dmg = rollExpr('1d4').total;
+  const type = hazard.hazardType || 'acid';
+  const text = `🧪 Sizzle! ${creature.name} steps into the ${hazard.name} and suffers ${dmg} ${type} damage!`;
+  events.push({ type: 'hazard_burn', narrate: true, text, data: { hazardId: hazard.id, targetId: creature.id, dmg } });
+  addLog(state, 'mech', text);
+  applyDamage(state, creature, dmg, type, events);
+  if (creature.kind === 'player') checkPlayerDeath(state, events);
+}
+
 function movePlayer(state, targetX, targetY, events) {
   const p = playerEntity(state);
   if (state.mode === 'over' || state.mode === 'victory') return;
@@ -1278,6 +1526,10 @@ function movePlayer(state, targetX, targetY, events) {
     if (inCombat) state.combat.movementLeft = budget;
     const trap = state.objects.find(o => o.type === 'trap' && o.x === p.x && o.y === p.y && !o.disarmed && !o.triggered);
     if (trap) { triggerTrap(state, trap, events); if (state.mode === 'over') return; }
+    const hazard = state.objects.find(o => o.type === 'hazard' && o.x === p.x && o.y === p.y);
+    if (hazard) { triggerHazard(state, hazard, p, events); if (state.mode === 'over') return; }
+    const spore = state.objects.find(o => o.type === 'spores' && o.x === p.x && o.y === p.y && !o.burst);
+    if (spore) { triggerSpores(state, spore, events); if (state.mode === 'over') return; }
     if (!inCombat) {
       alertCheck(state, events);
       if (state.mode === 'combat') return;
@@ -1309,7 +1561,7 @@ function rollWanderingMonster(state, events) {
   for (let y = p.y - 4; y <= p.y + 4; y++) for (let x = p.x - 4; x <= p.x + 4; x++) {
     const d = manhattan({ x, y }, p);
     if (d < 2 || d > 4) continue;
-    if (isWall(state, x, y) || entityAt(state, x, y)) continue;
+    if (isBlocked(state, x, y) || entityAt(state, x, y)) continue;
     if (!los(state, p.x, p.y, x, y)) continue;
     spots.push({ x, y });
   }
@@ -1328,9 +1580,6 @@ function rollWanderingMonster(state, events) {
   const ev = { type: 'wandering', narrate: true, text: 'A wandering ' + def.name + ' comes snuffling around the corner - it has found you!' };
   events.push(ev); addLog(state, 'system', ev.text);
   startCombat(state, [mon.id], events);
-}
-
-function checkRoomEntry(state, events) {
 }
 
 function checkRoomEntry(state, events) {
@@ -1384,6 +1633,8 @@ function checkQuest(state, type, target, events) {
   events.push(ev); addLog(state, 'system', ev.text);
   awardXp(state, q.reward.xp, events);
 }
+
+function campfireOf(state) { return (state.objects || []).find(o => o.id === 'campfire'); }
 
 function checkVictory(state, events) {
   const p = playerEntity(state);
@@ -1439,7 +1690,7 @@ function processMonsterTurn(state, mon, events) {
     monsterAttack(state, mon, target, rangedAtk, events); return;
   }
   const goals = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: target.x + dx, y: target.y + dy }))
-    .filter(t => !isWall(state, t.x, t.y) && !entityAt(state, t.x, t.y));
+    .filter(t => !isBlocked(state, t.x, t.y) && !entityAt(state, t.x, t.y));
   const path = bfsPath(state, { x: mon.x, y: mon.y }, goals, { self: mon.id });
   if (path) {
     let budget = currentSpeed(state, mon);
@@ -1448,11 +1699,17 @@ function processMonsterTurn(state, mon, events) {
       if (budget < cost) break;
       if (entityAt(state, step.x, step.y)) break;
       budget -= cost; mon.x = step.x; mon.y = step.y;
+      const haz = (state.objects || []).find(o => o.type === 'hazard' && o.x === mon.x && o.y === mon.y);
+      if (haz) triggerHazard(state, haz, mon, events);
+      const sp = (state.objects || []).find(o => o.type === 'spores' && o.x === mon.x && o.y === mon.y && !o.burst);
+      if (sp) triggerSpores(state, sp, events);
+      if (!mon.alive) break;
       // leashed bosses never stray more than 6 tiles from their post
       if (mon.boss && mon.sx !== undefined && manhattan(mon, { x: mon.sx, y: mon.sy }) > 6) { mon.x = step.x; mon.y = step.y; break; }
       if (manhattan(mon, target) <= 1) break;
     }
   }
+  if (!mon.alive) return;
   if (manhattan(mon, target) <= 1 && meleeAtk) monsterAttack(state, mon, target, meleeAtk, events);
   else if (rangedAtk && manhattan(mon, target) <= rangedAtk.range / 5 && los(state, mon.x, mon.y, target.x, target.y)) {
     monsterAttack(state, mon, target, rangedAtk, events);
@@ -1461,6 +1718,18 @@ function processMonsterTurn(state, mon, events) {
 
 function processAllyTurn(state, ally, events) {
   if (!ally.alive || state.mode !== 'combat') return;
+  const p = playerEntity(state);
+
+  // If ally has healing spells (e.g. Brother Aldous) and player is injured (<= 50% HP), cast Cure Wounds
+  if (ally.spells && ally.spells.includes('cure_wounds') && (ally.spellSlots || 0) > 0 && p && p.alive && p.hp <= Math.floor(p.hpMax * 0.5)) {
+    if (manhattan(ally, p) <= 4 && los(state, ally.x, ally.y, p.x, p.y)) {
+      ally.spellSlots--;
+      const healRoll = rollExpr('1d8+3');
+      healEntity(state, p, healRoll.total, events, `${ally.name} casts Cure Wounds`);
+      return;
+    }
+  }
+
   const foes = aliveMonsters(state).filter(m => manhattan(ally, m) <= 25);
   if (!foes.length) return;
   const target = foes.sort((a, b) => manhattan(ally, a) - manhattan(ally, b))[0];
@@ -1471,7 +1740,7 @@ function processAllyTurn(state, ally, events) {
     monsterAttack(state, ally, target, rangedAtk, events); return;
   }
   const goals = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: target.x + dx, y: target.y + dy }))
-    .filter(t => !isWall(state, t.x, t.y) && !entityAt(state, t.x, t.y));
+    .filter(t => !isBlocked(state, t.x, t.y) && !entityAt(state, t.x, t.y));
   const path = bfsPath(state, { x: ally.x, y: ally.y }, goals, { self: ally.id });
   if (path) {
     let budget = ally.speedFt;
@@ -1480,9 +1749,15 @@ function processAllyTurn(state, ally, events) {
       if (budget < cost) break;
       if (entityAt(state, step.x, step.y)) break;
       budget -= cost; ally.x = step.x; ally.y = step.y;
+      const haz = (state.objects || []).find(o => o.type === 'hazard' && o.x === ally.x && o.y === ally.y);
+      if (haz) triggerHazard(state, haz, ally, events);
+      const sp = (state.objects || []).find(o => o.type === 'spores' && o.x === ally.x && o.y === ally.y && !o.burst);
+      if (sp) triggerSpores(state, sp, events);
+      if (!ally.alive) break;
       if (manhattan(ally, target) <= 1) break;
     }
   }
+  if (!ally.alive) return;
   if (manhattan(ally, target) <= 1) monsterAttack(state, ally, target, meleeAtk, events);
 }
 
@@ -1665,6 +1940,10 @@ function skillCheck(state, skill, dc) {
 
 function lootChest(state, chest, events) {
   if (chest.looted) { events.push({ type: 'info', text: 'The chest is already empty.' }); return; }
+  if (chest.locked && !chest.unlocked) {
+    events.push({ type: 'info', text: `${chest.name} is locked shut. Pick the lock with thieves' tools or force it open.` });
+    return;
+  }
   chest.looted = true;
   const char = state.character;
   const goldRoll = typeof chest.loot.gold === 'string' ? rollExpr(chest.loot.gold).total : (chest.loot.gold || 0);
@@ -1783,6 +2062,24 @@ function interactObject(state, objId, events) {
     return;
   }
   if (obj.type === 'chest') return lootChest(state, obj, events);
+  if (obj.type === 'font') return useFont(state, obj, events);
+  if (obj.type === 'lever') return pullLever(state, obj, events);
+  if (obj.type === 'barrel') {
+    if (obj.exploded) { events.push({ type: 'info', text: 'Nothing remains of the barrel but charred wood and soot.' }); return; }
+    addLog(state, 'mech', `${p.name} strikes the explosive oil barrel at point-blank range!`);
+    detonateBarrel(state, obj, events, `${p.name}'s strike`);
+    return;
+  }
+  if (obj.type === 'spores') {
+    if (obj.burst) { events.push({ type: 'info', text: 'The spore pods have withered into lifeless fungal husks.' }); return; }
+    addLog(state, 'mech', `${p.name} disturbs the toxic spore pods!`);
+    triggerSpores(state, obj, events);
+    return;
+  }
+  if (obj.type === 'hazard') {
+    events.push({ type: 'info', text: `${obj.name}: ${obj.desc || 'A caustic hazard that burns anything stepping into it.'}` });
+    return;
+  }
   if (obj.type === 'npcMarker') {
     const ev = { type: 'chat_open', narrate: false, text: `${obj.name}: "${(state.map.npcs[obj.npcId].canned || ['...'])[0]}"`, data: { npcId: obj.npcId, name: obj.name } };
     events.push(ev);
@@ -1838,17 +2135,19 @@ function interactObject(state, objId, events) {
 }
 
 module.exports = {
-  SPECIES, CLASSES, BACKGROUNDS, FEATS, WEAPONS, ARMORS, GEAR, SPELLS, MONSTERS, ALLY_DEF, MAPS,
+  SPECIES, CLASSES, BACKGROUNDS, FEATS, WEAPONS, ARMORS, GEAR, SPELLS, MONSTERS, ALLY_DEF, ALLIES, MAPS,
   ABILITIES, SKILL_ABILITY, ALL_SKILLS, XP_THRESHOLDS, SLOTS, DIFFICULTY, SHOP_ITEMS,
   die, rollExpr, d20, mod, cap, byId,
   buildCharacter, applyClassAndSpecies, skillMod, passivePerception,
-  getMap, tileChar, isWall, isDifficult, entityAt, roomAt, los, manhattan, bfsPath, computeVision, markDiscovered,
+  getMap, tileChar, isWall, isBlocked, isDifficult, entityAt, roomAt, los, manhattan, bfsPath, computeVision, markDiscovered,
   startGame, addLog, playerEntity, currentActor, endTurn, beginPlayerTurn, currentSpeed,
   hasBuff, getBuff, addBuff, removeBuff, currentAc, charHasArmor,
   alertCheck, startCombat, checkCombatEnd, processUntilPlayer,
   movePlayer, playerAttack, castSpell, findSpell, interactObject, interactDoor,
   shortRest, longRest, skillCheck, damageRoll, applyDamage, healEntity, awardXp, checkPlayerDeath,
   triggerTrap, noticeTrapsNearby, alertForcedNoise, attackMods, monsterAttack, processMonsterTurn, processAllyTurn,
+  detonateBarrel, triggerSpores, useFont, pullLever, triggerHazard,
   rollLoot, lootChest, applyPickupEffects, itemName, addItemToInventory, resolveWeapon,
-  rollSideQuest, checkQuest, campfireOf, loadWorldMap
+  rollSideQuest, checkQuest, campfireOf, loadWorldMap,
+  disarmTrap, unlockChest
 };

@@ -56,7 +56,8 @@ const DEFAULT_SETTINGS = {
     apiKey: '',
     temperature: 0.8,
     maxTokens: 500,
-    timeoutMs: 25000
+    timeoutMs: 25000,
+    persona: 'classic'
   },
   portraits: {
     enabled: true,

@@ -59,11 +59,17 @@ export async function creatorView(main) {
     if (save) save.addEventListener('click', async () => {
       const err = validate(6);
       if (err) return toast(err);
+      save.disabled = true;
+      save.textContent = 'Forging Hero…';
       try {
         const char = await api.createCharacter(draft);
         toast(`${char.name} is ready!`);
-        location.hash = `#/play/new?char=${char.id}`;
-      } catch (e) { toast(e.message); }
+        location.hash = `#/overworld?char=${char.id}`;
+      } catch (e) {
+        toast(e.message);
+        save.disabled = false;
+        save.textContent = '⚔ Descend';
+      }
     });
   }
 
@@ -405,8 +411,20 @@ export async function creatorView(main) {
     const allSkills = [...new Set([...bg.skills, ...draft.skills, ...draft.extraSkills, ...(draft.speciesChoices.keen_senses || []), ...(draft.speciesChoices.versatility || [])])];
     body.innerHTML = `
       <div class="card">
-        <h2>Review: ${esc(draft.name)} — Level 1 ${sp.name} ${cls.name}</h2>
-        <p class="small muted">${bg.name} background · feat: ${esc(bg.featNote)}</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h2 style="margin-bottom:2px;">Review: ${esc(draft.name)} — Level 1 ${sp.name} ${cls.name}</h2>
+            <p class="small muted" style="margin:0;">${bg.name} background · feat: ${esc(bg.featNote)}</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; padding:4px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg2);">
+            <span style="font-size:24px;">${{
+              barbarian: '🪓', bard: '🪕', cleric: '✨', druid: '🌿', fighter: '🛡️',
+              monk: '🥋', paladin: '⚔️', ranger: '🏹', rogue: '🗡️', sorcerer: '🔮',
+              warlock: '👁️', wizard: '📜'
+            }[draft.className] || '🗡️'}</span>
+            <span class="small" style="color:var(--gold);">🎨 Portrait Ready</span>
+          </div>
+        </div>
         <div class="ability-grid" style="margin:10px 0;">
           ${ABILS.map(k => `<div class="ability-box"><div class="abbr">${k.toUpperCase()}</div><div class="score">${a[k]}</div><div class="mod">${fmt(mod(a[k]))}</div></div>`).join('')}
         </div>
@@ -415,7 +433,7 @@ export async function creatorView(main) {
         <div class="stat-line"><span>Skills</span><span>${allSkills.map(skillName).join(', ')}</span></div>
         ${draft.cantrips.length ? `<div class="stat-line"><span>Cantrips</span><span>${draft.cantrips.map(c => (rules.spells.find(s => s.id === c) || {}).name).join(', ')}</span></div>` : ''}
         ${draft.spells.length ? `<div class="stat-line"><span>Spells</span><span>${draft.spells.map(c => (rules.spells.find(s => s.id === c) || {}).name).join(', ')}</span></div>` : ''}
-        <p class="small muted" style="margin-top:10px;">Everything is final once you descend — the crypt does not offer respecs.</p>
+        <p class="small muted" style="margin-top:10px;">Your hero's unique portrait will be generated on descent and can be viewed or re-rolled on the character sheet.</p>
       </div>`;
   }
 

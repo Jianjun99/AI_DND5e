@@ -222,9 +222,21 @@ function resolveFreeform(state, text) {
     return { handled: true, events };
   }
 
+  // --- font / drink from font ---
+  if (/\b(font|sacred water|holy water)\b/.test(t) || (/\b(drink|quaff|sip)\b/.test(t) && !/\bpotion\b/.test(t) && state.objects.some(o => o.type === 'font' && engine.manhattan(o, p) <= 1))) {
+    const font = state.objects.find(o => o.type === 'font' && engine.manhattan(o, p) <= 1);
+    if (font) { engine.interactObject(state, font.id, events); return { handled: true, events }; }
+  }
+
+  // --- lever / pull lever ---
+  if (/\b(lever|switch)\b/.test(t) || (/\b(pull|throw|flip)\b/.test(t) && state.objects.some(o => o.type === 'lever' && engine.manhattan(o, p) <= 1))) {
+    const lever = state.objects.find(o => o.type === 'lever' && engine.manhattan(o, p) <= 1);
+    if (lever) { engine.interactObject(state, lever.id, events); return { handled: true, events }; }
+  }
+
   // --- interact with nearby object ---
-  if (/\b(open|take|grab|loot|touch|collect|relic)\b/.test(t)) {
-    const interactables = state.objects.filter(o => ['door', 'chest'].includes(o.type) || ['relic', 'altar', 'campfire'].includes(o.id));
+  if (/\b(open|take|grab|loot|touch|collect|relic|drink|font|pull|lever|barrel|detonate|spore)\b/.test(t)) {
+    const interactables = state.objects.filter(o => ['door', 'chest', 'font', 'lever', 'barrel', 'spores'].includes(o.type) || ['relic', 'altar', 'campfire'].includes(o.id));
     const near = interactables.filter(o => engine.manhattan(o, p) <= 1).sort((a, b) => engine.manhattan(p, a) - engine.manhattan(p, b))[0];
     if (near) { engine.interactObject(state, near.id, events); return { handled: true, events }; }
   }

@@ -17,8 +17,10 @@ const PRESETS = {
   custom: { label: 'Custom OpenAI-compatible', baseUrl: '', model: '', note: 'Any server exposing /v1/chat/completions.' }
 };
 
+const { DM_PERSONAS } = require('../game/dm');
+
 router.get('/', (req, res) => {
-  res.json({ settings: store.getSettings(), presets: PRESETS });
+  res.json({ settings: store.getSettings(), presets: PRESETS, personas: DM_PERSONAS });
 });
 
 router.put('/', (req, res) => {
@@ -27,6 +29,7 @@ router.put('/', (req, res) => {
     if (next.llm.temperature !== undefined) next.llm.temperature = Math.max(0, Math.min(2, +next.llm.temperature || 0));
     if (next.llm.maxTokens !== undefined) next.llm.maxTokens = Math.max(20, Math.min(2000, +next.llm.maxTokens || 300));
     if (next.llm.timeoutMs !== undefined) next.llm.timeoutMs = Math.max(3000, Math.min(60000, +next.llm.timeoutMs || 25000));
+    if (next.llm.persona !== undefined && !DM_PERSONAS[next.llm.persona]) next.llm.persona = 'classic';
   }
   res.json({ settings: store.saveSettings(next) });
 });
