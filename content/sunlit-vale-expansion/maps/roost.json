@@ -1,0 +1,272 @@
+{
+  "id": "roost",
+  "name": "The Sun Dragon’s Roost",
+  "theme": "hills",
+  "width": 32,
+  "height": 22,
+  "tileSizeFt": 5,
+  "blurb": "High in the volcanic peaks, the Ember Queen has made her lair.",
+  "objectiveText": "Slay Yzmerith the Ember Queen at the peak, then return to the Obsidian Camp.",
+  "recommended": "Levels 9-12",
+  "playerStart": {
+    "x": 4,
+    "y": 19
+  },
+  "victory": {
+    "type": "slay_boss",
+    "campfire": {
+      "x": 4,
+      "y": 19
+    }
+  },
+  "wandering": [
+    "fire_elemental",
+    "cultist"
+  ],
+  "rooms": [
+    {
+      "id": "gate",
+      "name": "The Obsidian Gate",
+      "rect": [
+        1,
+        17,
+        8,
+        20
+      ],
+      "desc": "Volcanic glass forms the gate."
+    },
+    {
+      "id": "ledge",
+      "name": "The Ledge",
+      "rect": [
+        1,
+        12,
+        12,
+        15
+      ],
+      "desc": "A narrow ledge above cooled lava."
+    },
+    {
+      "id": "temple",
+      "name": "Temple of Ash",
+      "rect": [
+        16,
+        12,
+        28,
+        15
+      ],
+      "desc": "Cultists chant before a massive iron door."
+    },
+    {
+      "id": "outer",
+      "name": "The Outer Roost",
+      "rect": [
+        1,
+        6,
+        12,
+        10
+      ],
+      "desc": "Wind-carved alcoves above the lava lake."
+    },
+    {
+      "id": "inner",
+      "name": "The Inner Sanctum",
+      "rect": [
+        16,
+        6,
+        28,
+        10
+      ],
+      "desc": "The hoard glitters with molten gold."
+    },
+    {
+      "id": "lair",
+      "name": "The Dragon’s Lair",
+      "rect": [
+        10,
+        1,
+        24,
+        4
+      ],
+      "desc": "HERE LIES THE EMBER QUEEN."
+    }
+  ],
+  "rows": [
+    "################################",
+    "#..............##...............",
+    "#..............##...............",
+    "#......,,,......##......,,,.....",
+    "#......,,,......##......,,,.....",
+    "#..............##...............",
+    "#......##########......########.",
+    "#......#..............#.......#.",
+    "#......D..............D.......#.",
+    "#......#..............#.......#.",
+    "#......#..............#.......#.",
+    "######D################D######.#",
+    "#.............................##",
+    "#..,,,,...................,,,,.#",
+    "#..............................#",
+    "##########D#####################",
+    "#..............................#",
+    "#..,,,,.......,,,,......,,,,...#",
+    "#..............................#",
+    "#######D########################",
+    "#..............................#",
+    "################################"
+  ],
+  "entities": [
+    {
+      "type": "object",
+      "id": "roost_camp",
+      "name": "Obsidian Camp",
+      "x": 4,
+      "y": 19,
+      "icon": "🔥",
+      "desc": "The last sheltered spot."
+    },
+    {
+      "type": "monster",
+      "kind": "fire_elemental",
+      "id": "rs_fe1",
+      "x": 6,
+      "y": 13
+    },
+    {
+      "type": "monster",
+      "kind": "fire_elemental",
+      "id": "rs_fe2",
+      "x": 10,
+      "y": 14
+    },
+    {
+      "type": "monster",
+      "kind": "cultist",
+      "id": "rs_cu1",
+      "x": 20,
+      "y": 13
+    },
+    {
+      "type": "monster",
+      "kind": "cultist",
+      "id": "rs_cu2",
+      "x": 24,
+      "y": 13
+    },
+    {
+      "type": "monster",
+      "kind": "cultist",
+      "id": "rs_cu3",
+      "x": 22,
+      "y": 14
+    },
+    {
+      "type": "monster",
+      "kind": "animated_armor",
+      "id": "rs_aa",
+      "x": 21,
+      "y": 13
+    },
+    {
+      "type": "chest",
+      "id": "rs_c1",
+      "name": "Pilgrim’s Offerings",
+      "x": 2,
+      "y": 12,
+      "icon": "🧰",
+      "loot": {
+        "gold": "6d10",
+        "potions": 3
+      }
+    },
+    {
+      "type": "monster",
+      "kind": "fire_elemental",
+      "id": "rs_fe3",
+      "x": 6,
+      "y": 8
+    },
+    {
+      "type": "monster",
+      "kind": "fire_elemental",
+      "id": "rs_fe4",
+      "x": 10,
+      "y": 9
+    },
+    {
+      "type": "chest",
+      "id": "rs_c2",
+      "name": "Roost Alcove Cache",
+      "x": 2,
+      "y": 7,
+      "icon": "🧰",
+      "locked": true,
+      "pickDc": 16,
+      "forceDc": 18,
+      "loot": {
+        "gold": "8d10",
+        "items": [
+          {
+            "id": "dragon_scale_shield",
+            "qty": 1
+          }
+        ]
+      }
+    },
+    {
+      "type": "monster",
+      "kind": "young_fire_dragon",
+      "id": "rs_dragon",
+      "x": 18,
+      "y": 2,
+      "boss": true
+    },
+    {
+      "type": "monster",
+      "kind": "cultist",
+      "id": "rs_cu4",
+      "x": 14,
+      "y": 3
+    },
+    {
+      "type": "monster",
+      "kind": "cultist",
+      "id": "rs_cu5",
+      "x": 20,
+      "y": 3
+    },
+    {
+      "type": "chest",
+      "id": "rs_c3",
+      "name": "The Ember Hoard",
+      "x": 28,
+      "y": 3,
+      "icon": "🧰",
+      "loot": {
+        "gold": "12d12",
+        "items": [
+          {
+            "id": "ember_blade",
+            "qty": 1
+          },
+          {
+            "id": "dragon_scale_shield",
+            "qty": 1
+          }
+        ]
+      }
+    },
+    {
+      "type": "trap",
+      "id": "rs_trap",
+      "name": "Magma Vent",
+      "x": 14,
+      "y": 18,
+      "dc": 14,
+      "save": "dex",
+      "damage": "3d6",
+      "damageType": "fire"
+    }
+  ],
+  "npcs": {}
+}

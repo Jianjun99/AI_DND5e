@@ -1,0 +1,47 @@
+{
+  "id": "sunlit-vale-expansion",
+  "name": "Sunlit Vale Expansion",
+  "author": "Jianjun99",
+  "blurb": "Three new dungeons for the Sunlit Vale: the sewers beneath Oakhaven, an abandoned mill on the outskirts, and the Sun Dragon's Roost in the volcanic peaks.",
+  "monsters": [
+    { "id": "giant_spider", "name": "Giant Spider", "xp": 100, "ac": 14, "hp": "4d10+4", "speed": 30, "darkvision": 60,
+      "abilities": { "str": 14, "dex": 16, "con": 12, "int": 2, "wis": 12, "cha": 4 },
+      "attacks": [{ "name": "Bite", "bonus": 4, "range": 5, "damage": "1d8+2", "damageType": "piercing" }],
+      "loot": { "gold": "1d8", "items": [{ "id": "potion_healing", "chance": 0.2 }] },
+      "blurb": "A horse-sized arachnid with iridescent black chitin and too many eyes." },
+    { "id": "green_slime", "name": "Green Slime", "xp": 50, "ac": 8, "hp": "3d8", "speed": 20, "darkvision": 0,
+      "abilities": { "str": 12, "dex": 4, "con": 14, "int": 1, "wis": 6, "cha": 1 },
+      "attacks": [{ "name": "Pseudopod", "bonus": 2, "range": 5, "damage": "1d6", "damageType": "acid" }],
+      "vulnerabilities": ["fire"],
+      "immunities": ["acid"],
+      "blurb": "A dripping mass of acidic jelly that clings to stone and flesh alike." },
+    { "id": "animated_armor", "name": "Animated Armor", "xp": 100, "ac": 16, "hp": "4d8+8", "speed": 25, "darkvision": 60,
+      "abilities": { "str": 14, "dex": 11, "con": 14, "int": 1, "wis": 3, "cha": 1 },
+      "attacks": [{ "name": "Slam", "bonus": 4, "range": 5, "damage": "1d6+2", "damageType": "bludgeoning" }],
+      "immunities": ["poison"],
+      "blurb": "A hollow suit of enchanted armor that moves with unnatural purpose, guarding what it was bid to guard long ago." },
+    { "id": "fire_elemental", "name": "Fire Elemental", "xp": 300, "ac": 13, "hp": "6d10+12", "speed": 50, "darkvision": 60,
+      "abilities": { "str": 10, "dex": 17, "con": 16, "int": 5, "wis": 10, "cha": 13 },
+      "attacks": [{ "name": "Touch", "bonus": 5, "range": 5, "damage": "2d6+2", "damageType": "fire" }],
+      "resistances": ["fire"], "immunities": ["poison"],
+      "loot": { "gold": "3d10" },
+      "blurb": "A living column of flame and molten earth, its core a heart of eternal magma." },
+    { "id": "young_fire_dragon", "name": "Yzmerith the Ember Queen", "xp": 1200, "ac": 17, "hp": "10d10+30", "speed": 40, "darkvision": 90,
+      "abilities": { "str": 20, "dex": 12, "con": 17, "int": 12, "wis": 11, "cha": 16 },
+      "attacks": [
+        { "name": "Bite", "bonus": 7, "range": 5, "damage": "2d10+5", "damageType": "piercing" },
+        { "name": "Breath Weapon", "bonus": 0, "range": 15, "damage": "4d6+3", "damageType": "fire", "ranged": true }
+      ],
+      "loot": { "gold": "15d10", "items": [{ "id": "dragon_scale_shield", "qty": 1 }, { "id": "ember_blade", "qty": 1 }] },
+      "boss": true,
+      "traits": ["Bound to the Roost: Yzmerith never strays from her hoard."],
+      "blurb": "A young red dragon with scales like cooling lava and eyes that burn with ancient greed. She has made the Roost her kingdom." }
+  ],
+  "gear": [
+    { "id": "dragon_scale_shield", "name": "Dragon Scale Shield", "type": "shield", "acBonus": 2, "cost": 300,
+      "desc": "+2 AC — a shield of polished red dragon scales, warm to the touch." },
+    { "id": "ember_blade", "name": "Ember Blade", "type": "magic_weapon", "base": "longsword", "magic": 1,
+      "bonusDamage": { "dice": "1d6", "type": "fire" }, "cost": 300,
+      "desc": "+1 longsword wreathed in smouldering embers: +1d6 fire damage." }
+  ]
+}

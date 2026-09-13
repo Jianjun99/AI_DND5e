@@ -1111,7 +1111,7 @@ export async function playView(main, saveRef) {
           <button class="btn" data-act="longrest">🔥 Long Rest</button>
           <button class="btn" data-act="potion">🧪 Potion (${potCount})</button>
           ${atCampfire() ? `<button class="btn" data-act="recap" style="grid-column:1 / -1;">✍ Write journal entry</button>` : ''}
-          ${(atCampfire() || atEntrance() || game.mode === 'retreat' || game.mode === 'victory') ? `<button class="btn primary" data-act="retreat" style="grid-column:1 / -1; background:linear-gradient(180deg, #3d5a42, #29422e); border-color:#508059;">${game.mode === 'retreat' || game.mode === 'victory' ? '🏆 View Summary / Return to Town' : '🏰 Retreat to Oakhaven'}</button>` : ''}
+          ${(atCampfire() || atEntrance() || game.mode === 'retreat' || game.mode === 'victory') ? `<button class="btn primary" data-act="retreat" style="grid-column:1 / -1; background:linear-gradient(180deg, #3d5a42, #29422e); border-color:#508059;">${game.mode === 'retreat' || game.mode === 'victory' ? '🏆 View Summary / Return to Town' : '🏰 Retreat to Oakhaven'}</button>` : `<button class="btn" data-act="retreat" style="grid-column:1 / -1;">🏰 Retreat to Oakhaven</button>`}
           <button class="btn" data-act="journal" style="grid-column:1 / -1;">📖 Journal${(game.journal || []).length ? ` (${game.journal.length})` : ''}</button>
         </div>
         <div style="margin-top:8px;">${classActions()}</div>

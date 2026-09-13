@@ -1,0 +1,203 @@
+{
+  "id": "sewers",
+  "name": "Oakhaven Sewers",
+  "theme": "crypt",
+  "width": 24,
+  "height": 14,
+  "tileSizeFt": 5,
+  "blurb": "Beneath Oakhaven’s cobbled streets, something has been breeding in the dark.",
+  "objectiveText": "Slay the Broodmother Spawn in the Spider Lair, then return to the entry to report.",
+  "recommended": "Levels 3-6",
+  "playerStart": {
+    "x": 3,
+    "y": 7
+  },
+  "victory": {
+    "type": "slay_boss",
+    "campfire": {
+      "x": 3,
+      "y": 2
+    }
+  },
+  "wandering": [
+    "giant_rat",
+    "green_slime"
+  ],
+  "rooms": [
+    {
+      "id": "entry",
+      "name": "Drainage Entry",
+      "rect": [
+        1,
+        6,
+        5,
+        8
+      ],
+      "desc": "The grate clatters shut behind you."
+    },
+    {
+      "id": "tunnel",
+      "name": "Main Tunnel",
+      "rect": [
+        1,
+        1,
+        22,
+        5
+      ],
+      "desc": "A wide tunnel riddled with webbing."
+    },
+    {
+      "id": "lair",
+      "name": "Spider Lair",
+      "rect": [
+        17,
+        8,
+        22,
+        12
+      ],
+      "desc": "Thick webbing and cocoons of past victims."
+    },
+    {
+      "id": "sump",
+      "name": "The Sump",
+      "rect": [
+        8,
+        8,
+        14,
+        12
+      ],
+      "desc": "A cistern where all the sewage collects."
+    }
+  ],
+  "rows": [
+    "########################",
+    "#..........#...........#",
+    "#..........#...........#",
+    "#....###...D...#####...#",
+    "#....#.....#...#.....#.#",
+    "#....D.....#####.....#.#",
+    "#....#...............#.#",
+    "######D############D####",
+    "#......#,,,,,.........##",
+    "#......#..,,..#####...##",
+    "#......D..,,....#.....##",
+    "#......#..,,....D.....##",
+    "#......#........#.....##",
+    "########################"
+  ],
+  "entities": [
+    {
+      "type": "object",
+      "id": "sw_camp",
+      "name": "Makeshift Camp",
+      "x": 3,
+      "y": 2,
+      "icon": "🔥",
+      "desc": "Cold embers."
+    },
+    {
+      "type": "monster",
+      "kind": "giant_spider",
+      "id": "sw_sp1",
+      "x": 12,
+      "y": 2
+    },
+    {
+      "type": "monster",
+      "kind": "giant_spider",
+      "id": "sw_sp2",
+      "x": 18,
+      "y": 4
+    },
+    {
+      "type": "monster",
+      "kind": "green_slime",
+      "id": "sw_sl1",
+      "x": 4,
+      "y": 4
+    },
+    {
+      "type": "monster",
+      "kind": "giant_rat",
+      "id": "sw_r1",
+      "x": 10,
+      "y": 9
+    },
+    {
+      "type": "monster",
+      "kind": "green_slime",
+      "id": "sw_sl2",
+      "x": 12,
+      "y": 11
+    },
+    {
+      "type": "monster",
+      "kind": "green_slime",
+      "id": "sw_sl3",
+      "x": 9,
+      "y": 10
+    },
+    {
+      "type": "monster",
+      "kind": "tomb_warden",
+      "id": "sw_boss",
+      "x": 20,
+      "y": 12,
+      "boss": true,
+      "name": "Broodmother Spawn"
+    },
+    {
+      "type": "chest",
+      "id": "sw_c1",
+      "name": "Rusted Strongbox",
+      "x": 22,
+      "y": 11,
+      "icon": "🧰",
+      "locked": true,
+      "pickDc": 14,
+      "forceDc": 16,
+      "loot": {
+        "gold": "4d10",
+        "items": [
+          {
+            "id": "scroll_shield",
+            "qty": 1
+          },
+          {
+            "id": "potion_greater",
+            "chance": 0.5
+          }
+        ]
+      }
+    },
+    {
+      "type": "trap",
+      "id": "sw_trap",
+      "name": "Web Snare",
+      "x": 14,
+      "y": 3,
+      "dc": 12,
+      "save": "dex",
+      "damage": "1d6",
+      "damageType": "poison"
+    },
+    {
+      "type": "chest",
+      "id": "sw_c2",
+      "name": "Drainage Cache",
+      "x": 2,
+      "y": 1,
+      "icon": "🧰",
+      "loot": {
+        "gold": "3d8",
+        "items": [
+          {
+            "id": "scroll_cure",
+            "qty": 1
+          }
+        ]
+      }
+    }
+  ],
+  "npcs": {}
+}

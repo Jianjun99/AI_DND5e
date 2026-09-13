@@ -211,6 +211,11 @@ try {
   const gameAfterMove = await apiReq('GET', `/api/game/${delveId}`);
   const player = gameAfterMove.state.entities.find(e => e.kind === 'player');
   assert(player.x === 4 && player.y === 5, `Player moved to destination (4,5), got (${player.x},${player.y})`);
+
+  // Move back to start position so retreat is valid
+  await apiReq('POST', `/api/game/${delveId}/action`, { type: 'move', x: 3, y: 7 });
+  await new Promise(r => setTimeout(r, 800));
+
   // Check 4: Retreat to Safety & Verify Summary Popup Does Not Get Stuck
   console.log('  Testing Retreat to Safety flow...');
   // Click the retreat button in the browser UI

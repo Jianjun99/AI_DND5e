@@ -670,6 +670,32 @@ export function createMap3D(container, opts = {}) {
     ev.preventDefault();
     zoom = Math.max(0.55, Math.min(2.2, zoom * (ev.deltaY > 0 ? 0.9 : 1.1)));
   }, { passive: false });
+  // touch support: single tap = click, two-finger pinch = zoom
+  let touchStart = null;
+  renderer.domElement.addEventListener('touchstart', (ev) => {
+    if (ev.touches.length === 1) {
+      touchStart = { x: ev.touches[0].clientX, y: ev.touches[0].clientY, time: Date.now() };
+    }
+  }, { passive: true });
+  renderer.domElement.addEventListener('touchend', (ev) => {
+    if (touchStart && ev.changedTouches.length === 1) {
+      const dx = ev.changedTouches[0].clientX - touchStart.x;
+      const dy = ev.changedTouches[0].clientY - touchStart.y;
+      if (Date.now() - touchStart.time < 300 && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+        const t = tileFromEvent({ clientX: ev.changedTouches[0].clientX, clientY: ev.changedTouches[0].clientY });
+        if (t && opts.onTileClick) opts.onTileClick(t.x, t.y);
+      }
+    }
+    touchStart = null;
+  });
+  renderer.domElement.addEventListener('touchmove', (ev) => {
+    if (ev.touches.length === 2 && touchStart) {
+      const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY);
+      if (touchStart.pinchD) zoom = Math.max(0.55, Math.min(2.2, zoom * (d / touchStart.pinchD)));
+      touchStart.pinchD = d;
+    }
+  }, { passive: true });
+
 
   window.addEventListener('resize', resize);
 

@@ -1,0 +1,256 @@
+{
+  "id": "mill",
+  "name": "The Abandoned Mill",
+  "theme": "hills",
+  "width": 26,
+  "height": 16,
+  "tileSizeFt": 5,
+  "blurb": "An old mill on the Vale’s edge, now home to bandits, cultists and things that should not walk.",
+  "objectiveText": "Slay the Mill Guardian in the Inner Sanctum, then return to your camp.",
+  "recommended": "Levels 4-7",
+  "playerStart": {
+    "x": 3,
+    "y": 13
+  },
+  "victory": {
+    "type": "slay_boss",
+    "campfire": {
+      "x": 3,
+      "y": 13
+    }
+  },
+  "wandering": [
+    "bandit",
+    "animated_armor",
+    "dire_wolf"
+  ],
+  "rooms": [
+    {
+      "id": "approach",
+      "name": "Overgrown Approach",
+      "rect": [
+        1,
+        12,
+        8,
+        14
+      ],
+      "desc": "Ivy chokes the millstone path."
+    },
+    {
+      "id": "grinding",
+      "name": "Grinding Floor",
+      "rect": [
+        1,
+        1,
+        10,
+        5
+      ],
+      "desc": "Millstones caked with old flour and blood."
+    },
+    {
+      "id": "storage",
+      "name": "Grain Storage",
+      "rect": [
+        14,
+        1,
+        24,
+        5
+      ],
+      "desc": "Sacks of rotten grain tower to the rafters."
+    },
+    {
+      "id": "yard",
+      "name": "Mill Yard",
+      "rect": [
+        1,
+        8,
+        24,
+        11
+      ],
+      "desc": "An open yard between the mill and the cliff edge."
+    },
+    {
+      "id": "inner",
+      "name": "The Inner Works",
+      "rect": [
+        12,
+        8,
+        20,
+        11
+      ],
+      "desc": "Gears and shafts, motionless now."
+    }
+  ],
+  "rows": [
+    "##########################",
+    "#........#.......#.......#",
+    "#........#.......D.......#",
+    "#...,,,..D...,,,.........#",
+    "#........#.......#...,,,..",
+    "#####D########D####.......",
+    "#........................#",
+    "#..,,,,,,,,..............#",
+    "#....................#####",
+    "#............,,,,,...D...#",
+    "#....#####.......#....#...",
+    "#....#...D.......D....D...",
+    "#....#####.......#........",
+    "#####D#############D######",
+    "#........................#",
+    "##########################"
+  ],
+  "entities": [
+    {
+      "type": "object",
+      "id": "mill_camp",
+      "name": "Delver’s Camp",
+      "x": 3,
+      "y": 13,
+      "icon": "🔥",
+      "desc": "A quiet corner."
+    },
+    {
+      "type": "monster",
+      "kind": "animated_armor",
+      "id": "ml_aa1",
+      "x": 5,
+      "y": 3
+    },
+    {
+      "type": "monster",
+      "kind": "animated_armor",
+      "id": "ml_aa2",
+      "x": 8,
+      "y": 4
+    },
+    {
+      "type": "monster",
+      "kind": "bandit",
+      "id": "ml_b1",
+      "x": 16,
+      "y": 2
+    },
+    {
+      "type": "monster",
+      "kind": "bandit",
+      "id": "ml_b2",
+      "x": 20,
+      "y": 4
+    },
+    {
+      "type": "monster",
+      "kind": "bandit_captain",
+      "id": "ml_cap",
+      "x": 18,
+      "y": 3
+    },
+    {
+      "type": "chest",
+      "id": "ml_c1",
+      "name": "Grain Silo Cache",
+      "x": 3,
+      "y": 1,
+      "icon": "🧰",
+      "locked": true,
+      "pickDc": 13,
+      "forceDc": 15,
+      "loot": {
+        "gold": "4d10",
+        "items": [
+          {
+            "id": "scroll_magic_missile",
+            "qty": 1
+          }
+        ]
+      }
+    },
+    {
+      "type": "monster",
+      "kind": "dire_wolf",
+      "id": "ml_dw",
+      "x": 5,
+      "y": 9
+    },
+    {
+      "type": "monster",
+      "kind": "cultist",
+      "id": "ml_cu1",
+      "x": 15,
+      "y": 9
+    },
+    {
+      "type": "monster",
+      "kind": "bandit",
+      "id": "ml_b3",
+      "x": 20,
+      "y": 10
+    },
+    {
+      "type": "chest",
+      "id": "ml_c2",
+      "name": "Yard Crate",
+      "x": 22,
+      "y": 10,
+      "icon": "🧰",
+      "loot": {
+        "gold": "3d10",
+        "potions": 2
+      }
+    },
+    {
+      "type": "trap",
+      "id": "ml_trap",
+      "name": "Grain Chute Trap",
+      "x": 12,
+      "y": 9,
+      "dc": 13,
+      "save": "dex",
+      "damage": "2d6",
+      "damageType": "bludgeoning"
+    },
+    {
+      "type": "monster",
+      "kind": "ogre",
+      "id": "ml_ogre",
+      "x": 16,
+      "y": 13
+    },
+    {
+      "type": "monster",
+      "kind": "cultist",
+      "id": "ml_cu2",
+      "x": 13,
+      "y": 13
+    },
+    {
+      "type": "chest",
+      "id": "ml_c3",
+      "name": "Inner Sanctum Chest",
+      "x": 20,
+      "y": 14,
+      "icon": "🧰",
+      "locked": true,
+      "pickDc": 15,
+      "forceDc": 17,
+      "loot": {
+        "gold": "6d10",
+        "items": [
+          {
+            "id": "ember_blade",
+            "qty": 1
+          }
+        ]
+      }
+    },
+    {
+      "type": "monster",
+      "kind": "tomb_warden",
+      "id": "ml_boss",
+      "x": 22,
+      "y": 13,
+      "boss": true,
+      "name": "Mill Guardian"
+    }
+  ],
+  "npcs": {}
+}

@@ -146,14 +146,56 @@ const MAP_NODES = [
     y: 80,
     icon: '🌀',
     levelRange: 'Any Level',
-    blurb: 'A procedurally generated dungeon that never ends. Each floor is unique; each descent is harder. How deep can you go?'
+  },
+  {
+    id: 'sewers',
+    name: 'Oakhaven Sewers',
+    region: 'Beneath Oakhaven',
+    type: 'dungeon',
+    mapId: 'sewers',
+    safe: false,
+    x: 28,
+    y: 60,
+    icon: '🕷️',
+    levelRange: 'Level 3-6',
+    blurb: 'Something has been breeding in the dark beneath the city. Clear the sewers.'
+  },
+  {
+    id: 'mill',
+    name: 'The Abandoned Mill',
+    region: 'The Outskirts',
+    type: 'dungeon',
+    mapId: 'mill',
+    safe: false,
+    x: 15,
+    y: 65,
+    icon: '🌾',
+    levelRange: 'Level 4-7',
+    blurb: 'An old mill overrun by bandits, cultists and things that should not walk.'
+  },
+  {
+    id: 'roost',
+    name: "The Sun Dragon\'s Roost",
+    region: 'The Volcanic Peaks',
+    type: 'dungeon',
+    mapId: 'roost',
+    safe: false,
+    x: 80,
+    y: 15,
+    icon: '🐉',
+    levelRange: 'Level 9-12',
+    blurb: 'The Ember Queen sleeps on a hoard of molten gold. The final challenge.'
   }
 ];
 
 const MAP_ROADS = [
   { from: 'oakhaven', to: 'crypt', label: "Old King's Highway", danger: 'Low' },
   { from: 'oakhaven', to: 'drowned-vault', label: 'Weeping Marsh Causeway', danger: 'Medium' },
-  { from: 'crypt', to: 'drowned-vault', label: 'Sunken Barrow Path', danger: 'High' }
+  { from: 'crypt', to: 'drowned-vault', label: 'Sunken Barrow Path', danger: 'High' },
+  { from: 'oakhaven', to: 'sewers', label: 'Beneath the Cobbles', danger: 'Low' },
+  { from: 'oakhaven', to: 'mill', label: 'The Outskirts Path', danger: 'Low' },
+  { from: 'oakhaven', to: 'roost', label: 'The Ashen Pass', danger: 'Extreme' },
+  { from: 'howling-hills', to: 'roost', label: 'The Volcanic Trail', danger: 'High' }
 ];
 
 const ARMORY_CATALOG = [
