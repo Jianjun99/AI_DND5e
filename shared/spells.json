@@ -636,6 +636,45 @@
         "type": "fire"
       },
       "desc": "A bright streak blossoms into a roiling flower of flame: DEX save or 6d6 fire damage, half on a success."
+    },
+    {
+      "id": "blight",
+      "name": "Blight",
+      "level": 4,
+      "classes": [
+        "druid",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ],
+      "target": "enemy",
+      "range": 30,
+      "save": {
+        "ability": "con",
+        "onSave": "half"
+      },
+      "damage": {
+        "dice": "8d8",
+        "type": "necrotic"
+      },
+      "desc": "Withering energy drains moisture and life: CON save or 8d8 necrotic damage, half on a success."
+    },
+    {
+      "id": "wall_of_force",
+      "name": "Wall of Force",
+      "level": 5,
+      "classes": [
+        "wizard"
+      ],
+      "target": "self",
+      "range": 0,
+      "conc": true,
+      "buff": {
+        "id": "wall_force",
+        "rounds": 10,
+        "ac": 3
+      },
+      "desc": "An invisible wall of force grants you +3 AC for 10 rounds. Nothing can pass through."
     }
   ]
 }

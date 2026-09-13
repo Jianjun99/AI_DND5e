@@ -122,6 +122,12 @@
           "id": "feral_instinct",
           "name": "Feral Instinct",
           "desc": "+2 to Initiative; you are rarely caught unaware."
+        },
+        {
+          "level": 11,
+          "id": "relentless_rage",
+          "name": "Relentless Rage",
+          "desc": "While raging, when dropped to 0 HP you make a DC 10 CON save to stay at 1 HP instead."
         }
       ],
       "subclass": {
@@ -213,6 +219,12 @@
           "id": "insp_d10",
           "name": "Greater Inspiration",
           "desc": "Your Bardic Inspiration die grows to a d10 at level 10."
+        },
+        {
+          "level": 10,
+          "id": "magical_secrets",
+          "name": "Magical Secrets",
+          "desc": "You learn one spell from any class list."
         }
       ],
       "subclass": {
@@ -319,6 +331,16 @@
           "name": "Divine Order",
           "desc": "You are blessed with martial training: you may wear medium armor and use martial weapons.",
           "mech": null
+        },
+        {
+          "level": 10,
+          "id": "divine_intervention",
+          "name": "Divine Intervention",
+          "desc": "Once per Long Rest, call upon your god for miraculous aid (heal to full).",
+          "button": true,
+          "kind": "action",
+          "uses": "1/long",
+          "mech": "divine_intervention"
         }
       ],
       "subclass": {
@@ -422,6 +444,12 @@
           "name": "Primal Order (Magical)",
           "desc": "You gain one extra Druid cantrip and proficiency in Nature.",
           "mech": "extra_cantrip"
+        },
+        {
+          "level": 10,
+          "id": "nature_ward",
+          "name": "Nature's Ward",
+          "desc": "You are immune to poison and disease."
         }
       ],
       "subclass": {
@@ -571,6 +599,12 @@
           "id": "indomitable",
           "name": "Indomitable",
           "desc": "Once per Long Rest, reroll a failed saving throw."
+        },
+        {
+          "level": 11,
+          "id": "extra_attack_2",
+          "name": "Extra Attack (2)",
+          "desc": "Your Extra Attack now grants three attacks instead of two."
         }
       ],
       "subclass": {
@@ -699,6 +733,12 @@
           "id": "monk_dice10",
           "name": "Martial Arts (1d10)",
           "desc": "Your unarmed strikes deal 1d10 damage at level 10."
+        },
+        {
+          "level": 10,
+          "id": "purity",
+          "name": "Purity of Body",
+          "desc": "You are immune to poison and disease."
         }
       ],
       "subclass": {
@@ -841,6 +881,13 @@
           "id": "aura_protection",
           "name": "Aura of Protection",
           "desc": "You and companions near you add your CHA modifier to saving throws (you always do)."
+        },
+        {
+          "level": 11,
+          "id": "improved_smite",
+          "name": "Improved Divine Smite",
+          "desc": "Your weapon attacks deal an extra +1d8 radiant damage.",
+          "mech": "improved_smite"
         }
       ],
       "subclass": {
@@ -971,6 +1018,12 @@
           "id": "roving",
           "name": "Roving",
           "desc": "Your speed increases by 10 ft."
+        },
+        {
+          "level": 10,
+          "id": "natures_veil",
+          "name": "Nature's Veil",
+          "desc": "You can cloak yourself in nature to become invisible as a bonus action."
         }
       ],
       "subclass": {
@@ -1102,6 +1155,12 @@
           "id": "evasion",
           "name": "Evasion",
           "desc": "On DEX saves that deal half damage on a success, you take none on a success and half on a failure."
+        },
+        {
+          "level": 11,
+          "id": "reliable_talent",
+          "name": "Reliable Talent",
+          "desc": "Whenever you make an ability check you are proficient in, treat any d20 roll below 10 as a 10."
         }
       ],
       "subclass": {
@@ -1181,6 +1240,12 @@
           "kind": "bonus",
           "uses": "1/long",
           "mech": "innate_sorcery"
+        },
+        {
+          "level": 12,
+          "id": "sorcery_incarnate",
+          "name": "Sorcery Incarnate",
+          "desc": "You can use your Innate Sorcery twice per Long Rest."
         }
       ],
       "subclass": {
@@ -1297,6 +1362,12 @@
           "kind": "free",
           "uses": "1/long",
           "mech": "magical_cunning"
+        },
+        {
+          "level": 12,
+          "id": "eldritch_master",
+          "name": "Eldritch Master",
+          "desc": "Once per Long Rest, regain all Pact Magic slots."
         }
       ],
       "subclass": {
@@ -1381,6 +1452,12 @@
           "name": "Scholar",
           "desc": "Expertise in two of Arcana, History, Nature, or Religion (auto-granted where proficient).",
           "mech": "expertise_auto"
+        },
+        {
+          "level": 12,
+          "id": "spell_mastery",
+          "name": "Spell Mastery",
+          "desc": "You can cast one 1st-level spell at will without expending a slot."
         }
       ],
       "subclass": {

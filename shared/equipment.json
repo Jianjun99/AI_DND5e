@@ -524,6 +524,34 @@
       "spell": "sleep",
       "cost": 80,
       "desc": "One-shot: 5d8 HP of magical slumber."
+    },
+    {
+      "id": "dragontooth_blade",
+      "name": "Dragontooth Blade",
+      "type": "magic_weapon",
+      "base": "longsword",
+      "magic": 2,
+      "bonusDamage": {
+        "dice": "1d8",
+        "type": "fire"
+      },
+      "cost": 500,
+      "desc": "+2 longsword carved from a dragon’s tooth: +1d8 fire damage on hit."
+    },
+    {
+      "id": "ring_greater",
+      "name": "Greater Ring of Protection",
+      "type": "magic_armor",
+      "acBonus": 2,
+      "cost": 400,
+      "desc": "+2 AC while worn — a band of woven force."
+    },
+    {
+      "id": "amulet_might",
+      "name": "Amulet of Mighty Strikes",
+      "type": "magic_trinket",
+      "cost": 350,
+      "desc": "+2 to damage with all weapon attacks."
     }
   ]
 }

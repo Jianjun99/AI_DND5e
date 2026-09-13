@@ -29,11 +29,11 @@ const SKILL_ABILITY = {
   sleight_of_hand: 'dex', stealth: 'dex', survival: 'wis'
 };
 const ALL_SKILLS = Object.keys(SKILL_ABILITY);
-const XP_THRESHOLDS = { 2: 300, 3: 900, 4: 2700, 5: 6500, 6: 8500, 7: 13000, 8: 19000, 9: 26000, 10: 34000 };
+const XP_THRESHOLDS = { 2: 300, 3: 900, 4: 2700, 5: 6500, 6: 8500, 7: 13000, 8: 19000, 9: 26000, 10: 34000, 11: 50000, 12: 75000 };
 const SLOTS = {
-  full: { 1: { 1: 2 }, 2: { 1: 3 }, 3: { 1: 4, 2: 2 }, 4: { 1: 4, 2: 3 }, 5: { 1: 4, 2: 3, 3: 2 }, 6: { 1: 4, 2: 3, 3: 3 }, 7: { 1: 4, 2: 3, 3: 3, 4: 1 }, 8: { 1: 4, 2: 3, 3: 3, 4: 2 }, 9: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }, 10: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 } },
-  half: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 3 }, 4: { 1: 3 }, 5: { 1: 4, 2: 2 }, 6: { 1: 4, 2: 2 }, 7: { 1: 4, 2: 3 }, 8: { 1: 4, 2: 3 }, 9: { 1: 4, 2: 3, 3: 2 }, 10: { 1: 4, 2: 3, 3: 2 } },
-  pact: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 2 }, 4: { 1: 2 }, 5: { 1: 2, 2: 2 }, 6: { 1: 2, 2: 2 }, 7: { 1: 2, 2: 3 }, 8: { 1: 2, 2: 3 }, 9: { 1: 2, 2: 3, 3: 1 }, 10: { 1: 2, 2: 3, 3: 1 } }
+  full: { 1: { 1: 2 }, 2: { 1: 3 }, 3: { 1: 4, 2: 2 }, 4: { 1: 4, 2: 3 }, 5: { 1: 4, 2: 3, 3: 2 }, 6: { 1: 4, 2: 3, 3: 3 }, 7: { 1: 4, 2: 3, 3: 3, 4: 1 }, 8: { 1: 4, 2: 3, 3: 3, 4: 2 }, 9: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }, 10: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 }, 11: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 1 }, 12: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 1 } },
+  half: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 3 }, 4: { 1: 3 }, 5: { 1: 4, 2: 2 }, 6: { 1: 4, 2: 2 }, 7: { 1: 4, 2: 3 }, 8: { 1: 4, 2: 3 }, 9: { 1: 4, 2: 3, 3: 2 }, 10: { 1: 4, 2: 3, 3: 2 }, 11: { 1: 4, 2: 3, 3: 2 }, 12: { 1: 4, 2: 3, 3: 2 } },
+  pact: { 1: { 1: 2 }, 2: { 1: 2 }, 3: { 1: 2 }, 4: { 1: 2 }, 5: { 1: 2, 2: 2 }, 6: { 1: 2, 2: 2 }, 7: { 1: 2, 2: 3 }, 8: { 1: 2, 2: 3 }, 9: { 1: 2, 2: 3, 3: 1 }, 10: { 1: 2, 2: 3, 3: 1 }, 11: { 1: 2, 2: 3, 3: 1 }, 12: { 1: 2, 2: 3, 3: 2 } }
 };
 
 const byId = (arr, id) => arr.find(x => x.id === id);
@@ -305,7 +305,7 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
 
   if (cls.spellcasting) {
     const table = SLOTS[cls.spellcasting.slots];
-    const slotsDef = table[Math.min(level, 10)] || {};
+    const slotsDef = table[Math.min(level, 12)] || {};
     char.slotsMax = { ...slotsDef };
     char.slots = char.slots && Object.keys(char.slots).length ? char.slots : { ...slotsDef };
     char.slotsRefresh = cls.spellcasting.slots === 'pact' ? 'short' : 'long';
@@ -935,6 +935,8 @@ function monsterAttack(state, attacker, target, atk, events) {
       mods.dmgDice.push({ dice: '1d8', type: 'superiority' });
       events.push({ type: 'note', narrate: false, text: 'Commander\u2019s Strike! +1d8 damage.' });
     }
+    // Improved Divine Smite (paladin L11+)
+    if (char.className === 'paladin' && char.level >= 11 && !atk.spell) mods.dmgDice.push({ dice: '1d8', type: 'radiant' });
     // Oath of Devotion's Sacred Weapon
     if (hasBuff(attacker, 'sacred_weapon') && !atk.spell) {
       mods.bonusFlat += 1;
@@ -1079,6 +1081,7 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
     bonusTxts.push(`+${r.total} ${b.type}`);
     if (b.oncePerTurn) state.flags['used_' + b.oncePerTurn] = true;
   });
+  if (char.inventory.some(i => i.itemId === 'amulet_might') && !atk.spell) { dmgTotal += 2; bonusTxts.push('+2 might'); }
   if (atk.bonusDamage) {
     const r = rollExpr(atk.bonusDamage.dice);
     dmgTotal += r.total;
@@ -1933,7 +1936,7 @@ function levelUp(state, newLevel, events) {
   }
   // Ability Score Improvements at level 4 and 8 (auto-assigned to the class primary)
   char.asiCount = char.asiCount || 0;
-  const asiLevels = [4, 8];
+  const asiLevels = [4, 8, 12];
   asiLevels.forEach(asiLevel => {
     if (newLevel >= asiLevel && char.asiCount < asiLevels.indexOf(asiLevel) + 1) {
       char.asiCount++;
@@ -2041,6 +2044,7 @@ function skillCheck(state, skill, dc) {
   if (insp) { bonus += die(insp.dice || 6); bonusTxt += ` +1d${insp.dice || 6} inspiration`; removeBuff(p, 'inspiration'); }
   let roll = d20({ adv: skill === 'stealth' && char.subclass === 'thief', reroll1: char.rerollNat1 });
   let total = roll.natural + skillMod(char, skill) + bonus;
+  if (char.subclass === 'thief' && char.className === 'rogue' && char.level >= 11 && char.skills.includes(skill) && total < 10 + skillMod(char, skill) + bonus) { total = 10 + skillMod(char, skill) + bonus; }
   let rerolled = false;
   if (total < dc && (char.uses.lucky_reroll || 0) > 0) {
     char.uses.lucky_reroll--;
