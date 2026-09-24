@@ -114,18 +114,41 @@ shows its prose (serif font, gold bar); dice results appear underneath.
 │   ├── game/engine.js     dice, character math, combat, movement, fog of war, XP
 │   ├── game/referee.js    freeform text → real skill checks
 │   ├── game/dm.js         LLM narration & NPC role-play (with offline fallback)
-│   └── routes/            characters, game actions, settings
+│   ├── game/content.js    content-pack registry (maps, monsters, gear)
+│   ├── game/endless.js    procedural floors for the Endless Depths
+│   ├── game/affixes.js    elite-champion affixes + procedural magic-item rarity
+│   ├── game/potions.js    experimental brews & delve-only prize tokens
+│   ├── game/gambling.js   roulette / sic bo / slot machine (real-table odds)
+│   └── routes/            characters, game actions, city hub, settings
 ├── shared/            D&D 2024 content: species, classes, backgrounds, equipment,
-│                      spells, monsters, and the crypt map
-├── public/            vanilla-JS single-page frontend (canvas map renderer)
-├── scripts/           smoke-test used by CI (health → character → delve → combat)
-├── .github/workflows  CI smoke test + automatic Docker image publishing to ghcr.io
+│                      spells, monsters, and the core maps
+├── content/           shipped content packs (drowned-vault, howling-hills,
+│                      sunlit-vale-expansion) — the same format players can author
+├── public/            vanilla-JS single-page frontend (canvas + Three.js renderers)
+├── tests/             unit / integration / headless-browser e2e suites
+├── scripts/           smoke-test (CI gate) · test-all (11 suites) · balance-sim
+├── .github/workflows  CI + automatic Docker image publishing to ghcr.io
 ├── Dockerfile         node:20-alpine, non-root, healthcheck
 └── docker-compose.yml volume + host.docker.internal wiring
 ```
 
 Data (characters, saves, DM settings) is stored as JSON under `/app/data` in the container —
 mount it (or use the compose volume) to keep your progress.
+
+## Release history
+
+| Version | Headline |
+|---|---|
+| **v1.8.0** | Elite Champion affixes, loot rarity tiers, a camera you can free (and pan), tavern gambling with delve-only prize tokens, experimental brews with an identification check — plus fixes for the missing ability modifier on weapon damage, double-counted magic bonuses, inert monster resistances, long rests inflating max HP, town purchases vanishing, and a level-up badge that could promise a level the server refused. |
+| v1.7.0 | Level cap 10 → 12 (spell slots to 6th level, second ASI, tier-3 class features), three Sunlit Vale dungeons (Sewers, Mill, Sun Dragon's Roost), legendary items, Endless Depths procedural mode, five new 3D monster rigs. |
+| v1.6.0 | Performance pass, articulated 3D miniature rigs with walk cycles, interactive level-up modal, full automated test suite. |
+| v1.5.0 | Overworld region map with road encounters, Oakhaven town hub (tavern, armory, apothecary, guildhall, Hall of Heroes), visual paperdoll, delve retreat. |
+| v1.4.0 | Levels 6-10, Howling Hills, volume control + ambient audio, Piper TTS, community content packs. |
+| v1.3.0 | UI fixes (Continue button, settings modal interception, sheet view). |
+| v1.2.0 | Connected dungeons (stairs between maps), content-pack modding system, side quests, Drowned Vault. |
+| v1.0.0 | First release: character portal, tactical grid combat, fog of war, AI DM narration, Docker packaging. |
+
+Full notes for every release: [github.com/Jianjun99/AI_DND5e/releases](https://github.com/Jianjun99/AI_DND5e/releases)
 
 ## Troubleshooting
 
