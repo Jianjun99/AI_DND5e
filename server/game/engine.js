@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const content = require('./content');
 const affixes = require('./affixes');
+const forgeMod = require('./forge');
 
 const SHARED = path.join(__dirname, '..', '..', 'shared');
 const load = (f) => JSON.parse(fs.readFileSync(path.join(SHARED, f), 'utf8'));
@@ -941,10 +942,33 @@ function applyDamage(state, target, amount, dmgType, events, opts = {}) {
         state.character.bestiary = state.character.bestiary || {};
         const mKey = target.monsterId || target.id.replace(/_\d+$/, '');
         state.character.bestiary[mKey] = (state.character.bestiary[mKey] || 0) + 1;
+        // elite champions are catalogued per affix so the bestiary can show which variants you met
+        if (target.affix && target.affix.id) {
+          state.character.bestiaryElite = state.character.bestiaryElite || {};
+          const seen = state.character.bestiaryElite[mKey] = state.character.bestiaryElite[mKey] || {};
+          seen[target.affix.id] = (seen[target.affix.id] || 0) + 1;
+        }
+        // first kill of a species fills in its bestiary page (XP once, no permanent combat bonus)
+        state.character.bestiaryRewarded = state.character.bestiaryRewarded || {};
+        if (!state.character.bestiaryRewarded[mKey]) {
+          state.character.bestiaryRewarded[mKey] = true;
+          const bonus = 15 + Math.round((target.xp || 50) * 0.15);
+          const bEv = { type: 'bestiary_entry', narrate: true, text: `📖 图鉴收录：${target.name} — 首次击杀，+${bonus} XP。` };
+          events.push(bEv); addLog(state, 'mech', bEv.text);
+          state.flags = state.flags || {};
+          state.flags.pendingBestiaryBonus = (state.flags.pendingBestiaryBonus || 0) + bonus;
+        }
       }
       const ev = { type: 'kill', narrate: true, text: `${target.name} is destroyed! (+${target.xp} XP)`, data: { xp: target.xp, targetId: target.id, targetX: target.x, targetY: target.y } };
       events.push(ev); addLog(state, 'mech', ev.text);
       awardXp(state, target.xp, events);
+      // the bestiary first-kill bonus rides on the same XP award (queued in applyDamage so it
+      // is paid once, after the normal kill XP)
+      if (state.flags && state.flags.pendingBestiaryBonus) {
+        const bonus = state.flags.pendingBestiaryBonus;
+        state.flags.pendingBestiaryBonus = 0;
+        awardXp(state, bonus, events);
+      }
       rollLoot(state, target, events);
       checkQuest(state, 'slay', target.monsterId, events);
     } else if (target.kind === 'ally') {
@@ -2287,6 +2311,8 @@ function rollLoot(state, mon, events) {
     addItemToInventory(char, magicItem);
     parts.push(`[${rarity === 'rare' ? '稀有 🟣' : '魔法 🔵'}] ${magicItem.name}`);
     gained.push(magicItem);
+    char.essence = (char.essence || 0) + forgeMod.KILL_ESSENCE.elite;
+    parts.push(`${forgeMod.KILL_ESSENCE.elite} 余烬精华`);
     events.push({
       type: 'elite_loot',
       narrate: true,
@@ -2299,6 +2325,8 @@ function rollLoot(state, mon, events) {
     addItemToInventory(char, magicItem);
     parts.push(`[${rarity === 'legendary' ? '传奇 🟠' : '稀有 🟣'}] ${magicItem.name}`);
     gained.push(magicItem);
+    char.essence = (char.essence || 0) + forgeMod.KILL_ESSENCE.boss;
+    parts.push(`${forgeMod.KILL_ESSENCE.boss} 余烬精华`);
     events.push({
       type: 'boss_loot',
       narrate: true,

@@ -5,6 +5,9 @@ const content = require('../game/content');
 const dm = require('../game/dm');
 const potions = require('../game/potions');
 const gambling = require('../game/gambling');
+const forge = require('../game/forge');
+const campaignMod = require('../game/campaign');
+const affixesMod = require('../game/affixes');
 
 const router = express.Router();
 
@@ -187,6 +190,21 @@ const MAP_NODES = [
     icon: '🐉',
     levelRange: 'Level 9-12',
     blurb: 'The Ember Queen sleeps on a hoard of molten gold. The final challenge.'
+  },
+  {
+    // the road table below already referenced this node; the map itself ships in the
+    // howling-hills content pack, so it belongs on the region map too
+    id: 'howling-hills',
+    name: 'The Howling Hills',
+    region: 'The Northern Moors',
+    type: 'dungeon',
+    mapId: 'howling-hills',
+    safe: false,
+    x: 46,
+    y: 24,
+    icon: '🐺',
+    levelRange: 'Level 5-10',
+    blurb: 'Wind-scoured moors where a bandit warband answers to something with too many teeth.'
   }
 ];
 
@@ -270,6 +288,33 @@ function lookupItemPrice(itemId) {
   return 10;
 }
 
+// Mirror a roster character's gear changes into every delve save they have running, so a
+// forged/salvaged item shows up (and stats match) when they continue an older delve.
+function syncCharToDelves(char) {
+  try {
+    store.listSaves().forEach(s => {
+      if (s.characterId !== char.id) return;
+      const save = store.getSave(s.id);
+      if (!save || !save.character) return;
+      save.character.inventory = char.inventory;
+      save.character.equipped = char.equipped;
+      save.character.attacks = char.attacks;
+      save.character.acBase = char.acBase;
+      save.character.hpMax = char.hpMax;
+      save.character.itemHpBonus = char.itemHpBonus;
+      save.character.appliedTempHpMod = char.appliedTempHpMod;
+      if (typeof char.essence === 'number') save.character.essence = char.essence;
+      const pe = (save.entities || []).find(e => e.kind === 'player');
+      if (pe) {
+        pe.ac = engine.currentAc(save, pe);
+        pe.hpMax = save.character.hpMax;
+        pe.hp = Math.min(pe.hp, pe.hpMax);
+      }
+      store.saveGame(save);
+    });
+  } catch {}
+}
+
 // Delve-only prizes wait on the hero until the next delve, then vanish with it.
 function tokensIntoPending(char, token) {
   char.pendingDelveItems = char.pendingDelveItems || [];
@@ -320,11 +365,26 @@ router.get('/info', (req, res) => {
       },
       tokens: Object.values(potions.DELVE_TOKENS).map(t => ({ id: t.id, name: t.name, icon: t.icon, desc: t.desc, value: t.value }))
     },
+    forge: {
+      costs: forge.FORGE_COSTS,
+      salvage: forge.SALVAGE_ESSENCE,
+      killEssence: forge.KILL_ESSENCE
+    },
+    campaign: char ? {
+      objective: campaignMod.objective(char.campaign),
+      progress: campaignMod.progress(char.campaign),
+      currentActId: (campaignMod.currentAct(char.campaign) || {}).id || null,
+      currentActName: (campaignMod.currentAct(char.campaign) || {}).name || null,
+      actByMap: Object.fromEntries(campaignMod.ACTS.flatMap(a => a.mapIds.map(m => [m, a.id]))),
+      actNames: Object.fromEntries(campaignMod.ACTS.map(a => [a.id, a.name]))
+    } : null,
     character: char ? {
       ...char,
       levelUp: engine.levelUpInfo(char),
       pendingDelveItems: char.pendingDelveItems || [],
-      pendingCurses: char.pendingCurses || []
+      pendingCurses: char.pendingCurses || [],
+      essence: char.essence || 0,
+      campaign: campaignMod.ensure(char.campaign)
     } : null
   });
 });
@@ -554,6 +614,49 @@ router.post('/sync-delve', (req, res) => {
       char.bestiary[mId] = Math.max(char.bestiary[mId] || 0, count);
     });
   }
+  // elite variants seen (per affix) and the one-off first-kill rewards
+  if (delve && delve.character && delve.character.bestiaryElite) {
+    char.bestiaryElite = char.bestiaryElite || {};
+    Object.entries(delve.character.bestiaryElite).forEach(([mId, variants]) => {
+      char.bestiaryElite[mId] = char.bestiaryElite[mId] || {};
+      Object.entries(variants || {}).forEach(([affixId, count]) => {
+        char.bestiaryElite[mId][affixId] = Math.max(char.bestiaryElite[mId][affixId] || 0, count);
+      });
+    });
+  }
+  if (delve && delve.character && delve.character.bestiaryRewarded) {
+    char.bestiaryRewarded = { ...(delve.character.bestiaryRewarded || {}), ...(char.bestiaryRewarded || {}) };
+  }
+  // forge currency earned in the delve
+  if (delve && delve.character && typeof delve.character.essence === 'number') {
+    char.essence = delve.character.essence;
+  }
+
+  // Main campaign: a victorious delve advances the story (order-checked and idempotent)
+  if (delve && delve.mode === 'victory') {
+    const before = campaignMod.ensure(char.campaign).stage;
+    const adv = campaignMod.advance(char.campaign || campaignMod.newCampaign(), delve.mapId);
+    char.campaign = adv.campaign;
+    if (adv.advanced) {
+      if (adv.reward) {
+        char.gold = (char.gold || 0) + (adv.reward.gold || 0);
+        char.xp = (char.xp || 0) + (adv.reward.xp || 0);
+      }
+      char.campaignLog = char.campaignLog || [];
+      char.campaignLog.push({ act: adv.act, text: adv.text, ts: Date.now() });
+      if (adv.completed) char.campaign.epilogue = null;   // written on first view
+    }
+    if (before !== char.campaign.stage) {
+      // keep the roster level in step with any campaign XP
+      for (const [lvl, threshold] of Object.entries(engine.XP_THRESHOLDS)) {
+        if (char.level < +lvl && char.xp >= threshold) {
+          char.level = +lvl;
+          const cls = (engine.CLASSES || []).find(c => c.id === char.className);
+          if (cls) engine.applyClassAndSpecies(char, cls, null, +lvl);
+        }
+      }
+    }
+  }
 
   char.delvesCompleted = (char.delvesCompleted || 0) + 1;
   saveChar(char);
@@ -578,9 +681,12 @@ router.get('/hall-of-heroes', (req, res) => {
     }
   });
 
+  const eliteSeen = (currentChar && currentChar.bestiaryElite) ? currentChar.bestiaryElite : {};
+  const rewarded = (currentChar && currentChar.bestiaryRewarded) ? currentChar.bestiaryRewarded : {};
   const bestiaryList = allMonsters.map(m => {
     const kills = charBestiary[m.id] || 0;
     const globalKills = globalBestiary[m.id] || 0;
+    const variants = eliteSeen[m.id] || {};
     return {
       id: m.id,
       name: m.name,
@@ -590,11 +696,31 @@ router.get('/hall-of-heroes', (req, res) => {
       xp: m.xp,
       lore: m.lore || m.desc || `A creature lurking in the dark corridors of the subterranean vaults. Worth ${m.xp} XP.`,
       weakness: m.weakness || (m.vulnerabilities ? m.vulnerabilities.join(', ') : 'None documented'),
+      // full statblock detail, revealed once the entry is unlocked
+      traits: m.traits || [],
+      attacks: (m.attacks || []).map(a => `${a.name} +${a.bonus} (${a.damage} ${a.damageType || ''})`.trim()),
+      resistances: m.resistances || [],
+      vulnerabilities: m.vulnerabilities || [],
+      immunities: m.immunities || [],
+      boss: !!m.boss,
+      loot: m.loot ? { gold: m.loot.gold || null, items: (m.loot.items || []).length } : null,
+      // elite affix variants you have personally put down (the rest stay "???")
+      eliteVariants: Object.keys(variants).map(affixId => {
+        const def = affixesMod.MONSTER_AFFIXES[affixId] || {};
+        return { id: affixId, name: def.name || affixId, color: def.color || '#f59e0b', desc: def.desc || '', kills: variants[affixId] };
+      }),
       kills,
       globalKills,
+      firstKillRewarded: !!rewarded[m.id],
       unlocked: kills > 0 || globalKills > 0
     };
   });
+  const bestiaryProgress = {
+    seen: bestiaryList.filter(b => b.unlocked).length,
+    total: bestiaryList.length,
+    variantsSeen: bestiaryList.reduce((n, b) => n + b.eliteVariants.length, 0),
+    variantsTotal: bestiaryList.length * Object.keys(affixesMod.MONSTER_AFFIXES).length
+  };
 
   // 2. Trophies & Achievements
   const totalKills = Object.values(charBestiary).reduce((a, b) => a + b, 0);
@@ -694,13 +820,130 @@ router.get('/hall-of-heroes', (req, res) => {
     ok: true,
     characterName: currentChar ? currentChar.name : 'Unknown Hero',
     bestiary: bestiaryList,
+    bestiaryProgress,
     trophies,
     champions,
+    campaign: currentChar ? {
+      campaign: campaignMod.ensure(currentChar.campaign),
+      objective: campaignMod.objective(currentChar.campaign),
+      progress: campaignMod.progress(currentChar.campaign),
+      acts: campaignMod.ACTS.map(a => ({
+        id: a.id, act: a.act, name: a.name, icon: a.icon, mapName: a.mapName, blurb: a.blurb,
+        done: campaignMod.actDone(currentChar.campaign, a.id)
+      }))
+    } : null,
     stats: {
       totalKills,
       totalDelves,
       currentGold,
       currentLevel
+    }
+  });
+});
+
+// POST /api/city/forge — melt magic gear into essence, reroll an affix, or upgrade rarity
+router.post('/forge', (req, res) => {
+  const { charId, action, uniqueId } = req.body || {};
+  const char = getChar(charId);
+  if (!char) return res.status(404).json({ error: 'Character not found' });
+  char.essence = char.essence || 0;
+
+  const item = (char.inventory || []).find(i => i.uniqueId === uniqueId);
+  if (!item) return res.status(400).json({ error: '找不到这件装备。' });
+
+  if (action === 'salvage') {
+    if (Object.values(char.equipped || {}).includes(uniqueId)) {
+      return res.status(400).json({ error: '先把它脱下来，再熔解。' });
+    }
+    const v = forge.salvageValue(item);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    char.essence += v.essence;
+    char.gold = (char.gold || 0) + v.gold;
+    char.inventory = char.inventory.filter(i => i.uniqueId !== uniqueId);
+    saveChar(char);
+    syncCharToDelves(char);
+    return res.json({
+      ok: true, char, essence: v.essence, gold: v.gold,
+      message: `熔解 ${item.name} → +${v.essence} 余烬精华、+${v.gold} gp。`
+    });
+  }
+
+  if (action !== 'reroll' && action !== 'upgrade') {
+    return res.status(400).json({ error: '锻造台只会熔解、重铸和升阶。' });
+  }
+
+  const cost = forge.forgeCost(action, item.rarity);
+  if (!cost) return res.status(400).json({ error: action === 'upgrade' ? '已经是传奇品质，无法再升。' : '这件装备无法改造。' });
+  if ((char.gold || 0) < cost.gold || char.essence < cost.essence) {
+    return res.status(400).json({ error: `材料不足：需要 ${cost.gold} gp + ${cost.essence} 余烬精华（你有 ${char.gold || 0} gp、${char.essence} 精华）。` });
+  }
+
+  const result = action === 'reroll' ? forge.rerollAffix(item) : forge.upgradeRarity(item);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+
+  char.gold -= cost.gold;
+  char.essence -= cost.essence;
+  forge.replaceItem(char, result.item);
+  // an affix can change AC, max HP or the weapon profile — recompute exactly like an equip does
+  const cls = (engine.CLASSES || []).find(c => c.id === char.className);
+  if (cls) engine.applyClassAndSpecies(char, cls, null, char.level || 1, true);
+  saveChar(char);
+  syncCharToDelves(char);
+
+  res.json({
+    ok: true, char, item: result.item, cost,
+    message: `${action === 'reroll' ? '重铸' : '升阶'}完成：${result.text}（-${cost.gold} gp、-${cost.essence} 精华）`
+  });
+});
+
+// GET /api/city/campaign — main story state, current objective and the epilogue once finished
+router.get('/campaign', async (req, res) => {
+  const char = getChar(req.query.charId);
+  if (!char) return res.status(404).json({ error: 'Character not found' });
+  const c = campaignMod.ensure(char.campaign);
+
+  // the epilogue is written once (AI DM when configured) and then cached on the character
+  if (c.completedAt && !c.epilogue) {
+    const stats = {
+      kills: Object.values(char.bestiary || {}).reduce((a, b) => a + b, 0),
+      delves: char.delvesCompleted || 0
+    };
+    let text = null;
+    try {
+      if (await dm.available()) {
+        text = await dm.callLlm([
+          { role: 'system', content: 'You are the Dungeon Master closing a long D&D campaign. Write a 3-4 sentence epilogue in Chinese for the hero named in the message. Warm, a little wistful, specific to the deeds listed. No headings, no lists.' },
+          { role: 'user', content: `英雄：${char.name}（${char.className}，等级 ${char.level}）。事迹：取回沉没圣物、打开淹没地窟、集齐三条线索、击杀烬后 Yzmerith。累计击杀 ${stats.kills}，完成地牢 ${stats.delves} 次。请写收场词。` }
+        ]);
+      }
+    } catch {}
+    c.epilogue = text || campaignMod.fallbackEpilogue(char, stats);
+    char.campaign = c;
+    saveChar(char);
+  }
+
+  res.json({
+    ok: true,
+    characterName: char.name,
+    campaign: c,
+    objective: campaignMod.objective(c),
+    progress: campaignMod.progress(c),
+    log: char.campaignLog || [],
+    acts: campaignMod.ACTS.map(a => ({
+      id: a.id, act: a.act, name: a.name, icon: a.icon, mapName: a.mapName,
+      objective: a.objective, blurb: a.blurb, reward: a.reward,
+      done: campaignMod.actDone(c, a.id),
+      clues: a.id === 'clues' ? Object.keys(campaignMod.CLUE_LABELS).map(k => ({
+        id: k, name: campaignMod.CLUE_LABELS[k], done: !!c.acts.clues[k]
+      })) : null
+    })),
+    epilogue: c.completedAt ? c.epilogue : null,
+    stats: {
+      level: char.level,
+      kills: Object.values(char.bestiary || {}).reduce((a, b) => a + b, 0),
+      delves: char.delvesCompleted || 0,
+      gold: char.gold || 0,
+      trophies: (char.bestiary ? Object.keys(char.bestiary).length : 0)
     }
   });
 });

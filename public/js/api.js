@@ -46,5 +46,7 @@ export const api = {
   cityRumor: (topic) => req('POST', '/api/city/rumor', { topic }),
   cityGamble: (payload) => req('POST', '/api/city/gamble', payload),
   cityIdentify: (charId, uniqueId) => req('POST', '/api/city/identify', { charId, uniqueId }),
+  cityForge: (charId, action, uniqueId) => req('POST', '/api/city/forge', { charId, action, uniqueId }),
+  campaign: (charId) => req('GET', '/api/city/campaign' + (charId ? `?charId=${charId}` : '')),
   hallOfHeroes: (charId) => req('GET', '/api/city/hall-of-heroes' + (charId ? `?charId=${charId}` : ''))
 };

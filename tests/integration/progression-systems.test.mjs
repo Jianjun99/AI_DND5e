@@ -3,6 +3,7 @@
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const engine = require('../../server/game/engine.js');
+const affixesMod = require('../../server/game/affixes.js');
 const content = require('../../server/game/content.js');
 const store = require('../../server/store.js');
 
@@ -457,6 +458,67 @@ await (async () => {
     passed += 18;
 
     await fetch(`${BASE_URL}/api/game/${gambleDelveId}`, { method: 'DELETE' });
+
+    // 13. Forge, bestiary detail and the main campaign over HTTP
+    {
+      const chars13 = store.getCharacters();
+      const mine13 = chars13.find(c => c.id === char.id);
+      mine13.gold = 3000;
+      mine13.essence = 12;
+      mine13.inventory.push(affixesMod.rollMagicItem('magic', { category: 'weapon' }));
+      store.saveCharacters(chars13);
+
+      const inv13 = (await (await fetch(`${BASE_URL}/api/characters/${char.id}`)).json()).inventory;
+      const forgeItem = inv13.find(i => i.rarity === 'magic' && i.type === 'weapon');
+      assert(forgeItem != null, 'A magic weapon is in the inventory to forge');
+
+      const rerollRes = await cityPost('/forge', { charId: char.id, action: 'reroll', uniqueId: forgeItem.uniqueId });
+      assert(rerollRes.status === 200, `Reroll accepted (${rerollRes.body.message || rerollRes.body.error})`);
+      assert(rerollRes.body.item.uniqueId === forgeItem.uniqueId && rerollRes.body.item.affix !== forgeItem.affix,
+        'The forge swapped the affix while keeping the item identity');
+      assert(rerollRes.body.char.essence === 11, `Reroll spent one essence (left ${rerollRes.body.char.essence})`);
+
+      const upgradeRes = await cityPost('/forge', { charId: char.id, action: 'upgrade', uniqueId: forgeItem.uniqueId });
+      assert(upgradeRes.status === 200 && upgradeRes.body.item.rarity === 'rare', 'Upgrade moved it to rare');
+      assert(upgradeRes.body.char.gold === 3000 - 60 - 200, `Both actions charged gold (left ${upgradeRes.body.char.gold})`);
+
+      const equippedNow = await cityPost('/forge', { charId: char.id, action: 'salvage', uniqueId: (upgradeRes.body.char.equipped || {}).mainHand || 'nope' });
+      assert(equippedNow.status === 400, 'Equipped gear cannot be salvaged without taking it off first');
+
+      const salvageRes = await cityPost('/forge', { charId: char.id, action: 'salvage', uniqueId: forgeItem.uniqueId });
+      assert(salvageRes.status === 200, 'The upgraded item can be melted down');
+      assert(!(salvageRes.body.char.inventory || []).some(i => i.uniqueId === forgeItem.uniqueId), 'The salvaged item is gone from the inventory');
+
+      const campaignRes = await (await fetch(`${BASE_URL}/api/city/campaign?charId=${char.id}`)).json();
+      assert(campaignRes.acts.length === 4 && campaignRes.objective.text.length > 0, 'The campaign endpoint reports four acts and an objective');
+      assert(campaignRes.acts.every(a => typeof a.done === 'boolean'), 'Each act carries a done flag');
+      assert(campaignRes.progress.total === 4, 'Progress is measured out of four acts');
+      assert(campaignRes.epilogue === null || typeof campaignRes.epilogue === 'string', 'The epilogue is either pending or written');
+
+      const hallRes = await (await fetch(`${BASE_URL}/api/city/hall-of-heroes?charId=${char.id}`)).json();
+      assert(hallRes.bestiaryProgress && hallRes.bestiaryProgress.total >= 10, 'The hall reports bestiary progress');
+      assert(Array.isArray(hallRes.bestiary[0].eliteVariants), 'Bestiary entries list elite variants');
+      assert('traits' in hallRes.bestiary[0] && 'resistances' in hallRes.bestiary[0], 'Bestiary entries expose the full statblock fields');
+      assert(hallRes.campaign && hallRes.campaign.progress, 'The hall carries the campaign summary too');
+
+      // campaign advance over HTTP: win the crypt and settle
+      const cryptDelve = await (await fetch(`${BASE_URL}/api/game/start`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ characterId: char.id, bringAlly: false, difficulty: 'normal', mapId: 'crypt' })
+      })).json();
+      const cryptSave = store.getSave(cryptDelve.state.id);
+      cryptSave.mode = 'victory';
+      cryptSave.flags.victory = true;
+      store.saveGame(cryptSave);
+      const settled = await cityPost('/sync-delve', { charId: char.id, delveStateId: cryptDelve.state.id });
+      assert(settled.body.char.campaign.stage === 1, `Winning the crypt advances act 1 (stage ${settled.body.char.campaign.stage})`);
+      assert((settled.body.char.campaignLog || []).length >= 1, 'The advance is written to the campaign log');
+      const settledAgain = await cityPost('/sync-delve', { charId: char.id, delveStateId: cryptDelve.state.id });
+      assert(settledAgain.body.char.campaign.stage === 1, 'Settling twice does not advance the story twice');
+      await fetch(`${BASE_URL}/api/game/${cryptDelve.state.id}`, { method: 'DELETE' });
+      console.log('  ✔ PASS: Forge actions, bestiary detail and the main campaign advance over HTTP');
+      passed += 16;
+    }
 
     // Clean up test save and character
     await fetch(`${BASE_URL}/api/game/${saveId}`, { method: 'DELETE' });

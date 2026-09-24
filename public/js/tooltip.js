@@ -453,6 +453,27 @@ export function hideTooltip() {
 export function initTooltips(container = document, rulesCatalog = {}) {
   ensureTooltipElement();
 
+  // touch devices never fire mouseleave, so a tapped tooltip would stay on screen forever.
+  // Tap to show, tap anywhere else (or after a few seconds) to dismiss.
+  if (!window.__dndTooltipTouchBound) {
+    window.__dndTooltipTouchBound = true;
+    document.addEventListener('touchstart', (ev) => {
+      const target = ev.target && ev.target.closest ? ev.target.closest('[data-item-tooltip]') : null;
+      if (!target) { hideTooltip(); return; }
+      const payload = target.getAttribute('data-item-tooltip');
+      if (!payload) return;
+      const touch = ev.touches && ev.touches[0];
+      const point = touch || { clientX: 0, clientY: 0 };
+      if (payload.trim().startsWith('{')) {
+        try { showTooltip(point, JSON.parse(payload), container.__rules || {}); } catch { /* id lookup below */ }
+      } else {
+        showTooltip(point, payload, container.__rules || {});
+      }
+      clearTimeout(window.__dndTooltipTimer);
+      window.__dndTooltipTimer = setTimeout(hideTooltip, 4000);
+    }, { passive: true });
+  }
+
   container.querySelectorAll('[data-item-tooltip]').forEach(el => {
     if (el._hasTooltip) return;
     el._hasTooltip = true;

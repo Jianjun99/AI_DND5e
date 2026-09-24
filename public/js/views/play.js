@@ -1,6 +1,6 @@
 // play.js — the delve: canvas map, combat HUD, log, chat
 import { api } from '../api.js';
-import { esc, toast, state as appState, charObjective } from '../app.js';
+import { esc, toast, state as appState, charObjective, campaignObjective } from '../app.js';
 import { createMapRenderer } from '../map.js';
 import { createMap3D } from '../map3d.js';
 import { settingsView, openSettingsModal } from './settings.js';
@@ -97,7 +97,7 @@ export async function playView(main, saveRef) {
     <div class="play-layout">
       <div>
         <div class="map-wrap" id="mapWrap">
-          <div id="map3d" style="width:100%; height:560px;"></div>
+          <div id="map3d"></div>
           
           <!-- 2D Minimap (Corner overlay in 3D mode, full in 2D mode) -->
           <div id="minimapContainer" class="minimap-container">
@@ -255,8 +255,12 @@ export async function playView(main, saveRef) {
     }
 
     if (objPill) {
+      const mainStep = campaignObjective(game);
       if (cleared && game.mode !== 'over') {
         objPill.innerHTML = `🌟 <b>Delve Cleared:</b> Head to Campfire / Entrance to Return to Town`;
+      } else if (mainStep) {
+        // the main story takes precedence over the local dungeon objective
+        objPill.innerHTML = `📜 <b>${esc(game.campaign.actName || '主线')}</b> ${esc(mainStep.text)}`;
       } else {
         objPill.textContent = `🎯 ${charObjective(game)}`;
       }

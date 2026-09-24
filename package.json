@@ -1,6 +1,6 @@
 {
   "name": "ai-dnd",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Offline D&D 2024 game with optional local LLM Dungeon Master voice",
   "main": "server/index.js",
   "type": "commonjs",

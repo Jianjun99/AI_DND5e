@@ -11,6 +11,7 @@ import { openLevelUpModal } from './levelup.js';
 let activeChar = null;
 let cityData = null;
 let hallData = null;
+const hallFilter = { seen: 'all', cr: 'all', sort: 'cr' };
 let currentTab = 'map'; // 'map' or 'city'
 let currentDistrict = 'tavern'; // 'tavern', 'armory', 'apothecary', 'guildhall', 'hall_of_heroes'
 let selectedNodeId = 'oakhaven';
@@ -138,8 +139,23 @@ function getCompanionName(compVal) {
 function renderMapContent() {
   const nodes = cityData?.mapNodes || [];
   const selectedNode = nodes.find(n => n.id === selectedNodeId) || nodes[0];
+  const camp = cityData?.campaign || null;
+  const campObjective = camp?.objective || null;
+  const campProgress = camp?.progress || null;
+  const actByMap = camp?.actByMap || {};
 
   return `
+    ${campObjective ? `
+      <div class="card campaign-banner ${campObjective.done ? 'campaign-done' : ''}" style="margin-bottom:14px; border-color:var(--gold-dim);">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap;">
+          <h3 style="margin:0;">📜 主线 · ${campObjective.done ? '已完成' : (campObjective.act ? `第 ${campObjective.act} 幕` : '')}</h3>
+          <span class="chip gold-chip" title="四幕主线进度">${campProgress ? campProgress.label : ''}</span>
+        </div>
+        <p class="small" style="margin:6px 0 0; color:var(--gold);">${esc(campObjective.text)}</p>
+        ${campObjective.done ? `<p class="muted small" style="margin:6px 0 0;">想看收场词？<a href="#/campaign/${activeChar.id}">打开结局面板 ↗</a></p>` : ''}
+      </div>
+    ` : ''}
+
     <div class="region-map-container">
       <!-- SVG Map Canvas -->
       <div class="map-viewport card">
@@ -204,17 +220,21 @@ function renderMapContent() {
             const isSel = n.id === selectedNodeId;
             const isCity = n.type === 'city';
             const color = isCity ? '#c9a959' : (n.id === 'crypt' ? '#b8433a' : '#5f8fb4');
+            // the next campaign step gets a golden ring so the story is always findable
+            const isCampaignStep = !!(camp?.currentActId && actByMap[n.mapId] === camp.currentActId);
 
             return `
               <g class="map-node-group ${isSel ? 'active' : ''}" data-node-id="${n.id}" style="cursor:pointer;">
                 ${isSel ? `<circle cx="${cx}" cy="${cy}" r="34" fill="${color}" opacity="0.25" filter="url(#glowEffect)" />` : ''}
-                <circle cx="${cx}" cy="${cy}" r="22" fill="#1b1712" stroke="${color}" stroke-width="${isSel ? '3' : '2'}" />
+                ${isCampaignStep ? `<circle class="campaign-ring" cx="${cx}" cy="${cy}" r="28" fill="none" stroke="#f5c451" stroke-width="2" stroke-dasharray="5 4" opacity="0.95" />` : ''}
+                <circle cx="${cx}" cy="${cy}" r="22" fill="#1b1712" stroke="${isCampaignStep ? '#f5c451' : color}" stroke-width="${isSel ? '3' : '2'}" />
                 <text x="${cx}" y="${cy + 6}" font-size="20" text-anchor="middle">${n.icon}</text>
                 <!-- Name Banner Below -->
-                <rect x="${cx - 65}" y="${cy + 30}" width="130" height="22" rx="4" fill="#14110e" stroke="${color}" stroke-width="1" opacity="0.9"/>
-                <text x="${cx}" y="${cy + 45}" fill="${color}" font-family="Georgia, serif" font-size="12" font-weight="bold" text-anchor="middle">
+                <rect x="${cx - 65}" y="${cy + 30}" width="130" height="22" rx="4" fill="#14110e" stroke="${isCampaignStep ? '#f5c451' : color}" stroke-width="1" opacity="0.9"/>
+                <text x="${cx}" y="${cy + 45}" fill="${isCampaignStep ? '#f5c451' : color}" font-family="Georgia, serif" font-size="12" font-weight="bold" text-anchor="middle">
                   ${esc(n.name)}
                 </text>
+                ${isCampaignStep ? `<text x="${cx}" y="${cy - 28}" fill="#f5c451" font-size="11" font-weight="bold" text-anchor="middle">📜 主线</text>` : ''}
               </g>
             `;
           }).join('')}
@@ -542,6 +562,12 @@ function renderGambleTable() {
 function renderArmory() {
   const armoryItems = cityData?.shops?.armory || [];
   const charInventory = activeChar.inventory || [];
+  const forgeCosts = cityData?.forge?.costs || {};
+  const essence = activeChar.essence || 0;
+  const equippedRefs = Object.values(activeChar.equipped || {});
+  const forgeable = charInventory.filter(i => isForgeableItem(i));
+  const worn = forgeable.filter(i => equippedRefs.includes(i.uniqueId));
+  const spare = forgeable.filter(i => !equippedRefs.includes(i.uniqueId));
 
   return `
     <div class="district-header">
@@ -549,9 +575,10 @@ function renderArmory() {
       <p class="sub">Master Torvin hammers glowing steel atop an obsidian anvil. Heavy weapons and forged chainmail line the stone racks.</p>
     </div>
 
-    <div class="shop-tabs" style="display:flex; gap:8px; margin-bottom:14px;">
+    <div class="shop-tabs" style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
       <button class="btn primary" id="armoryBuyTabBtn">Purchase Arms & Armor</button>
       <button class="btn" id="armorySellTabBtn">Sell Loot (${charInventory.length} items)</button>
+      <button class="btn" id="armoryForgeTabBtn">🔨 锻造台 (${forgeable.length})</button>
     </div>
 
     <!-- Buy Section -->
@@ -573,6 +600,61 @@ function renderArmory() {
           </div>
         `).join('')}
       </div>
+    </div>
+
+    <!-- Forge Section (hidden by default) -->
+    <div id="armoryForgeSection" class="hidden">
+      <div class="card" style="background:var(--bg2); border-color:var(--gold-dim);">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
+          <h3 style="margin:0;">🔥 熔炉与铁砧</h3>
+          <span class="chip gold-chip" title="熔解魔法装备、击杀精英与首领都能得到精华">余烬精华 ×${essence}</span>
+        </div>
+        <p class="muted small" style="margin:6px 0 0;">
+          熔解不要的词缀装备可得精华；花金币 + 精华就能<b>重铸词缀</b>或<b>升阶品质</b>。装备中的东西要先脱下来。
+        </p>
+      </div>
+
+      ${!forgeable.length ? `
+        <p class="muted" style="padding:20px; text-align:center;">还没有可以改造的装备。去地牢里打倒精英怪或首领吧。</p>
+      ` : `
+        <div class="shop-grid" style="margin-top:12px;">
+          ${forgeable.map(i => {
+            const isWorn = equippedRefs.includes(i.uniqueId);
+            const reroll = forgeCosts.reroll?.[i.rarity] || null;
+            const upgrade = forgeCosts.upgrade?.[i.rarity] || null;
+            const canAfford = (c) => c && (activeChar.gold || 0) >= c.gold && essence >= c.essence;
+            const costText = (c) => c ? `${c.gold} gp + ${c.essence} 精华` : '—';
+            return `
+              <div class="shop-item-card card forge-card rarity-${i.rarity}" style="background:var(--bg2);">
+                <div class="shop-item-header">
+                  <span class="shop-item-name"><b>${esc(i.name)}</b></span>
+                  <span class="chip">${i.rarity === 'legendary' ? '🟠 传奇' : i.rarity === 'rare' ? '🟣 稀有' : '🔵 魔法'}</span>
+                </div>
+                <p class="muted small" style="margin:6px 0 8px; min-height:28px;">${esc(i.desc || '')}</p>
+                ${isWorn ? '<div class="muted small" style="margin-bottom:6px;">⚠️ 装备中：改造前请先脱下</div>' : ''}
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                  <button class="btn small forge-action-btn" data-forge-action="reroll" data-unique="${i.uniqueId}"
+                          ${(!reroll || isWorn || !canAfford(reroll)) ? 'disabled' : ''}
+                          title="换一条同稀有度的新词缀">
+                    🎲 重铸词缀 · ${costText(reroll)}
+                  </button>
+                  <button class="btn small forge-action-btn" data-forge-action="upgrade" data-unique="${i.uniqueId}"
+                          ${(!upgrade || isWorn || !canAfford(upgrade)) ? 'disabled' : ''}
+                          title="提升一档品质（附魔加值与词缀效果同步提升）">
+                    ⬆️ 升阶 · ${upgrade ? costText(upgrade) : '已是传奇'}
+                  </button>
+                  <button class="btn small forge-action-btn" data-forge-action="salvage" data-unique="${i.uniqueId}"
+                          ${isWorn ? 'disabled' : ''}
+                          title="熔解成余烬精华（不可撤销）">
+                    🔥 熔解 · +${(cityData?.forge?.salvage?.[i.rarity]) || 1} 精华
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        ${worn.length ? `<p class="muted small" style="margin-top:10px;">已装备的 ${worn.length} 件需要先脱下才能改造（在角色页或地牢背包里操作）。</p>` : ''}
+      `}
     </div>
 
     <!-- Sell Section (hidden by default) -->
@@ -743,7 +825,18 @@ function renderHallOfHeroes() {
     `;
   }
 
-  const { bestiary = [], trophies = [], champions = [], stats = {} } = hallData;
+  const { bestiary = [], trophies = [], champions = [], stats = {}, bestiaryProgress = null, campaign = null } = hallData;
+  const crFilter = hallFilter.cr || 'all';
+  const sortBy = hallFilter.sort || 'cr';
+  const shown = bestiary
+    .filter(m => hallFilter.seen === 'all' || (hallFilter.seen === 'seen' ? m.unlocked : !m.unlocked))
+    .filter(m => crFilter === 'all' || String(m.cr) === String(crFilter))
+    .slice()
+    .sort((a, b) => {
+      if (sortBy === 'kills') return (b.kills || 0) - (a.kills || 0);
+      if (sortBy === 'name') return String(a.name).localeCompare(String(b.name));
+      return (parseFloat(String(b.cr)) || 0) - (parseFloat(String(a.cr)) || 0);
+    });
 
   return `
     <div class="district-header">
@@ -751,23 +844,67 @@ function renderHallOfHeroes() {
       <p class="sub">Etched in white marble and polished brass, the grand deeds of Oakhaven's adventurers endure forever.</p>
     </div>
 
+    ${campaign ? `
+      <div class="card" style="margin-bottom:14px; border-color:var(--gold-dim); background:var(--bg2);">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
+          <h3 style="margin:0;">📜 主线进度 · ${campaign.progress.label}</h3>
+          <a class="btn small" href="#/campaign/${activeChar.id}">查看四幕与结局 ↗</a>
+        </div>
+        <div class="campaign-track" style="margin-top:8px;">
+          ${campaign.acts.map(a => `
+            <span class="campaign-step ${a.done ? 'done' : ''}" title="${esc(a.mapName)}">
+              ${a.icon} ${esc(a.name.replace(/^第.幕 · /, ''))}
+            </span>`).join('<span class="campaign-arrow">→</span>')}
+        </div>
+      </div>` : ''}
+
     <div class="hall-container">
       <div class="hall-nav-tabs">
-        <button class="hall-tab-btn active" data-hall-tab="bestiary">🐲 Monster Bestiary (${bestiary.filter(m => m.unlocked).length}/${bestiary.length})</button>
+        <button class="hall-tab-btn active" data-hall-tab="bestiary">🐲 Monster Bestiary (${bestiaryProgress ? bestiaryProgress.seen : bestiary.filter(m => m.unlocked).length}/${bestiary.length})</button>
         <button class="hall-tab-btn" data-hall-tab="trophies">🏆 Trophy Showcase (${trophies.filter(t => t.unlocked).length}/${trophies.length})</button>
         <button class="hall-tab-btn" data-hall-tab="champions">👑 Hall of Champions (${champions.length})</button>
       </div>
 
       <!-- Bestiary Tab -->
-      <div class="bestiary-grid" id="hallSecBestiary">
-        ${bestiary.map(m => {
+      <div id="hallSecBestiary">
+        ${bestiaryProgress ? `
+          <div class="bestiary-toolbar">
+            <span class="muted small">已收录 <b>${bestiaryProgress.seen}/${bestiaryProgress.total}</b> 怪种 · 精英变体 <b>${bestiaryProgress.variantsSeen}/${bestiaryProgress.variantsTotal}</b></span>
+            <div class="bestiary-filters">
+              <select id="bestiarySeenFilter" class="small">
+                <option value="all" ${hallFilter.seen === 'all' ? 'selected' : ''}>全部</option>
+                <option value="seen" ${hallFilter.seen === 'seen' ? 'selected' : ''}>已收录</option>
+                <option value="unseen" ${hallFilter.seen === 'unseen' ? 'selected' : ''}>未收录</option>
+              </select>
+              <select id="bestiaryCrFilter" class="small">
+                <option value="all" ${crFilter === 'all' ? 'selected' : ''}>所有 CR</option>
+                ${[...new Set(bestiary.map(m => String(m.cr)))].sort().map(cr => `<option value="${cr}" ${String(crFilter) === cr ? 'selected' : ''}>CR ${cr}</option>`).join('')}
+              </select>
+              <select id="bestiarySortFilter" class="small">
+                <option value="cr" ${sortBy === 'cr' ? 'selected' : ''}>按 CR</option>
+                <option value="kills" ${sortBy === 'kills' ? 'selected' : ''}>按击杀</option>
+                <option value="name" ${sortBy === 'name' ? 'selected' : ''}>按名称</option>
+              </select>
+            </div>
+          </div>` : ''}
+        <div class="bestiary-grid">
+        ${shown.map(m => {
           const isUnlocked = m.unlocked || m.kills > 0 || m.globalKills > 0;
+          const detailRows = [];
+          if (m.traits?.length) detailRows.push(['特性', m.traits.join('、')]);
+          if (m.attacks?.length) detailRows.push(['攻击', m.attacks.join(' / ')]);
+          if (m.resistances?.length) detailRows.push(['抗性', m.resistances.join('、')]);
+          if (m.vulnerabilities?.length) detailRows.push(['易伤', m.vulnerabilities.join('、')]);
+          if (m.immunities?.length) detailRows.push(['免疫', m.immunities.join('、')]);
+          if (m.boss) detailRows.push(['身份', '首领 · 击杀必掉稀有或传奇装备']);
+          if (m.loot?.gold) detailRows.push(['掉落', `金币 ${m.loot.gold}${m.loot.items ? ` + ${m.loot.items} 种物品` : ''}`]);
           return `
             <div class="bestiary-card ${isUnlocked ? '' : 'locked'}">
               <div class="bestiary-card-header">
                 <div class="bestiary-title-group">
-                  <span class="bestiary-icon">${isUnlocked ? '👾' : '❓'}</span>
+                  <span class="bestiary-icon">${isUnlocked ? (m.boss ? '👹' : '👾') : '❓'}</span>
                   <span class="bestiary-name">${isUnlocked ? esc(m.name) : 'Unknown Beast'}</span>
+                  ${m.boss ? '<span class="chip" style="font-size:10px;">BOSS</span>' : ''}
                 </div>
                 <span class="bestiary-cr-badge">CR ${m.cr}</span>
               </div>
@@ -779,13 +916,29 @@ function renderHallOfHeroes() {
               <div class="bestiary-lore">
                 ${isUnlocked ? esc(m.lore) : 'Encounter and defeat this creature in the deep dungeons to reveal its traits and vulnerabilities.'}
               </div>
+              ${isUnlocked && detailRows.length ? `
+                <div class="bestiary-detail">
+                  ${detailRows.map(([k, v]) => `<div><span class="muted">${k}</span> <span>${esc(v)}</span></div>`).join('')}
+                </div>` : ''}
+              ${isUnlocked ? `
+                <div class="bestiary-variants">
+                  <span class="muted small">精英变体：</span>
+                  ${Object.keys({ blazing: 1, stone_skinned: 1, vampiric: 1, venomous: 1, storm_charged: 1 }).map(affixId => {
+                    const seen = (m.eliteVariants || []).find(v => v.id === affixId);
+                    const label = { blazing: '炽炎', stone_skinned: '石肤', vampiric: '嗜血', venomous: '剧毒', storm_charged: '狂雷' }[affixId] || affixId;
+                    return seen
+                      ? `<span class="chip" style="font-size:10px; color:${seen.color}; border-color:${seen.color};" title="${esc(seen.desc)}">${label} ×${seen.kills}</span>`
+                      : '<span class="chip" style="font-size:10px; opacity:0.45;" title="还没遇到过这种变体">???</span>';
+                  }).join('')}
+                </div>` : ''}
               <div class="bestiary-kill-footer">
                 <span>Weakness: <i>${isUnlocked ? esc(m.weakness) : '???'}</i></span>
-                <span>Party Slain: <b>${m.globalKills || m.kills || 0}</b></span>
+                <span>${m.firstKillRewarded ? '📖 已收录 · ' : ''}Slain: <b>${m.kills || 0}</b>${m.globalKills ? ` <span class="muted small">(全队 ${m.globalKills})</span>` : ''}</span>
               </div>
             </div>
           `;
         }).join('')}
+        </div>
       </div>
 
       <!-- Trophies Tab -->
@@ -852,6 +1005,11 @@ function formatItemName(id) {
   return String(id || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// A rolled magic item (dropped loot) can be forged; plain shop gear and quest items cannot.
+function isForgeableItem(i) {
+  return !!(i && i.rarity && i.affix && ['weapon', 'armor', 'shield'].includes(i.type));
+}
+
 // -------------------------------------------------------------
 // EVENT HANDLERS
 // -------------------------------------------------------------
@@ -886,6 +1044,20 @@ function attachHeaderEvents(main, allChars) {
       render(main, allChars);
     });
   }
+
+  // Bestiary filters
+  const seenSel = document.getElementById('bestiarySeenFilter');
+  const crSel = document.getElementById('bestiaryCrFilter');
+  const sortSel = document.getElementById('bestiarySortFilter');
+  [seenSel, crSel, sortSel].forEach(sel => {
+    if (!sel) return;
+    sel.addEventListener('change', () => {
+      if (seenSel) hallFilter.seen = seenSel.value;
+      if (crSel) hallFilter.cr = crSel.value;
+      if (sortSel) hallFilter.sort = sortSel.value;
+      rerenderPanel(main);
+    });
+  });
 
   const lvlBtn = document.getElementById('btnTownLevelUp');
   if (lvlBtn) {
@@ -1143,23 +1315,45 @@ function attachDistrictSpecificEvents(main) {
   // Armory tabs (Buy vs Sell)
   const armoryBuyTab = document.getElementById('armoryBuyTabBtn');
   const armorySellTab = document.getElementById('armorySellTabBtn');
+  const armoryForgeTab = document.getElementById('armoryForgeTabBtn');
   const buySec = document.getElementById('armoryBuySection');
   const sellSec = document.getElementById('armorySellSection');
+  const forgeSec = document.getElementById('armoryForgeSection');
 
   if (armoryBuyTab && armorySellTab) {
-    armoryBuyTab.addEventListener('click', () => {
-      armoryBuyTab.classList.add('primary');
-      armorySellTab.classList.remove('primary');
-      buySec?.classList.remove('hidden');
-      sellSec?.classList.add('hidden');
-    });
-    armorySellTab.addEventListener('click', () => {
-      armorySellTab.classList.add('primary');
-      armoryBuyTab.classList.remove('primary');
-      sellSec?.classList.remove('hidden');
-      buySec?.classList.add('hidden');
-    });
+    const showSection = (which) => {
+      [['buy', armoryBuyTab, buySec], ['sell', armorySellTab, sellSec], ['forge', armoryForgeTab, forgeSec]].forEach(([, btn, sec]) => {
+        if (!btn) return;
+        btn.classList.toggle('primary', btn === which);
+        sec?.classList.toggle('hidden', sec !== (which === armoryBuyTab ? buySec : which === armorySellTab ? sellSec : forgeSec));
+      });
+    };
+    armoryBuyTab.addEventListener('click', () => showSection(armoryBuyTab));
+    armorySellTab.addEventListener('click', () => showSection(armorySellTab));
+    if (armoryForgeTab) armoryForgeTab.addEventListener('click', () => showSection(armoryForgeTab));
   }
+
+  // Forge: salvage / reroll / upgrade a magic item
+  main.querySelectorAll('.forge-action-btn').forEach(b => {
+    b.addEventListener('click', async () => {
+      const action = b.getAttribute('data-forge-action');
+      const uniqueId = b.getAttribute('data-unique');
+      if (action === 'salvage' && !confirm('熔解后这件装备就没了（换回精华）。确定？')) return;
+      b.disabled = true;
+      try {
+        const res = await api.cityForge(activeChar.id, action, uniqueId);
+        activeChar = res.char;
+        sfx.play(action === 'salvage' ? 'hazard_burn' : 'equip');
+        if (action !== 'salvage') sfx.play('trophy_unlock');
+        toast(res.message);
+        await loadCityInfo();
+        render(main, [activeChar]);
+      } catch (e) {
+        toast(e.message);
+        b.disabled = false;
+      }
+    });
+  });
 
   // Shop item purchases (Armory & Apothecary)
   // Identify an experimental brew: one INT (Arcana) check, rolled on the server

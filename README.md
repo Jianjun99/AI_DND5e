@@ -70,6 +70,10 @@ Requires Node.js 20+.
 | **Companion** | Bram the Scout can join you as an AI-controlled ally (recommended for solo balance). |
 | **Oakhaven** | A town hub between delves: tavern (rests, rumors, a **gambling table**), armory, apothecary, guildhall bounties, and a Hall of Heroes with your bestiary and trophies. |
 | **Gambling** | Three tables at honest real-world odds (roulette 97.3% return, sic bo 97.2%, slots ~89%): bet gold, win gold or **delve-only prize tokens** (luck coin, talisman, slaying oil…). The opt-in **Devil's Bargain** tier pays far more — but three skulls curse your next delve. |
+| **Forge** | Melt unwanted magic gear into **ember essence**, then spend gold + essence at the armory forge to **reroll an affix** or **upgrade rarity** (magic → rare → legendary). Elites and bosses pay essence directly; equipped gear must be taken off first. |
+| **Bestiary** | The Hall of Heroes catalogues every species you have put down: full statblocks once recorded, **elite affix variants** (unseen ones stay `???`), first-kill rewards, and filters by CR / kill count / collection state. |
+| **Main story** | A four-act campaign across the existing dungeons: the Relic → the Vault Key → **three clues in any order** (Howling Hills / Sewers / Mill) → the Ember Queen. The region map marks the current step, and finishing it unlocks an epilogue written by your AI DM. |
+| **Runs anywhere** | Multi-arch image (amd64 + arm64) for desktops, Apple Silicon and ARM NAS boxes; the UI adapts from a phone (390px) to a desktop, with two-finger pan/zoom on the 3D board and tap-friendly tooltips. |
 | **Experimental brews** | The apothecary sells unidentified potions: the effect is rolled when you buy the bottle and stays hidden until you read it with an INT (Arcana) check — once per bottle — or drink it blind. Mostly good (temp HP, advantage, +5 max HP), sometimes mixed, occasionally poison, a lost rest or a lost hit die. |
 | **Death** | Fall, and you wake at camp at half HP with the monsters back at their posts — the delve continues. |
 
@@ -119,6 +123,8 @@ shows its prose (serif font, gold bar); dice results appear underneath.
 │   ├── game/affixes.js    elite-champion affixes + procedural magic-item rarity
 │   ├── game/potions.js    experimental brews & delve-only prize tokens
 │   ├── game/gambling.js   roulette / sic bo / slot machine (real-table odds)
+│   ├── game/forge.js      salvage, affix reroll and rarity upgrades
+│   ├── game/campaign.js   the four-act main story state machine
 │   └── routes/            characters, game actions, city hub, settings
 ├── shared/            D&D 2024 content: species, classes, backgrounds, equipment,
 │                      spells, monsters, and the core maps
@@ -139,6 +145,7 @@ mount it (or use the compose volume) to keep your progress.
 
 | Version | Headline |
 |---|---|
+| **v1.9.0** | The armory forge (salvage gear into essence, reroll affixes, upgrade rarity), a bestiary with elite variants and first-kill rewards, a four-act main story with an epilogue, an arm64 image, and a full device-adaptation pass (phone → desktop). |
 | **v1.8.0** | Elite Champion affixes, loot rarity tiers, a camera you can free (and pan), tavern gambling with delve-only prize tokens, experimental brews with an identification check — plus fixes for the missing ability modifier on weapon damage, double-counted magic bonuses, inert monster resistances, long rests inflating max HP, town purchases vanishing, and a level-up badge that could promise a level the server refused. |
 | v1.7.0 | Level cap 10 → 12 (spell slots to 6th level, second ASI, tier-3 class features), three Sunlit Vale dungeons (Sewers, Mill, Sun Dragon's Roost), legendary items, Endless Depths procedural mode, five new 3D monster rigs. |
 | v1.6.0 | Performance pass, articulated 3D miniature rigs with walk cycles, interactive level-up modal, full automated test suite. |

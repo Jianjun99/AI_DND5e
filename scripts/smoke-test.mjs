@@ -106,6 +106,23 @@ async function waitHealthy() {
   if (typeof identify.total !== 'number' || typeof identify.dc !== 'number') throw new Error('Identify did not roll a check');
   console.log(`✔ identify check rolled: ${identify.total} vs DC ${identify.dc} — ${identify.success ? 'revealed' : 'failed'}`);
 
+  // Forge & main campaign (city layer, v1.9)
+  {
+    const info2 = await req('GET', `/api/city/info?charId=${char.id}`);
+    if (!info2.forge || !info2.forge.costs) throw new Error('City payload is missing the forge costs');
+    if (!info2.campaign || !info2.campaign.objective) throw new Error('City payload is missing the campaign state');
+    console.log(`✔ forge & campaign advertised (salvage ${JSON.stringify(info2.forge.salvage)}, objective "${info2.campaign.objective.text.slice(0, 18)}…")`);
+
+    const campaignState = await req('GET', `/api/city/campaign?charId=${char.id}`);
+    if (campaignState.acts.length !== 4) throw new Error('The campaign must have four acts');
+    console.log(`✔ campaign endpoint: ${campaignState.progress.label} — ${campaignState.acts.map(a => a.icon + (a.done ? '✓' : '·')).join(' ')}`);
+
+    const hall = await req('GET', `/api/city/hall-of-heroes?charId=${char.id}`);
+    if (!hall.bestiaryProgress || hall.bestiaryProgress.total < 10) throw new Error('Bestiary progress missing');
+    if (!('eliteVariants' in hall.bestiary[0])) throw new Error('Bestiary entries must list elite variants');
+    console.log(`✔ bestiary: ${hall.bestiaryProgress.seen}/${hall.bestiaryProgress.total} species, ${hall.bestiaryProgress.variantsTotal} elite variants tracked`);
+  }
+
   // Journal recap at the campfire
   await req('POST', `/api/game/${sid}/action`, { type: 'move', x: 3, y: 2 });
   const recapped = await req('POST', `/api/game/${sid}/action`, { type: 'recap' });

@@ -6,6 +6,7 @@ import { sheetView } from './views/sheet.js';
 import { playView } from './views/play.js';
 import { settingsView, openSettingsModal } from './views/settings.js';
 import { overworldView } from './views/overworld.js';
+import { campaignView } from './views/campaign.js';
 
 export const state = {
   rules: null,
@@ -31,6 +32,15 @@ export function charObjective(game) {
   return '💎 ' + (game.map.objectiveText || 'Steal the Relic of the Sunless Crypt from the altar in the deepest sanctum, then escape to the campfire. Legends speak of an ogre that guards it…');
 }
 
+// The main-story step this map belongs to, when it is the current one (set by the server on
+// the delve payload as game.campaign).
+export function campaignObjective(game) {
+  const c = game && game.campaign;
+  if (!c || !c.objective || c.objective.done) return null;
+  if (!c.isCurrentStep) return null;
+  return c.objective;
+}
+
 export function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -49,6 +59,7 @@ const routes = [
   { re: /^#\/overworld(?:\?.*)?$/, view: overworldView, nav: 'overworld' },
   { re: /^#\/character\/([\w-]+)$/, view: sheetView, nav: 'home' },
   { re: /^#\/play\/([\w-]+)(\?.*)?$/, view: playView, nav: 'home' },
+  { re: /^#\/campaign(?:\/([\w-]+))?$/, view: campaignView, nav: 'home' },
   { re: /^#\/settings$/, view: settingsView, nav: 'settings' }
 ];
 

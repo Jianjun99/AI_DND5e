@@ -169,6 +169,21 @@ world gets them for free:
     does exactly that (roulette 36/37, sic bo 97.2%, slots 88.8% standard / 84.3% devil).
   - Edit a paytable and the unit suite reports what it did to the house edge.
 
+## Forge, bestiary & the main story
+
+Three core systems read the same content packs:
+
+- **Forge** (`server/game/forge.js`) — any item your pack drops through the normal loot path
+  (`affixes.rollMagicItem`) can be salvaged, rerolled or upgraded. Prices and essence yields live
+  in `FORGE_COSTS` / `SALVAGE_ESSENCE` / `KILL_ESSENCE`. It rebuilds items through
+  `affixes.buildAffixItem`, so a pack-authored affix (add one to `WEAPON_AFFIXES` or
+  `ARMOR_AFFIXES`) automatically becomes a legal reroll target.
+- **Bestiary** — every monster your pack defines is catalogued automatically from its statblock
+  (traits, resistances, attacks, loot). Elite affix variants are tracked per species, so
+  `MONSTER_AFFIXES` additions show up as new collection slots.
+- **Main story** (`server/game/campaign.js`) — `ACTS` maps story beats onto map ids. A pack map
+  is only part of the story if an act lists it; everything else stays a free-roam dungeon.
+
 ## Share with the community
 
 - **Export & import** (in-game) works one-on-one: pack → JSON file → friend imports it.

@@ -134,26 +134,32 @@ const BASE_ARMORS = [
 
 const uidCounter = { n: 0 };
 
-function rollMagicItem(rarity = 'magic', opts = {}) {
-  const isWeapon = opts.category ? opts.category === 'weapon' : Math.random() < 0.65;
-  const basePool = isWeapon ? BASE_WEAPONS : BASE_ARMORS;
-  const base = basePool[Math.floor(Math.random() * basePool.length)];
-  const affixPool = isWeapon ? WEAPON_AFFIXES : ARMOR_AFFIXES;
-  const affix = affixPool[Math.floor(Math.random() * affixPool.length)];
+// Base catalogue row for a rolled item (weapons and armour/shields live in separate pools).
+function baseById(id) {
+  return BASE_WEAPONS.find(b => b.id === id) || BASE_ARMORS.find(b => b.id === id) || null;
+}
 
+function affixPoolFor(type) {
+  return type === 'weapon' ? WEAPON_AFFIXES : ARMOR_AFFIXES;
+}
+
+function affixById(id, type) {
+  return affixPoolFor(type).find(a => a.id === id) || null;
+}
+
+// Assemble a rolled item from a base + affix + rarity. This is the single source of truth for
+// what "+1 flaming longsword" means — loot drops and the forge both go through it.
+function buildAffixItem(base, affix, rarity = 'magic', uniqueId = null) {
+  const isWeapon = base.type === 'weapon';
   const isRare = rarity === 'rare';
   const isLegendary = rarity === 'legendary';
 
-  // unique per rolled instance so two "炽火之长剑" never collide in an inventory
-  uidCounter.n = (uidCounter.n + 1) % 46656;
-  const uid = `affix_${affix.id}_${base.id}_${Date.now().toString(36).slice(-4)}${uidCounter.n.toString(36)}`;
   const magicBonus = isLegendary ? 2 : (isRare ? 1 : (affix.magic || 0));
 
   let namePrefix = affix.prefix;
   if (isRare) namePrefix = `精铸·${namePrefix}`;
   if (isLegendary) namePrefix = `传奇·${namePrefix}`;
 
-  const fullName = `${namePrefix}${base.name}`;
   const descParts = [];
   if (magicBonus > 0 && isWeapon) descParts.push(`+${magicBonus} 攻击检定`);
   if (affix.bonusDamage) {
@@ -165,12 +171,12 @@ function rollMagicItem(rarity = 'magic', opts = {}) {
   if (affix.hpBonus) descParts.push(`+${affix.hpBonus * (isRare ? 2 : 1)} 最大生命值`);
   if (affix.speedBonus) descParts.push(`+${affix.speedBonus} 移动速度`);
 
-  const item = {
+  return {
     itemId: base.id, // keeps clean base compatibility with weapon/armor lookup
-    uniqueId: uid,
-    name: fullName,
+    uniqueId: uniqueId || `affix_${affix.id}_${base.id}_${nextUidSuffix()}`,
+    name: `${namePrefix}${base.name}`,
     englishName: `${affix.english} ${base.english}`,
-    rarity: rarity, // 'magic' | 'rare' | 'legendary'
+    rarity,               // 'magic' | 'rare' | 'legendary'
     affix: affix.id,
     type: base.type,
     magic: magicBonus,
@@ -186,8 +192,20 @@ function rollMagicItem(rarity = 'magic', opts = {}) {
     desc: descParts.join('，') || affix.desc,
     qty: 1
   };
+}
 
-  return item;
+function nextUidSuffix() {
+  uidCounter.n = (uidCounter.n + 1) % 46656;
+  return `${Date.now().toString(36).slice(-4)}${uidCounter.n.toString(36)}`;
+}
+
+function rollMagicItem(rarity = 'magic', opts = {}) {
+  const isWeapon = opts.category ? opts.category === 'weapon' : Math.random() < 0.65;
+  const basePool = isWeapon ? BASE_WEAPONS : BASE_ARMORS;
+  const base = basePool[Math.floor(Math.random() * basePool.length)];
+  const affixPool = isWeapon ? WEAPON_AFFIXES : ARMOR_AFFIXES;
+  const affix = affixPool[Math.floor(Math.random() * affixPool.length)];
+  return buildAffixItem(base, affix, rarity);
 }
 
 module.exports = {
@@ -197,5 +215,12 @@ module.exports = {
   applyMonsterAffix,
   WEAPON_AFFIXES,
   ARMOR_AFFIXES,
-  rollMagicItem
+  BASE_WEAPONS,
+  BASE_ARMORS,
+  rollMagicItem,
+  buildAffixItem,
+  baseById,
+  affixById,
+  affixPoolFor
 };
+

@@ -8,6 +8,7 @@ const endless = require('../game/endless');
 const contentMod = require('../game/content');
 const gambling = require('../game/gambling');
 const potions = require('../game/potions');
+const campaignMod = require('../game/campaign');
 
 const router = express.Router();
 
@@ -24,6 +25,16 @@ function sanitize(state) {
   // level-up endpoint then refuses ("not enough XP").
   const roster = findCharacter(view.characterId);
   view.levelUp = engine.levelUpInfo(roster || view.character);
+  // Main-story step for this map (drives the delve HUD objective line)
+  const campaign = campaignMod.ensure(roster && roster.campaign);
+  const step = campaignMod.actForMap(campaign, view.mapId);
+  view.campaign = {
+    objective: campaignMod.objective(campaign),
+    progress: campaignMod.progress(campaign),
+    isCurrentStep: !!step,
+    actId: step ? step.id : null,
+    actName: step ? step.name : null
+  };
   return view;
 }
 

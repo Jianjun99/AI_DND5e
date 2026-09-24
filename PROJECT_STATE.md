@@ -11,7 +11,7 @@
 - 测试：`scripts/smoke-test.mjs`（CI 每次推送跑）；平衡模拟：`scripts/balance-sim.mjs`
 - 架构文档：`ARCHITECTURE.md`（Mermaid 图）；模组指南：`MODDING.md`
 
-## 当前版本：v1.8.0（已发布：精英词缀怪物 + 战利品稀有度 + 视角绑定/尸体修复 + 升级徽章修复 + 酒馆赌桌 + 实验性魔药）
+## 当前版本：v1.9.0（已发布：锻造台 + 图鉴变体 + 主线战役与结局 + arm64 多架构镜像 + 手机/平板适配）
 
 ## 已实现功能清单（勿重复实现）
 - 角色创建：10 种族 / 12 职业 / 16 背景 / 属性（数组/4d6/点购）/ 法术 / 装备
@@ -73,7 +73,7 @@
 
 ## 测试体系
 - `node scripts/smoke-test.mjs`：端到端基础链路健康度探针（CI 每次推送必跑，自动侦测 3000/3100 端口）
-- `node scripts/test-all.mjs` / `npm test`：全套 10 大测试套件，包含 D&D 2024 规则单元测试、
+- `node scripts/test-all.mjs` / `npm test`：全套 13 大测试套件，包含 D&D 2024 规则单元测试、
   3D 手办步态测试（含火龙/蜘蛛/史莱姆/火元素/活动铠甲）、精英词缀与战利品稀有度单元测试、
   地图棋盘可见性与镜头数学单元测试、移动/寻路/视野集成测试、战斗/动作集成测试、
   战术对抗（借机攻击/夹击/推撞）、角色升级（1-12 级与 6 环法术位）/地牢装备换装/楼层下潜/拓展地图集成测试、
@@ -83,6 +83,23 @@
 - e2e 里不要断言「走路中途」的镜头坐标：headless 下 rAF 帧率不稳，中途采样会随机失败。
   已改为「最终收敛到角色」+ 单元测试断言 `stepCameraTowards` 不会瞬移 + 源码守卫（render 里的 snap 有 guard）。
   另外镜头偏好存在 localStorage，复用 profile 会串味 —— 测试开头要把 `dnd_cam_follow` 重置为 on。
+
+## 锻造台 / 图鉴 / 主线战役 / 设备适配（v1.9.0 已发布）
+- `server/game/forge.js`：**余烬精华**货币（熔解魔法/稀有/传奇 = 1/2/4，精英 +1、Boss +2）。
+  重铸词缀 60/150/400 gp + 1/2/3 精华；升阶 200/600 gp + 2/4 精华。
+  **词缀组装唯一入口是 `affixes.buildAffixItem`**（战利品与锻造共用）→ 改词缀规则只改一处。
+  `uniqueId` 永不改变（装备槽引用不失效）；装备中的东西必须先脱下；改完 `applyClassAndSpecies` + `syncCharToDelves` 写透活动地牢。
+- `server/game/campaign.js`：四幕状态机（圣物→地窟钥匙→**三条线索任选**→烬后）。`advance()` 顺序校验 + 幂等 + 乱序忽略；
+  `actDone()` 注意 clues 是对象（`!!acts.clues` 永远为真 —— 这个坑已修）；`currentAct()` 给大地图标记用。
+  推进点在 `sync-delve`（`delve.mode === 'victory'`），奖励 XP/金币并写 `campaignLog`；结局面板 `#/campaign/:id` 用 LLM 写收场词（缓存到 `char.campaign.epilogue`，有兜底文案）。
+- 图鉴：`char.bestiaryElite`（按怪种 × 词缀计数）、`char.bestiaryRewarded`（首杀奖励只发一次，XP 通过 `state.flags.pendingBestiaryBonus` 在击杀后一起结算）。
+  殿堂条目新增 traits/attacks/resistances/vulnerabilities/immunities/boss/loot/eliteVariants + `bestiaryProgress`，UI 有筛选与 `???` 占位。
+- 设备适配：`.creator-layout` 从内联样式搬进 CSS（390px 溢出 36px 的元凶）；`#map3d` 高度改 `clamp(260px,52vh,560px)`
+  （**play.js 里原来的内联 height:560px 会压过 CSS，已删除**）；小地图在手机上 140px（原本占屏宽 64%）；
+  顶栏允许换行（所有页面横向滚动的根源）；3D 图支持**双指拖动平移** + `touch-action:none`；提示气泡支持 tap 显示/4 秒后自动隐藏。
+- `tests/e2e/responsive-cdp.test.mjs`：CDP 模拟 390×844 与 820×1180，逐页断言
+  `max(scrollWidth, innerWidth) <= 设备宽度`（**用设备宽度而不是 window.innerWidth** —— 手机遇到溢出会自动撑大布局视口，用 innerWidth 会假通过）。
+- 多架构：`docker-publish.yml` 加 QEMU + `platforms: linux/amd64,linux/arm64`。
 
 ## 赌桌 & 实验性魔药（v1.8.0 已发布）
 - `server/game/gambling.js`：轮盘 / 骰宝 / 老虎机。**每张表都拆成纯函数求值器 + 掷骰器**，
@@ -141,4 +158,5 @@ v1.0.0 首发 → v1.2.0 连通地牢+模组+任务 → v1.3.0 UI 修复 → v1.
 → v1.5.0 Overworld+Oakhaven+纸娃娃+路上遭遇+撤退+审查修复
 → v1.6.0 3D模型与步态动画 + 升级向导 + 战术先攻条 + 局内换装 + 楼层过渡 + 英雄殿堂图鉴 + 全套测试
 → v1.7.0 等级上限 12 + 阳光峡谷 3 大新地图 + 无尽深渊程序化地牢 + 5 大新怪 3D 手办 + 传奇成就
-→ v1.8.0 精英词缀怪物 + 战利品稀有度/词缀系统 + 视角解绑与平滑跟随 + 尸体移除修复 + 升级徽章一致性修复 + 酒馆赌桌 + 实验性魔药（当前）
+→ v1.8.0 精英词缀怪物 + 战利品稀有度/词缀系统 + 视角解绑与平滑跟随 + 尸体移除修复 + 升级徽章一致性修复 + 酒馆赌桌 + 实验性魔药
+→ v1.9.0 锻造台（余烬精华/重铸/升阶）+ 图鉴精英变体与首杀奖励 + 四幕主线战役与 AI 结局 + arm64 多架构镜像 + 手机/平板全站适配（当前）

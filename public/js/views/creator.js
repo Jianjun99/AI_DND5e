@@ -30,7 +30,7 @@ export async function creatorView(main) {
     main.innerHTML = `
       <h1>Create Your Hero</h1>
       ${wizardHeader()}
-      <div class="grid" style="grid-template-columns: 1fr 300px; align-items:start;">
+      <div class="grid creator-layout">
         <div id="stepBody"></div>
         <div class="preview-panel">${previewHtml()}</div>
       </div>

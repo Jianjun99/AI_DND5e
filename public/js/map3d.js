@@ -879,15 +879,23 @@ export function createMap3D(container, opts = {}) {
   const endPan = () => { panDrag = null; };
   renderer.domElement.addEventListener('pointerup', endPan);
   renderer.domElement.addEventListener('pointercancel', endPan);
-  // touch support: single tap = click, two-finger pinch = zoom
+  // touch support: single tap = click, two-finger pinch = zoom, two-finger drag = pan
   let touchStart = null;
   renderer.domElement.addEventListener('touchstart', (ev) => {
     if (ev.touches.length === 1) {
       touchStart = { x: ev.touches[0].clientX, y: ev.touches[0].clientY, time: Date.now() };
+    } else if (ev.touches.length === 2) {
+      const cx = (ev.touches[0].clientX + ev.touches[1].clientX) / 2;
+      const cy = (ev.touches[0].clientY + ev.touches[1].clientY) / 2;
+      touchStart = {
+        x: ev.touches[0].clientX, y: ev.touches[0].clientY,
+        pinchD: Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY),
+        panX: cx, panY: cy
+      };
     }
   }, { passive: true });
   renderer.domElement.addEventListener('touchend', (ev) => {
-    if (touchStart && ev.changedTouches.length === 1) {
+    if (touchStart && ev.changedTouches.length === 1 && touchStart.panX === undefined) {
       const dx = ev.changedTouches[0].clientX - touchStart.x;
       const dy = ev.changedTouches[0].clientY - touchStart.y;
       if (Date.now() - touchStart.time < 300 && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
@@ -898,11 +906,28 @@ export function createMap3D(container, opts = {}) {
     touchStart = null;
   });
   renderer.domElement.addEventListener('touchmove', (ev) => {
-    if (ev.touches.length === 2 && touchStart) {
-      const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY);
-      if (touchStart.pinchD) zoom = Math.max(0.55, Math.min(2.2, zoom * (d / touchStart.pinchD)));
-      touchStart.pinchD = d;
+    if (ev.touches.length !== 2 || !touchStart) return;
+    // pinch to zoom
+    const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY);
+    if (touchStart.pinchD) zoom = Math.max(0.55, Math.min(2.2, zoom * (d / touchStart.pinchD)));
+    touchStart.pinchD = d;
+    // two-finger drag to pan (a finger can only do one of the two at a time, so the larger
+    // delta of the pair wins; panning releases the follow binding like the desktop drag does)
+    const cx = (ev.touches[0].clientX + ev.touches[1].clientX) / 2;
+    const cy = (ev.touches[0].clientY + ev.touches[1].clientY) / 2;
+    if (touchStart.panX !== undefined) {
+      const dx = cx - touchStart.panX, dy = cy - touchStart.panY;
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+        if (following) setFollow(false);
+        const height = Math.max(200, container.clientHeight || 560);
+        const worldPerPx = ((8.5 / zoom) * 1.15) / height;
+        const next = clampToMap(camTarget.x - dx * worldPerPx, camTarget.z - dy * worldPerPx, currentGame && currentGame.map);
+        camTarget.x = next.x;
+        camTarget.z = next.z;
+      }
     }
+    touchStart.panX = cx;
+    touchStart.panY = cy;
   }, { passive: true });
 
 
