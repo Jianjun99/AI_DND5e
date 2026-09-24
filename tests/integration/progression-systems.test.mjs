@@ -297,12 +297,166 @@ await (async () => {
     const hall = await hallRes.json();
     assert(hall.ok === true, 'Hall of heroes returned successfully');
     assert(Array.isArray(hall.bestiary), 'Bestiary array returned');
-    assert(hall.bestiary.length >= 5, 'Bestiary contains monster catalogue');
+    assert(hall.bestiary.length >= 17, `Bestiary contains 17 monsters, got ${hall.bestiary.length}`);
     assert(Array.isArray(hall.trophies), 'Trophies array returned');
-    assert(hall.trophies.length >= 5, 'Trophies catalogue present');
+    assert(hall.trophies.some(t => t.id === 'dragon_slayer'), 'Dragon slayer trophy present');
+    assert(hall.trophies.some(t => t.id === 'endless_delver'), 'Endless delver trophy present');
+    assert(hall.trophies.some(t => t.id === 'paragon_hero'), 'Paragon hero trophy present');
     assert(Array.isArray(hall.champions), 'Champions leaderboard returned');
     console.log('  ✔ PASS: HTTP API Hall of Heroes Bestiary, Trophies, and Champions');
-    passed += 6;
+    passed += 8;
+
+    // 10. Sunlit Vale Expansion Maps & Level 12 Progression
+    const roostMap = content.getMap('roost');
+    assert(roostMap != null, 'Sun Dragon’s Roost map must exist');
+    const roostState = engine.startGame(char, { mapId: 'roost', difficulty: 'normal' });
+    const dragon = roostState.entities.find(e => e.monsterId === 'young_fire_dragon');
+    assert(dragon != null, 'Yzmerith the Ember Queen must spawn on Roost map');
+    assert(dragon.boss === true, 'Yzmerith must have boss flag set');
+
+    const sewersMap = content.getMap('sewers');
+    assert(sewersMap != null, 'Oakhaven Sewers map must exist');
+    const sewersState = engine.startGame(char, { mapId: 'sewers', difficulty: 'normal' });
+    assert(sewersState.entities.some(e => e.monsterId === 'giant_spider'), 'Giant spider spawns in sewers');
+
+    // Level 12 Cap & Spell Slots
+    const wiz = engine.buildCharacter({ name: 'Archmage', className: 'wizard', species: 'elf', background: 'sage' });
+    wiz.level = 12;
+    wiz.xp = 75000;
+    engine.applyClassAndSpecies(wiz, null, null, 12, true);
+    assert(wiz.slotsMax && wiz.slotsMax['6'] >= 1, 'Level 12 Wizard has 6th-level spell slot');
+    console.log('  ✔ PASS: Expansion maps (Roost dragon, Sewers spider) and Level 12 progression verified');
+    passed += 7;
+
+    // 11. Level-Up Readiness: /api/characters and the delve view must carry the same verdict
+    // the /level-up endpoint will apply (regression: the HUD badge once claimed a level the
+    // endpoint then refused, because the client compared XP against its own stale table).
+    const rosterRes = await fetch(`${BASE_URL}/api/characters`);
+    const roster = await rosterRes.json();
+    assert(Array.isArray(roster) && roster.length > 0, 'Character roster returned');
+    assert(roster.every(c => c.levelUp && typeof c.levelUp.canLevelUp === 'boolean'),
+      'Every character ships a level-up verdict from the server');
+    let checked = 0;
+    for (const c of roster.slice(0, 5)) {
+      const optRes = await fetch(`${BASE_URL}/api/characters/${c.id}/level-up-options`);
+      const opts = await optRes.json();
+      assert(opts.canLevelUp === c.levelUp.canLevelUp,
+        `${c.name}: list verdict (${c.levelUp.canLevelUp}) matches the level-up endpoint (${opts.canLevelUp})`);
+      assert(opts.nextLevel === c.levelUp.nextLevel && opts.xpNeeded === c.levelUp.xpNeeded,
+        `${c.name}: both agree the next step is Lvl ${c.levelUp.nextLevel} at ${c.levelUp.xpNeeded} XP`);
+      checked++;
+    }
+    assert(checked > 0, 'At least one character was cross-checked');
+    const delveView = await (await fetch(`${BASE_URL}/api/game/${saveId}`)).json();
+    assert(delveView.state.levelUp && typeof delveView.state.levelUp.canLevelUp === 'boolean',
+      'The delve view carries the same level-up verdict for the HUD badge');
+    console.log('  ✔ PASS: Level-up readiness agrees between the roster, the HUD badge and the endpoint');
+    passed += 8;
+
+    // 12. Tavern gambling & experimental brews over HTTP
+    const cityPost = async (path, body) => {
+      const res = await fetch(`${BASE_URL}/api/city${path}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      return { status: res.status, body: await res.json() };
+    };
+
+    // fund the hero so the table will take their bets
+    {
+      const chars = store.getCharacters();
+      const mine = chars.find(c => c.id === char.id);
+      mine.gold = 600;
+      store.saveCharacters(chars);
+    }
+
+    const infoRes = await (await fetch(`${BASE_URL}/api/city/info?charId=${char.id}`)).json();
+    assert(infoRes.tables && infoRes.tables.roulette && infoRes.tables.slots && infoRes.tables.tokens,
+      'The city payload advertises the tables, the odds and the prize tokens');
+    assert(infoRes.tables.tokens.length >= 6, `Prize token catalogue present (${infoRes.tables.tokens.length})`);
+    assert(Math.abs(infoRes.tables.roulette.rtp - 36 / 37) < 1e-9, 'Roulette odds are the real-table ones');
+
+    // a mystery brew is a rolled instance, hidden until identified
+    const brewRes = await cityPost('/buy', { charId: char.id, itemId: 'potion_mystery_thin', qty: 1 });
+    assert(brewRes.status === 200 && brewRes.body.opened && brewRes.body.opened.length === 1,
+      'Buying an experimental brew rolls exactly one bottle');
+    const bottle = (brewRes.body.char.inventory || []).find(i => i.kind === 'mystery_potion');
+    assert(bottle && bottle.uniqueId && !bottle.identified, 'The bottle carries its own id and a hidden effect');
+    assert(bottle.effect && bottle.effect.name && bottle.effect.kind, 'The outcome was decided at purchase time');
+
+    const identified = await cityPost('/identify', { charId: char.id, uniqueId: bottle.uniqueId });
+    assert(identified.status === 200, 'The identification check runs');
+    assert(typeof identified.body.total === 'number' && typeof identified.body.dc === 'number',
+      `The check reports a roll and a DC (${identified.body.total} vs ${identified.body.dc})`);
+    const secondTry = await cityPost('/identify', { charId: char.id, uniqueId: bottle.uniqueId });
+    assert(secondTry.status === 400, 'A second attempt on the same bottle is refused');
+
+    // gambling: gold moves by exactly the reported delta
+    const beforeGold = (await (await fetch(`${BASE_URL}/api/characters/${char.id}`)).json()).gold;
+    const spin = await cityPost('/gamble', { charId: char.id, game: 'roulette', stake: 25, bet: { id: 'red' } });
+    assert(spin.status === 200, 'A roulette bet is accepted');
+    assert(spin.body.char.gold === beforeGold + spin.body.netGold,
+      `Gold moved by the reported net (${beforeGold} + ${spin.body.netGold} = ${spin.body.char.gold})`);
+    assert([-25, 25].includes(spin.body.netGold), `Red pays 1:1 (net ${spin.body.netGold})`);
+    assert(typeof spin.body.result.number === 'number' && spin.body.result.number >= 0 && spin.body.result.number <= 36,
+      'The wheel reports a real number');
+
+    const slots = await cityPost('/gamble', { charId: char.id, game: 'slots', tier: 'standard' });
+    assert(slots.status === 200 && Array.isArray(slots.body.result.symbols) && slots.body.result.symbols.length === 3,
+      'The slot machine returns three reels');
+    assert(slots.body.stake === 10, 'The standard tier stakes 10 gp');
+
+    const overLimit = await cityPost('/gamble', { charId: char.id, game: 'roulette', stake: 99999, bet: { id: 'red' } });
+    assert(overLimit.status === 400, 'The house refuses stakes above the table limit');
+    const brokeStake = await cityPost('/gamble', { charId: char.id, game: 'roulette', stake: 0, bet: { id: 'red' } });
+    assert(brokeStake.status === 400, 'A missing stake is refused');
+
+    // spin until a token drops (deterministic enough: ~1.6% per spin for sword/shield triples)
+    let wonTokens = [];
+    {
+      const chars = store.getCharacters();
+      const mine = chars.find(c => c.id === char.id);
+      mine.gold = 5000;
+      store.saveCharacters(chars);
+      for (let i = 0; i < 400 && wonTokens.length === 0; i++) {
+        const s = await cityPost('/gamble', { charId: char.id, game: 'slots', tier: 'standard' });
+        if (s.body.prizes && s.body.prizes.some(p => p.kind === 'delve_token')) wonTokens = s.body.prizes.filter(p => p.kind === 'delve_token');
+      }
+    }
+    assert(wonTokens.length > 0, 'The machine eventually pays out a delve token');
+    const carried = (await (await fetch(`${BASE_URL}/api/characters/${char.id}`)).json()).pendingDelveItems || [];
+    assert(carried.some(t => t.delveOnly), 'Won tokens wait on the hero as pending delve items');
+
+    // carry them into a delve, then settle: unused prizes must not come home
+    const gambleDelve = await (await fetch(`${BASE_URL}/api/game/start`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ characterId: char.id, bringAlly: false, difficulty: 'normal' })
+    })).json();
+    const gambleDelveId = gambleDelve.state.id;
+    const inDelve = (gambleDelve.state.character.inventory || []).filter(i => i.delveOnly);
+    assert(inDelve.length === carried.length, `Pending prizes rode into the delve (${inDelve.length})`);
+
+    const tokenUse = await fetch(`${BASE_URL}/api/game/${gambleDelveId}/action`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'useItem', itemId: inDelve[0].uniqueId })
+    });
+    const tokenState = await tokenUse.json();
+    const tokenEvents = (tokenState.events || []).map(e => e.type);
+    assert(tokenEvents.includes('token_used') || tokenEvents.includes('brew_effect'), `Using a token works in the delve (${tokenEvents.join(',')})`);
+    const tokenInv = (tokenState.state.character.inventory || []).find(i => i.uniqueId === inDelve[0].uniqueId);
+    assert(!tokenInv || tokenInv.qty === 0, 'The spent token is consumed');
+
+    await fetch(`${BASE_URL}/api/city/sync-delve`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ charId: char.id, delveStateId: gambleDelveId })
+    });
+    const afterSync = await (await fetch(`${BASE_URL}/api/characters/${char.id}`)).json();
+    assert(!(afterSync.inventory || []).some(i => i.delveOnly), 'Unused delve-only prizes are discarded at settlement');
+    assert((afterSync.pendingDelveItems || []).length === 0, 'The pending list was emptied when they were carried in');
+
+    console.log('  ✔ PASS: Gambling odds, mystery brews, identification and the delve-only prize lifecycle');
+    passed += 18;
+
+    await fetch(`${BASE_URL}/api/game/${gambleDelveId}`, { method: 'DELETE' });
 
     // Clean up test save and character
     await fetch(`${BASE_URL}/api/game/${saveId}`, { method: 'DELETE' });

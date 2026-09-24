@@ -72,6 +72,40 @@ async function waitHealthy() {
   const potions = bought.state.character.inventory.find(i => i.itemId === 'potion_healing').qty;
   console.log(`✔ shop works: potion bought, ${bought.state.character.gold} gp left, ${potions} potions`);
 
+  // Tavern gambling & experimental brews (city layer)
+  const cityInfo = await req('GET', `/api/city/info?charId=${char.id}`);
+  if (!cityInfo.tables || !cityInfo.tables.roulette || !cityInfo.tables.slots) throw new Error('City payload is missing the gambling tables');
+  if ((cityInfo.tables.tokens || []).length < 6) throw new Error('Prize token catalogue missing');
+  console.log(`✔ gambling tables advertised (roulette RTP ${(cityInfo.tables.roulette.rtp * 100).toFixed(1)}%, ${cityInfo.tables.tokens.length} prize tokens)`);
+
+  // gamble first, while the hero still has starting gold
+  const goldBeforeBet = (await req('GET', `/api/characters/${char.id}`)).gold;
+  const ticket = Math.min(5, goldBeforeBet);
+  if (ticket > 0) {
+    const spin = await req('POST', '/api/city/gamble', { charId: char.id, game: 'roulette', stake: ticket, bet: { id: 'red' } });
+    if (spin.char.gold !== goldBeforeBet + spin.netGold) throw new Error('Gambling did not settle gold by the reported net');
+    if (!spin.result || typeof spin.result.number !== 'number') throw new Error('Roulette did not report a number');
+    console.log(`✔ roulette spun: ${spin.result.number} — net ${spin.netGold >= 0 ? '+' : ''}${spin.netGold} gp`);
+  }
+
+  const tableStake = (cityInfo.tables.slots.tiers.find(t => t.id === 'standard') || {}).stake || 10;
+  const goldBeforeSlots = (await req('GET', `/api/characters/${char.id}`)).gold;
+  if (goldBeforeSlots >= tableStake) {
+    const slots = await req('POST', '/api/city/gamble', { charId: char.id, game: 'slots', tier: 'standard' });
+    if (!Array.isArray(slots.result.symbols) || slots.result.symbols.length !== 3) throw new Error('Slots did not return three reels');
+    console.log(`✔ slot machine spun: ${slots.result.symbols.join(',')} — net ${slots.netGold >= 0 ? '+' : ''}${slots.netGold} gp`);
+  }
+
+  const brewRes = await req('POST', '/api/city/buy', { charId: char.id, itemId: 'potion_mystery_thin', qty: 1 });
+  const bottle = (brewRes.char.inventory || []).find(i => i.kind === 'mystery_potion');
+  if (!bottle || !bottle.uniqueId) throw new Error('Buying a brew did not produce a rolled bottle');
+  if (bottle.identified || !bottle.effect) throw new Error('A fresh bottle must hide its effect');
+  console.log(`✔ mystery brew bought: ${bottle.name} (effect hidden until identified)`);
+
+  const identify = await req('POST', '/api/city/identify', { charId: char.id, uniqueId: bottle.uniqueId });
+  if (typeof identify.total !== 'number' || typeof identify.dc !== 'number') throw new Error('Identify did not roll a check');
+  console.log(`✔ identify check rolled: ${identify.total} vs DC ${identify.dc} — ${identify.success ? 'revealed' : 'failed'}`);
+
   // Journal recap at the campfire
   await req('POST', `/api/game/${sid}/action`, { type: 'move', x: 3, y: 2 });
   const recapped = await req('POST', `/api/game/${sid}/action`, { type: 'recap' });

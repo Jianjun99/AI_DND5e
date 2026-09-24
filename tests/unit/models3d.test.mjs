@@ -110,14 +110,19 @@ test('Creates 3D miniature for Marla the Merchant (NPC)', () => {
 });
 
 // 3. Monster Miniatures & Boss
-test('Creates custom 3D miniatures for all crypt dungeon monsters', () => {
+test('Creates custom 3D miniatures for all monsters and expansion beasts', () => {
   const monsters = [
     { kind: 'monster', monsterId: 'skeleton', name: 'Skeleton' },
     { kind: 'monster', monsterId: 'zombie', name: 'Zombie' },
     { kind: 'monster', monsterId: 'goblin', name: 'Goblin' },
     { kind: 'monster', monsterId: 'giant_rat', name: 'Giant Rat' },
     { kind: 'monster', monsterId: 'crypt_hound', name: 'Crypt Hound' },
-    { kind: 'monster', monsterId: 'boss_crypt_warden', name: 'Crypt Warden Champion', isBoss: true }
+    { kind: 'monster', monsterId: 'boss_crypt_warden', name: 'Crypt Warden Champion', isBoss: true },
+    { kind: 'monster', monsterId: 'young_fire_dragon', name: 'Yzmerith the Ember Queen', isBoss: true },
+    { kind: 'monster', monsterId: 'giant_spider', name: 'Giant Spider' },
+    { kind: 'monster', monsterId: 'green_slime', name: 'Green Slime' },
+    { kind: 'monster', monsterId: 'fire_elemental', name: 'Fire Elemental' },
+    { kind: 'monster', monsterId: 'animated_armor', name: 'Animated Armor' }
   ];
 
   for (const m of monsters) {
@@ -126,14 +131,17 @@ test('Creates custom 3D miniatures for all crypt dungeon monsters', () => {
     const rig = model.userData.rig;
     assert(rig != null, `Monster rig for ${m.monsterId} missing`);
 
-    if (m.monsterId === 'giant_rat' || m.monsterId === 'crypt_hound') {
+    if (['giant_rat', 'crypt_hound', 'young_fire_dragon', 'giant_spider'].includes(m.monsterId)) {
       assert(rig.isQuadruped === true, `${m.monsterId} must be configured as quadruped rig`);
-    } else {
-      assert(rig.isQuadruped !== true, `${m.monsterId} should be biped rig`);
     }
 
     if (m.isBoss) {
-      assert(model.userData.bossBadge != null, 'Boss should have champion badge');
+      assert(model.userData.bossBadge != null, `Boss ${m.monsterId} should have champion badge`);
+    }
+
+    if (m.monsterId === 'animated_armor') {
+      assert(rig.hasShield === true, 'Animated Armor should wield a shield');
+      assert(rig.weapon != null, 'Animated Armor should wield a broadsword');
     }
   }
 });

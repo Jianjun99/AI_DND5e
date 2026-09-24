@@ -1,11 +1,12 @@
 // overworld.js — Overworld Region Map & Oakhaven City Hub
 import { api } from '../api.js';
 import { esc, toast, state as appState } from '../app.js';
-import { rollAnimated } from '../dice.js';
+import { rollAnimated, showDice } from '../dice.js';
 import { sfx } from '../sfx.js';
 import { openLevelUpModal } from './levelup.js';
 
-const XP_THRESHOLDS = { 2: 300, 3: 900, 4: 2700, 5: 6500, 6: 8500, 7: 13000, 8: 19000, 9: 26000, 10: 34000 };
+// Level-up readiness ships with the character from the server (character.levelUp) — the
+// client no longer keeps its own XP table, which could drift from the engine's.
 
 let activeChar = null;
 let cityData = null;
@@ -82,9 +83,9 @@ function render(main, allChars) {
               <span class="chip blue">${esc(activeChar.species || '')}</span>
               ${activeChar.companion ? `<span class="chip green">Companion: ${getCompanionName(activeChar.companion)}</span>` : ''}
               ${(() => {
-                const nextLvl = (activeChar.level || 1) + 1;
-                const canLvl = activeChar.pendingLevelUp || (XP_THRESHOLDS[nextLvl] && activeChar.xp >= XP_THRESHOLDS[nextLvl]);
-                return canLvl ? `<button class="btn small levelup-badge-btn" id="btnTownLevelUp" style="padding:2px 10px; margin-left:8px;">⚡ LEVEL UP (Lvl ${nextLvl})</button>` : '';
+                const lu = activeChar.levelUp || {};
+                const nextLvl = lu.nextLevel || ((activeChar.level || 1) + 1);
+                return lu.canLevelUp ? `<button class="btn small levelup-badge-btn" id="btnTownLevelUp" style="padding:2px 10px; margin-left:8px;" title="${lu.currentXp || 0} / ${lu.xpNeeded || '—'} XP">⚡ LEVEL UP (Lvl ${nextLvl})</button>` : '';
               })()}
             </div>
             <div class="hero-stats-row">
@@ -419,6 +420,121 @@ function renderTavern() {
         }).join('')}
       </div>
     </div>
+
+    ${renderGambleTable()}
+  `;
+}
+
+// 1b. GAMBLING TABLE — the real odds, an opt-in curse tier, and delve-only prize tokens
+let gambleGame = 'roulette';
+let gambleSlotsTier = 'standard';
+let gambleRouletteBet = 'red';
+let gambleSicBoBet = 'small';
+let gambleResult = null;   // last spin, kept across re-renders
+
+function renderGambleTable() {
+  const tables = cityData?.tables || {};
+  const gold = activeChar.gold || 0;
+  const pending = activeChar.pendingDelveItems || [];
+  const curses = activeChar.pendingCurses || [];
+  const tokenDefs = tables.tokens || [];
+
+  const stakeChips = [5, 10, 25, 50, 100].map(v =>
+    `<button class="btn small gamble-stake-btn" data-stake="${v}" ${gold < v ? 'disabled' : ''}>${v}</button>`).join('');
+
+  const rouletteBets = (tables.roulette?.bets || []).map(b => `
+    <label class="gamble-bet-option">
+      <input type="radio" name="rouletteBet" value="${b.id}" ${gambleRouletteBet === b.id ? 'checked' : ''}>
+      <span>${esc(b.name)} <span class="muted small">${esc(b.blurb)}</span></span>
+    </label>`).join('');
+
+  const sicboBets = (tables.sicbo?.bets || []).map(b => `
+    <label class="gamble-bet-option">
+      <input type="radio" name="sicboBet" value="${b.id}" ${gambleSicBoBet === b.id ? 'checked' : ''}>
+      <span>${esc(b.name)} <span class="muted small">${esc(b.blurb)}</span></span>
+    </label>`).join('');
+
+  const slotTiers = (tables.slots?.tiers || []).map(t => `
+    <button class="btn small slots-tier-btn ${gambleSlotsTier === t.id ? 'primary' : ''}" data-tier="${t.id}"
+            ${gold < t.stake ? 'disabled' : ''} title="${esc(t.blurb)}">${esc(t.name)} · ${t.stake} gp</button>`).join('');
+
+  const reelRow = (tables.slots?.symbols || []).map(s => `<span class="slot-symbol" title="${esc(s.name)}">${s.icon}</span>`).join('');
+
+  return `
+    <div class="card gamble-table" style="background:var(--bg2); border-color:var(--gold-dim); margin-top:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
+        <h3 style="margin:0;">🎲 赌桌 · The Lantern Tables</h3>
+        <span class="muted small">庄家优势写在明面上 —— 长期一定是亏的，但今晚你也许能赢个传说。</span>
+      </div>
+
+      <div class="gamble-tabs" style="margin:10px 0;">
+        <button class="btn small ${gambleGame === 'roulette' ? 'primary' : ''}" data-gamble-tab="roulette">🎡 轮盘</button>
+        <button class="btn small ${gambleGame === 'sicbo' ? 'primary' : ''}" data-gamble-tab="sicbo">🎲 骰宝</button>
+        <button class="btn small ${gambleGame === 'slots' ? 'primary' : ''}" data-gamble-tab="slots">🎰 老虎机</button>
+      </div>
+
+      <div class="gamble-panel">
+        ${gambleGame === 'roulette' ? `
+          <p class="muted small">单零轮盘：押红/黑或一打赔率固定，押单号 35:1。理论返还 <b>${((tables.roulette?.rtp || 0.973) * 100).toFixed(1)}%</b>。</p>
+          <div class="gamble-bets">${rouletteBets}</div>
+          <label class="small" style="display:flex; align-items:center; gap:6px; margin:8px 0;">
+            单号（0–36）：<input id="rouletteNumber" type="number" min="0" max="36" value="17"
+              style="width:70px; background:var(--bg); color:var(--parchment); border:1px solid var(--border); border-radius:4px; padding:3px 6px;">
+          </label>
+        ` : ''}
+
+        ${gambleGame === 'sicbo' ? `
+          <p class="muted small">三颗骰子：押大/小赔 1:1（三同通吃），押豹子赔 30:1。</p>
+          <div class="gamble-bets">${sicboBets}</div>
+        ` : ''}
+
+        ${gambleGame === 'slots' ? `
+          <p class="muted small">五符号三转轮：三同得大奖，对子小奖。${gambleSlotsTier === 'devil'
+            ? '<b style="color:#f87171;">恶魔契约档：三个 💀 会给你下一场地牢上诅咒。</b>'
+            : '普通档：三个 💀 只是空手而归。'}</p>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">${slotTiers}</div>
+          <div class="slot-reels">${reelRow}</div>
+        ` : ''}
+
+        ${gambleGame === 'slots' ? '' : `
+          <div style="margin:10px 0;">
+            <div class="muted small" style="margin-bottom:4px;">赌注</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">${stakeChips}</div>
+          </div>`}
+      </div>
+
+      <div id="gambleResult" class="gamble-result ${gambleResult ? '' : 'muted'} small">${gambleResult
+        ? `${esc(gambleResult.text)} <span style="color:${gambleResult.net >= 0 ? 'var(--gold)' : '#f87171'};">（本注 ${gambleResult.net >= 0 ? '+' : ''}${gambleResult.net} gp）</span>`
+        : '选择赌注，然后下注。'}</div>
+
+      <div style="display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap;">
+        <button class="btn primary" id="gambleRollBtn" ${gold < 5 ? 'disabled' : ''}>🎲 下注</button>
+        <span class="muted small">💰 ${gold} gp</span>
+      </div>
+
+      ${pending.length ? `
+        <div class="card" style="margin-top:12px; background:var(--bg); border-color:var(--gold-dim);">
+          <h4 style="margin:0 0 6px;">🎁 待带入地牢（离场作废）</h4>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            ${pending.map(p => `<span class="chip gold-chip" title="${esc(p.desc || '')}">${esc(p.name)}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+      ${curses.length ? `
+        <div class="card" style="margin-top:12px; background:var(--bg); border-color:#6b3a35;">
+          <h4 style="margin:0 0 6px; color:#d98a80;">💀 下一场地牢的诅咒</h4>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            ${curses.map(id => `<span class="chip red">${esc(id === 'frailty' ? '衰朽之咒（最大生命 -5）' : '不安之咒（少一段休息）')}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+      <details style="margin-top:12px;">
+        <summary class="muted small" style="cursor:pointer;">赌场能赢到的地牢道具</summary>
+        <div class="muted small" style="margin-top:6px; display:grid; gap:4px;">
+          ${tokenDefs.map(t => `<div>${t.icon} <b>${esc(t.name)}</b> — ${esc(t.desc)}</div>`).join('')}
+        </div>
+      </details>
+    </div>
   `;
 }
 
@@ -488,7 +604,9 @@ function renderArmory() {
 
 // 3. APOTHECARY DISTRICT
 function renderApothecary() {
-  const apothecaryItems = cityData?.shops?.apothecary || [];
+  const apothecaryItems = (cityData?.shops?.apothecary || []).filter(i => i.type !== 'mystery');
+  const brews = (cityData?.shops?.apothecary || []).filter(i => i.type === 'mystery');
+  const bottles = (activeChar.inventory || []).filter(i => i.kind === 'mystery_potion');
 
   return `
     <div class="district-header">
@@ -512,6 +630,55 @@ function renderApothecary() {
           </div>
         </div>
       `).join('')}
+    </div>
+
+    <div class="card" style="margin-top:18px; background:var(--bg2); border-color:var(--gold-dim);">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
+        <h3 style="margin:0;">⚗️ 柜台底下 · 实验性魔药</h3>
+        <span class="muted small">效果在你买下的那一刻已经注定——只是没人告诉你。可以用智力（奥秘）鉴定一次。</span>
+      </div>
+
+      <div class="shop-grid" style="margin-top:12px;">
+        ${brews.map(item => `
+          <div class="shop-item-card card" style="background:var(--bg);">
+            <div class="shop-item-header">
+              <span class="shop-item-name"><b>${esc(item.name)}</b></span>
+              <span class="chip">${item.cost} GP</span>
+            </div>
+            <p class="muted small" style="margin:6px 0 10px; min-height:28px;">${esc(item.desc)}</p>
+            <div class="shop-item-footer">
+              <span class="gold-text"><b>${item.cost} GP</b></span>
+              <button class="btn small primary buy-item-btn" data-item-id="${item.id}" data-item-cost="${item.cost}" ${activeChar.gold < item.cost ? 'disabled' : ''}>
+                买一瓶
+              </button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      ${bottles.length ? `
+        <div style="margin-top:14px;">
+          <div class="muted small" style="margin-bottom:6px;">你手上的瓶子（${bottles.length}）</div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            ${bottles.map(b => `
+              <div class="stat-line potion-row ${b.identified ? 'rarity-' + (b.effect.kind === 'good' ? 'magic' : b.effect.kind === 'bad' ? 'rare' : 'legendary') : 'potion-unknown'}"
+                   style="padding:6px 8px; align-items:center;">
+                <div style="min-width:0; flex:1;">
+                  <span class="item-affix-tag ${b.identified ? '' : 'rarity-common-tag'}">${b.identified
+                    ? (b.effect.kind === 'good' ? '🔵 有益' : b.effect.kind === 'bad' ? '🟣 有害' : '🟠 复杂')
+                    : '❓ 未鉴定'}</span>
+                  <b>${esc(b.name)}</b>
+                  <span class="muted small" style="margin-left:6px;">${b.identified
+                    ? esc(b.effect.name + ' — ' + b.effect.desc)
+                    : esc((b.clues || []).join(' · '))}</span>
+                </div>
+                <button class="btn small identify-potion-btn" data-unique="${b.uniqueId}" ${b.identifyFailed || b.identified ? 'disabled' : ''}>
+                  ${b.identified ? '已鉴定' : b.identifyFailed ? '鉴定失败' : '🔍 鉴定'}
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : ''}
     </div>
   `;
 }
@@ -802,11 +969,7 @@ function attachCityEvents(main) {
   pills.forEach(p => {
     p.addEventListener('click', () => {
       currentDistrict = p.getAttribute('data-district');
-      const panel = main.querySelector('.district-panel');
-      if (panel) {
-        panel.innerHTML = renderCurrentDistrict();
-        attachDistrictSpecificEvents(main);
-      }
+      rerenderPanel(main);
       pills.forEach(x => x.classList.remove('active'));
       p.classList.add('active');
     });
@@ -815,8 +978,97 @@ function attachCityEvents(main) {
   attachDistrictSpecificEvents(main);
 }
 
+// redraw just the district panel (keeps the selected tab, stakes and scroll position intact)
+function rerenderPanel(main) {
+  const panel = main.querySelector('.district-panel');
+  if (panel) {
+    panel.innerHTML = renderCurrentDistrict();
+    attachDistrictSpecificEvents(main);
+  }
+}
+
+// the toast shows the roll and the check total, mirroring the sheet's skill modifiers
+function engineModText(char, skill) {
+  const abilityMap = { arcana: 'int' };
+  const mod = Math.floor(((char.abilities?.[abilityMap[skill]] || 10) - 10) / 2) + (char.profBonus || 2);
+  return mod >= 0 ? ` + ${mod}` : ` - ${Math.abs(mod)}`;
+}
+
 function attachDistrictSpecificEvents(main) {
-  // Tavern rests
+  // ---- Gambling table ----
+  let selectedStake = 10;
+  const stakeButtons = main.querySelectorAll('.gamble-stake-btn');
+  stakeButtons.forEach(b => b.addEventListener('click', () => {
+    selectedStake = Number(b.getAttribute('data-stake'));
+    stakeButtons.forEach(x => x.classList.remove('primary'));
+    b.classList.add('primary');
+  }));
+  if (stakeButtons.length && !main.querySelector('.gamble-stake-btn.primary')) {
+    const def = Array.from(stakeButtons).find(b => Number(b.getAttribute('data-stake')) <= (activeChar.gold || 0));
+    if (def) { def.classList.add('primary'); selectedStake = Number(def.getAttribute('data-stake')); }
+  }
+
+  main.querySelectorAll('[data-gamble-tab]').forEach(b => b.addEventListener('click', () => {
+    gambleGame = b.getAttribute('data-gamble-tab');
+    rerenderPanel(main);
+  }));
+  main.querySelectorAll('.slots-tier-btn').forEach(b => b.addEventListener('click', () => {
+    gambleSlotsTier = b.getAttribute('data-tier');
+    rerenderPanel(main);
+  }));
+  main.querySelectorAll('input[name="rouletteBet"]').forEach(r => r.addEventListener('change', () => { gambleRouletteBet = r.value; }));
+  main.querySelectorAll('input[name="sicboBet"]').forEach(r => r.addEventListener('change', () => { gambleSicBoBet = r.value; }));
+
+  const rollBtn = document.getElementById('gambleRollBtn');
+  if (rollBtn) {
+    rollBtn.addEventListener('click', async () => {
+      const out = document.getElementById('gambleResult');
+      const tier = (cityData?.tables?.slots?.tiers || []).find(t => t.id === gambleSlotsTier) || { stake: 10 };
+      const stake = gambleGame === 'slots' ? tier.stake : selectedStake;
+      if ((activeChar.gold || 0) < stake) return toast('金币不足。');
+
+      rollBtn.disabled = true;
+      if (out) out.innerHTML = '🎲 掷……';
+      sfx.play('dice');
+
+      const payload = { charId: activeChar.id, game: gambleGame, stake };
+      if (gambleGame === 'roulette') {
+        payload.bet = { id: gambleRouletteBet };
+        if (gambleRouletteBet === 'straight') {
+          const n = Number(document.getElementById('rouletteNumber')?.value);
+          payload.bet.number = Number.isInteger(n) ? n : 17;
+        }
+      }
+      if (gambleGame === 'sicbo') payload.bet = { id: gambleSicBoBet };
+      if (gambleGame === 'slots') payload.tier = gambleSlotsTier;
+
+      try {
+        const res = await api.cityGamble(payload);
+        activeChar = res.char;
+        const r = res.result || {};
+
+        // animate the server's actual roll
+        if (r.game === 'roulette') showDice(37, r.number, `轮盘 · ${r.color}`);
+        else if (r.game === 'sicbo') showDice(6, r.total, '骰宝');
+        else if (r.game === 'slots') showDice(6, (r.symbols || []).length, '老虎机');
+
+        await new Promise(res => setTimeout(res, 700));
+        sfx.play(res.netGold > 0 ? 'coin' : (res.netGold < 0 ? 'miss' : 'dice'));
+        if (r.payout > 0 || res.netGold > 0) sfx.play('trophy_unlock');
+        // kept module-side so the result survives the re-render below
+        gambleResult = { text: res.message, net: res.netGold };
+        toast(res.message);
+        await loadCityInfo();
+        render(main, [activeChar]);
+      } catch (e) {
+        if (out) out.innerHTML = `<span style="color:#f87171;">${esc(e.message)}</span>`;
+        toast(e.message);
+        rollBtn.disabled = false;
+      }
+    });
+  }
+
+  // ---- Tavern rests ----
   const btnRestShort = document.getElementById('btnRestShort');
   const btnRestLong = document.getElementById('btnRestLong');
 
@@ -910,6 +1162,26 @@ function attachDistrictSpecificEvents(main) {
   }
 
   // Shop item purchases (Armory & Apothecary)
+  // Identify an experimental brew: one INT (Arcana) check, rolled on the server
+  main.querySelectorAll('.identify-potion-btn').forEach(b => {
+    b.addEventListener('click', async () => {
+      const uniqueId = b.getAttribute('data-unique');
+      b.disabled = true;
+      const roll = await rollAnimated(20, 'Arcana');
+      try {
+        const res = await api.cityIdentify(activeChar.id, uniqueId);
+        activeChar = res.char;
+        sfx.play(res.success ? 'trophy_unlock' : 'miss');
+        toast(`${roll}${engineModText(activeChar, 'arcana')} — ${res.message}`);
+        await loadCityInfo();
+        render(main, [activeChar]);
+      } catch (e) {
+        toast(e.message);
+        b.disabled = false;
+      }
+    });
+  });
+
   const buyBtns = main.querySelectorAll('.buy-item-btn');
   buyBtns.forEach(b => {
     b.addEventListener('click', async () => {
@@ -918,7 +1190,12 @@ function attachDistrictSpecificEvents(main) {
         const res = await api.cityBuy(activeChar.id, itemId, 1);
         activeChar = res.char;
         sfx.play('coin');
-        toast(res.message);
+        if (res.opened && res.opened.length) {
+          sfx.play('potion');
+          toast(`${res.message}`);
+        } else {
+          toast(res.message);
+        }
         await loadCityInfo();
         const chars = [activeChar];
         render(main, chars);

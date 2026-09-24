@@ -22,7 +22,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/api/health', (req, res) => res.json({ ok: true, version: '1.0.0' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, version: require('../package.json').version }));
 
 // Rules data for the character creator / UI (monsters & maps stay server-side to avoid spoilers)
 app.get('/api/rules', (req, res) => {

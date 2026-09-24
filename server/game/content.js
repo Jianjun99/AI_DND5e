@@ -113,29 +113,33 @@ function scan() {
         }
         // monsters
         const monPath = path.join(packDir, 'monsters.json');
-        if (fs.existsSync(monPath)) {
+        const monAlt = path.join(packDir, 'monsters-gear.json');
+        const monFile = fs.existsSync(monPath) ? monPath : (fs.existsSync(monAlt) ? monAlt : null);
+        if (monFile) {
           try {
-            (loadJson(monPath).monsters || []).forEach(m => {
+            (loadJson(monFile).monsters || []).forEach(m => {
               const ok = validateMonster(m, pack.name, reg.warnings);
               if (ok) {
                 if (reg.monsters[m.id]) reg.warnings.push(`[${pack.name}] monster id "${m.id}" already exists — pack version ignored`);
                 else { reg.monsters[m.id] = m; pack.monsters.push(m.id); }
               }
             });
-          } catch (e) { reg.warnings.push(`[${pack.name}] bad monsters.json: ${e.message}`); }
+          } catch (e) { reg.warnings.push(`[${pack.name}] bad monsters file: ${e.message}`); }
         }
         // gear
         const gearPath = path.join(packDir, 'gear.json');
-        if (fs.existsSync(gearPath)) {
+        const gearAlt = path.join(packDir, 'monsters-gear.json');
+        const gearFile = fs.existsSync(gearPath) ? gearPath : (fs.existsSync(gearAlt) ? gearAlt : null);
+        if (gearFile) {
           try {
-            (loadJson(gearPath).gear || []).forEach(g => {
+            (loadJson(gearFile).gear || []).forEach(g => {
               const ok = validateGear(g, pack.name, reg.warnings);
               if (ok) {
                 if (reg.gear[g.id]) reg.warnings.push(`[${pack.name}] gear id "${g.id}" already exists — pack version ignored`);
                 else { reg.gear[g.id] = g; pack.gear.push(g.id); }
               }
             });
-          } catch (e) { reg.warnings.push(`[${pack.name}] bad gear.json: ${e.message}`); }
+          } catch (e) { reg.warnings.push(`[${pack.name}] bad gear file: ${e.message}`); }
         }
         reg.packs.push(pack);
       } catch (e) {

@@ -10,7 +10,8 @@ router.get('/', (req, res) => {
     id: c.id, name: c.name, species: c.species, className: c.className, background: c.background,
     level: c.level, xp: c.xp, hpMax: c.hpMax, acBase: c.acBase, gold: c.gold,
     createdAt: c.createdAt,
-    portraitUrl: portraits.characterPortraitUrl(c.id)
+    portraitUrl: portraits.characterPortraitUrl(c.id),
+    levelUp: engine.levelUpInfo(c)
   }));
   res.json(chars);
 });
@@ -38,7 +39,7 @@ router.post('/', async (req, res) => {
 router.get('/:id', (req, res) => {
   const char = store.getCharacters().find(c => c.id === req.params.id);
   if (!char) return res.status(404).json({ error: 'Character not found' });
-  const view = { ...char, portraitUrl: portraits.characterPortraitUrl(char.id) };
+  const view = { ...char, portraitUrl: portraits.characterPortraitUrl(char.id), levelUp: engine.levelUpInfo(char) };
   res.json(view);
 });
 
@@ -72,7 +73,8 @@ router.post('/:id/equip', (req, res) => {
   if (!itemId || itemId === 'none') {
     char.equipped[slot] = null;
   } else {
-    const inInv = (char.inventory || []).some(i => i.itemId === itemId && i.qty > 0);
+    // rolled affix gear is equipped by its unique id; plain items by their catalogue id
+    const inInv = (char.inventory || []).some(i => (i.itemId === itemId || i.uniqueId === itemId) && i.qty > 0);
     if (!inInv) return res.status(400).json({ error: 'Item not in inventory' });
     char.equipped[slot] = itemId;
   }
@@ -105,32 +107,6 @@ router.post('/:id/equip', (req, res) => {
 
   const cls = (engine.CLASSES || []).find(c => c.id === char.className);
   if (cls) engine.applyClassAndSpecies(char, cls, null, char.level || 1, true);
-
-  if (char.equipped.mainHand) {
-    const w = engine.resolveWeapon(char.equipped.mainHand);
-    if (w) {
-      const strMod = Math.floor(((char.abilities?.str || 10) - 10) / 2);
-      const isFinesse = (w.props || []).includes('finesse');
-      const isRanged = !!w.range && w.range > 5;
-      const abilityMod = isRanged ? dexMod : (isFinesse ? Math.max(strMod, dexMod) : strMod);
-      const prof = (char.profBonus || 2);
-      const mainAtk = {
-        weaponId: w.id,
-        name: w.name,
-        bonus: prof + abilityMod + (w.magic || 0),
-        dmgDice: w.damage || '1d6',
-        dmgMod: abilityMod + (w.magic || 0),
-        dmgType: w.damageType || 'slashing',
-        ranged: isRanged,
-        range: w.range || 5,
-        props: w.props || []
-      };
-      // replace the old entry for this weapon but NEVER drop the unarmed strike
-      const rest = (char.attacks || []).filter(a => a.weaponId !== w.id);
-      const un = rest.find(a => a.weaponId === 'unarmed');
-      char.attacks = [mainAtk, ...(rest.filter(a => a !== un)), un].filter(Boolean);
-    }
-  }
 
   store.saveCharacters(chars);
   res.json({ ok: true, char });
@@ -329,30 +305,6 @@ router.post('/:id/level-up', (req, res) => {
   delete char.pendingLevelUp;
 
   engine.applyClassAndSpecies(char, cls, null, char.level, true);
-
-  // Recalculate weapon attacks if equipped
-  if (char.equipped && char.equipped.mainHand) {
-    const w = engine.resolveWeapon(char.equipped.mainHand);
-    if (w) {
-      const dexMod = Math.floor(((char.abilities?.dex || 10) - 10) / 2);
-      const strMod = Math.floor(((char.abilities?.str || 10) - 10) / 2);
-      const isFinesse = (w.props || []).includes('finesse');
-      const isRanged = !!w.range && w.range > 5;
-      const abilityMod = isRanged ? dexMod : (isFinesse ? Math.max(strMod, dexMod) : strMod);
-      const prof = (char.profBonus || 2);
-      const mainAtk = {
-        weaponId: w.id, name: w.name,
-        bonus: prof + abilityMod + (w.magic || 0),
-        dmgDice: w.damage || '1d6',
-        dmgMod: abilityMod + (w.magic || 0),
-        dmgType: w.damageType || 'slashing',
-        ranged: isRanged, range: w.range || 5, props: w.props || []
-      };
-      const rest = (char.attacks || []).filter(a => a.weaponId !== w.id);
-      const un = rest.find(a => a.weaponId === 'unarmed');
-      char.attacks = [mainAtk, ...(rest.filter(a => a !== un)), un].filter(Boolean);
-    }
-  }
 
   // Synchronize any active delves/saves
   try {

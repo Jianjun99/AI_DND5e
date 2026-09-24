@@ -1,10 +1,12 @@
 // map3d.js — 2.5D diorama renderer (Three.js): continuous flagstone floors,
 // adjacent cavern bedrock expansion, architectural wall trim, dynamic torchlight flicker,
 // tactical movement highlights, and animated 3D target reticle.
-// Interface: createMap3D(container, { onTileClick, onTileHover, isSelected, getSelected }) → { render(game), dispose(), tileToScreen(x, y) }
+// Interface: createMap3D(container, { onTileClick, onTileHover, isSelected, getSelected, follow, onFollowChange })
+//             → { render(game), dispose(), tileToScreen(x, y), setFollow(v), isFollowing(), debugState() }
 
 import * as THREE from '/vendor/three.module.js';
 import { createCharacterModel, updateModelAnimation } from './models3d.js';
+import { isEntityOnBoard, stepCameraTowards, clampToMap } from './entity-visibility.js';
 
 const TILE = 1;
 const WALL_H = 0.72;
@@ -129,16 +131,44 @@ export function createMap3D(container, opts = {}) {
 
   let entityNodes = new Map(); // entId -> { group, target: Vector3 }
   let camTarget = new THREE.Vector3();
+  // Camera binding: while following, the view rides the walking hero; unfollow to survey the map
+  let following = opts.follow !== false;
+  let cameraReady = false;   // first frame of a map needs an instant snap, everything after glides
+  let lastMapKey = null;
+  let panDrag = null;
   let hoverMesh = null;
   let reticleGroup = null;
   let breadcrumbGroup = null;
 
+  const envGroup = new THREE.Group();
+  const objectsGroup = new THREE.Group();
+  const entitiesGroup = new THREE.Group();
+  const beaconGroup = new THREE.Group();
+  world.add(envGroup);
+  world.add(objectsGroup);
+  world.add(entitiesGroup);
+  world.add(beaconGroup);
+
+  let beaconMesh = null;
+  let beaconRing = null;
+  let beaconCrystal = null;
+
   function clearWorld() {
-    while (world.children.length) {
-      const o = world.children.pop();
-      world.remove(o);
+    while (envGroup.children.length) {
+      const o = envGroup.children.pop();
+      envGroup.remove(o);
     }
-    entityNodes = new Map();
+    while (objectsGroup.children.length) {
+      const o = objectsGroup.children.pop();
+      objectsGroup.remove(o);
+    }
+    while (beaconGroup.children.length) {
+      const o = beaconGroup.children.pop();
+      beaconGroup.remove(o);
+    }
+    beaconMesh = null;
+    beaconRing = null;
+    beaconCrystal = null;
   }
 
   function floorColor(x, y, lit, isWall) {
@@ -201,18 +231,18 @@ export function createMap3D(container, opts = {}) {
           const wallMesh = new THREE.Mesh(wallGeo, getMat(floorColor(x, y, lit, true)));
           wallMesh.position.set(x + 0.5, WALL_H / 2, y + 0.5);
           wallMesh.userData.tile = { x, y };
-          world.add(wallMesh);
+          envGroup.add(wallMesh);
 
           // Overhanging architectural capstone trim
           const capMesh = new THREE.Mesh(capGeo, getMat(capColor(x, y, lit)));
           capMesh.position.set(x + 0.5, WALL_H + 0.04, y + 0.5);
           capMesh.userData.tile = { x, y };
-          world.add(capMesh);
+          envGroup.add(capMesh);
         } else {
           const floorMesh = new THREE.Mesh(floorGeo, getMat(floorColor(x, y, lit, false), true));
           floorMesh.position.set(x + 0.5, -0.06, y + 0.5);
           floorMesh.userData.tile = { x, y };
-          world.add(floorMesh);
+          envGroup.add(floorMesh);
         }
       }
     }
@@ -242,7 +272,7 @@ export function createMap3D(container, opts = {}) {
       const rockGeo = track(new THREE.BoxGeometry(TILE * 1.02, rockH, TILE * 1.02));
       const rockMesh = new THREE.Mesh(rockGeo, getMat(cavernColor(px, py)));
       rockMesh.position.set(px + 0.5, rockH / 2 - 0.06, py + 0.5);
-      world.add(rockMesh);
+      envGroup.add(rockMesh);
     }
 
     // Subterranean foundation base plinth
@@ -251,7 +281,7 @@ export function createMap3D(container, opts = {}) {
     const baseGeo = track(new THREE.BoxGeometry((maxX - minX) * TILE, 0.45, (maxY - minY) * TILE));
     const baseMesh = new THREE.Mesh(baseGeo, track(new THREE.MeshLambertMaterial({ color: 0x0c0a08 })));
     baseMesh.position.set((minX + maxX) / 2, -0.28, (minY + maxY) / 2);
-    world.add(baseMesh);
+    envGroup.add(baseMesh);
 
     // 3. Reachable Movement Overlays
     const reachGeo = track(new THREE.BoxGeometry(TILE * 0.94, 0.015, TILE * 0.94));
@@ -263,7 +293,7 @@ export function createMap3D(container, opts = {}) {
       const rMesh = new THREE.Mesh(reachGeo, reachMat);
       rMesh.position.set(rx + 0.5, 0.008, ry + 0.5);
       rMesh.userData.tile = { x: rx, y: ry };
-      world.add(rMesh);
+      envGroup.add(rMesh);
     }
 
     // Hover Highlight mesh
@@ -273,15 +303,15 @@ export function createMap3D(container, opts = {}) {
     );
     hover.visible = false;
     hover.position.y = 0.02;
-    world.add(hover);
+    envGroup.add(hover);
 
     // 3D Target Reticle
     reticleGroup = createTargetReticle();
-    world.add(reticleGroup);
+    envGroup.add(reticleGroup);
 
     // Breadcrumb path group
     breadcrumbGroup = new THREE.Group();
-    world.add(breadcrumbGroup);
+    envGroup.add(breadcrumbGroup);
 
     return hover;
   }
@@ -431,28 +461,69 @@ export function createMap3D(container, opts = {}) {
       const b2 = new THREE.Mesh(track(new THREE.SphereGeometry(0.04, 6, 6)), new THREE.MeshBasicMaterial({ color: 0x86efac }));
       b2.position.set(o.x + 0.58, 0.04, o.y + 0.56);
       g.add(b2);
+    } else if (o.id === 'campfire' || o.type === 'campfire') {
+      const stoneGeo = track(new THREE.DodecahedronGeometry(0.07, 0));
+      const stoneMat = mat(0x555555);
+      for (let i = 0; i < 7; i++) {
+        const ang = (i / 7) * Math.PI * 2;
+        const s = new THREE.Mesh(stoneGeo, stoneMat);
+        s.position.set(o.x + 0.5 + Math.cos(ang) * 0.28, 0.04, o.y + 0.5 + Math.sin(ang) * 0.28);
+        g.add(s);
+      }
+      const logGeo = track(new THREE.CylinderGeometry(0.04, 0.04, 0.36, 6));
+      const logMat = mat(0x422813);
+      const l1 = new THREE.Mesh(logGeo, logMat);
+      l1.position.set(o.x + 0.5, 0.06, o.y + 0.5);
+      l1.rotation.z = Math.PI / 4;
+      l1.rotation.y = 0.4;
+      g.add(l1);
+      const l2 = new THREE.Mesh(logGeo, logMat);
+      l2.position.set(o.x + 0.5, 0.06, o.y + 0.5);
+      l2.rotation.z = -Math.PI / 4;
+      l2.rotation.y = -0.5;
+      g.add(l2);
+      const fire = new THREE.Mesh(
+        track(new THREE.ConeGeometry(0.15, 0.32, 6)),
+        track(new THREE.MeshBasicMaterial({ color: 0xf97316 }))
+      );
+      fire.position.set(o.x + 0.5, 0.19, o.y + 0.5);
+      g.add(fire);
+      const fireInner = new THREE.Mesh(
+        track(new THREE.ConeGeometry(0.08, 0.2, 6)),
+        track(new THREE.MeshBasicMaterial({ color: 0xfef08a }))
+      );
+      fireInner.position.set(o.x + 0.5, 0.17, o.y + 0.5);
+      g.add(fireInner);
+      if (lit) {
+        const cLight = new THREE.PointLight(0xf97316, 1.8, 5, 2);
+        cLight.position.set(o.x + 0.5, 0.35, o.y + 0.5);
+        g.add(cLight);
+      }
     }
-    world.add(g);
+    objectsGroup.add(g);
   }
 
   function layoutEntities(game) {
     const vis = new Set(game.visible || []);
     const disc = new Set(game.discovered || []);
+    // Creatures that left the board (slain or fled) and entities the server dropped
+    // must actually leave the scene — the guard below only skips *updating* them.
     for (const [id, node] of entityNodes) {
-      if (!game.entities.find(e => e.id === id)) {
-        world.remove(node.group);
+      const ent = game.entities.find(e => e.id === id);
+      if (!ent || !isEntityOnBoard(ent)) {
+        entitiesGroup.remove(node.group);
         entityNodes.delete(id);
       }
     }
     game.entities.forEach(e => {
       const key = e.x + ',' + e.y;
-      if (!disc.has(key) || (e.alive === false && e.kind !== 'player')) return;
+      if (!disc.has(key) || !isEntityOnBoard(e)) return;
       let node = entityNodes.get(e.id);
       if (!node) {
         node = { group: createCharacterModel(e, track) };
         node.group.position.set(e.x + 0.5, 0, e.y + 0.5);
         node.target = new THREE.Vector3(e.x + 0.5, 0, e.y + 0.5);
-        world.add(node.group);
+        entitiesGroup.add(node.group);
         entityNodes.set(e.id, node);
       }
       node.target.set(e.x + 0.5, 0, e.y + 0.5);
@@ -467,6 +538,69 @@ export function createMap3D(container, opts = {}) {
         node.group.children.forEach(ch => { if (ch.material && ch.material.color) ch.material.emissive = new THREE.Color(0x443300); });
       }
     });
+  }
+
+  function buildExitBeacon(game) {
+    const map = game.map || {};
+    const camp = (map.victory && map.victory.campfire) || map.victoryTile || (game.objects || []).find(o => o.id === 'campfire' || o.type === 'campfire') || map.playerStart;
+    if (!camp) return;
+
+    const bx = camp.x + 0.5;
+    const bz = camp.y + 0.5;
+
+    // 1. Towering celestial pillar of golden light
+    const beamGeo = track(new THREE.CylinderGeometry(0.35, 0.48, 14, 16));
+    const beamMat = track(new THREE.MeshBasicMaterial({
+      color: 0xfbbf24,
+      transparent: true,
+      opacity: 0.38,
+      side: THREE.DoubleSide
+    }));
+    const beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.set(bx, 7, bz);
+    beaconGroup.add(beam);
+    beaconMesh = beam;
+
+    // 2. Inner intense core beam
+    const coreGeo = track(new THREE.CylinderGeometry(0.12, 0.16, 14, 10));
+    const coreMat = track(new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.72
+    }));
+    const core = new THREE.Mesh(coreGeo, coreMat);
+    core.position.set(bx, 7, bz);
+    beaconGroup.add(core);
+
+    // 3. Pulsing ground portal ring
+    const ringGeo = track(new THREE.RingGeometry(0.46, 0.72, 24));
+    ringGeo.rotateX(-Math.PI / 2);
+    const ringMat = track(new THREE.MeshBasicMaterial({
+      color: 0xf59e0b,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.85
+    }));
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.set(bx, 0.035, bz);
+    beaconGroup.add(ring);
+    beaconRing = ring;
+
+    // 4. Floating glowing exit diamond crystal
+    const cryGeo = track(new THREE.OctahedronGeometry(0.26, 0));
+    const cryMat = track(new THREE.MeshLambertMaterial({
+      color: 0xfef08a,
+      emissive: new THREE.Color(0xd97706)
+    }));
+    const crystal = new THREE.Mesh(cryGeo, cryMat);
+    crystal.position.set(bx, 2.2, bz);
+    beaconGroup.add(crystal);
+    beaconCrystal = crystal;
+
+    // 5. Golden beacon point light
+    const bLight = new THREE.PointLight(0xfbbf24, 3.2, 12, 2);
+    bLight.position.set(bx, 2.0, bz);
+    beaconGroup.add(bLight);
   }
 
   function render(game) {
@@ -490,14 +624,27 @@ export function createMap3D(container, opts = {}) {
       addObjectMesh(o, lit);
     });
 
-    world.add(hover);
     hoverMesh = hover;
     layoutEntities(game);
+
+    // If dungeon / area is cleared of monsters, spawn exit beacon
+    const aliveMonsters = (game.entities || []).filter(e => e.kind === 'monster' && e.alive !== false);
+    if (aliveMonsters.length === 0) {
+      buildExitBeacon(game);
+    }
 
     const p = (game.entities || []).find(e => e.kind === 'player');
     if (p) {
       torch.position.set(p.x + 0.5, 1.4, p.y + 0.5);
-      camTarget.set(p.x + 0.5, 0, p.y + 0.5);
+      // Snap the view only when the board changes under the hero (new floor, stairs,
+      // long teleport) — otherwise leave the camera alone so it can glide with the walk.
+      const mapKey = game.mapId || (game.map && game.map.id) || null;
+      const jumped = Math.hypot(camTarget.x - (p.x + 0.5), camTarget.z - (p.y + 0.5)) > 6;
+      if (!cameraReady || mapKey !== lastMapKey || jumped) {
+        camTarget.set(p.x + 0.5, 0, p.y + 0.5);
+        cameraReady = true;
+      }
+      lastMapKey = mapKey;
     }
 
     // Update target reticle
@@ -551,6 +698,11 @@ export function createMap3D(container, opts = {}) {
       const curZ = node.group.position.z;
       const dist = Math.hypot(tx - curX, tz - curZ);
 
+      // If already navigating to this exact destination, keep going
+      if (node.target && Math.abs(node.target.x - tx) < 0.01 && Math.abs(node.target.z - tz) < 0.01 && node.group.userData.anim) {
+        return;
+      }
+
       if (dist > 0.08) {
         const sx = Math.floor(curX);
         const sy = Math.floor(curZ);
@@ -563,6 +715,8 @@ export function createMap3D(container, opts = {}) {
         node.target.set(tx, 0, tz);
       } else {
         node.group.position.set(tx, 0, tz);
+        delete node.group.userData.anim;
+        node.target.set(tx, 0, tz);
       }
     });
   }
@@ -590,6 +744,24 @@ export function createMap3D(container, opts = {}) {
       reticleGroup.position.y = 1.15 + Math.sin(now * 0.006) * 0.05;
     }
 
+    // Beacon animation
+    if (beaconMesh) {
+      beaconMesh.rotation.y = now * 0.0012;
+    }
+    if (beaconCrystal) {
+      beaconCrystal.rotation.y = now * 0.0028;
+      beaconCrystal.position.y = 2.2 + Math.sin(now * 0.004) * 0.12;
+    }
+    if (beaconRing) {
+      const s = 1 + Math.sin(now * 0.005) * 0.12;
+      beaconRing.scale.set(s, s, s);
+    }
+
+    // Keep miniatures converged on their tiles: a walk that was interrupted by another
+    // move (or whose rebuild frame never came) restarts here instead of stranding the
+    // model a tile behind — the camera rides the model, so a stranded model looks broken.
+    if (currentGame) animateFrom(currentGame);
+
     // Animate character models & walk cycles
     entityNodes.forEach(node => {
       updateModelAnimation(node, now, delta);
@@ -601,8 +773,11 @@ export function createMap3D(container, opts = {}) {
     if (playerNode) {
       const px = playerNode.group.position.x;
       const pz = playerNode.group.position.z;
-      camTarget.x += (px - camTarget.x) * Math.min(1, delta * 6.5);
-      camTarget.z += (pz - camTarget.z) * Math.min(1, delta * 6.5);
+      if (following) {
+        const next = stepCameraTowards(camTarget, { x: px, z: pz }, delta, 5.5);
+        camTarget.x = next.x;
+        camTarget.z = next.z;
+      }
 
       const flicker = Math.sin(now * 0.007) * 1.8 + Math.cos(now * 0.015) * 1.1;
       torch.intensity = Math.max(14, Math.min(23, 18.5 + flicker));
@@ -670,6 +845,40 @@ export function createMap3D(container, opts = {}) {
     ev.preventDefault();
     zoom = Math.max(0.55, Math.min(2.2, zoom * (ev.deltaY > 0 ? 0.9 : 1.1)));
   }, { passive: false });
+
+  // Free camera: right-drag (or middle-drag) pans the view; taking manual control
+  // releases the follow binding so the button in the HUD flips to "free view".
+  function setFollow(v) {
+    following = !!v;
+    if (following) {
+      const p = currentGame && currentGame.entities && currentGame.entities.find(e => e.kind === 'player');
+      if (p) camTarget.set(p.x + 0.5, 0, p.y + 0.5);
+      cameraReady = true;
+    }
+    if (opts.onFollowChange) opts.onFollowChange(following);
+  }
+
+  renderer.domElement.addEventListener('contextmenu', ev => ev.preventDefault());
+  renderer.domElement.addEventListener('pointerdown', ev => {
+    if (ev.button !== 2 && ev.button !== 1) return;
+    ev.preventDefault();
+    panDrag = { x: ev.clientX, y: ev.clientY };
+    try { renderer.domElement.setPointerCapture(ev.pointerId); } catch {}
+  });
+  renderer.domElement.addEventListener('pointermove', ev => {
+    if (!panDrag) return;
+    const dx = ev.clientX - panDrag.x, dy = ev.clientY - panDrag.y;
+    panDrag = { x: ev.clientX, y: ev.clientY };
+    if (following) setFollow(false);
+    const height = Math.max(200, container.clientHeight || 560);
+    const worldPerPx = ((8.5 / zoom) * 1.15) / height;
+    const next = clampToMap(camTarget.x - dx * worldPerPx, camTarget.z - dy * worldPerPx, currentGame && currentGame.map);
+    camTarget.x = next.x;
+    camTarget.z = next.z;
+  });
+  const endPan = () => { panDrag = null; };
+  renderer.domElement.addEventListener('pointerup', endPan);
+  renderer.domElement.addEventListener('pointercancel', endPan);
   // touch support: single tap = click, two-finger pinch = zoom
   let touchStart = null;
   renderer.domElement.addEventListener('touchstart', (ev) => {
@@ -721,5 +930,32 @@ export function createMap3D(container, opts = {}) {
     }
   }
 
-  return { render, dispose, kind: '3d', tileToScreen };
+  return {
+    render,
+    dispose,
+    kind: '3d',
+    tileToScreen,
+    setFollow,
+    isFollowing: () => following,
+    debugState: () => ({
+      follow: following,
+      zoom: +zoom.toFixed(2),
+      camTarget: { x: +camTarget.x.toFixed(2), z: +camTarget.z.toFixed(2) },
+      entityNodes: entityNodes.size
+    }),
+    // where the hero miniature actually stands (lags the logical tile while walking)
+    modelState: () => {
+      const p = currentGame && currentGame.entities && currentGame.entities.find(e => e.kind === 'player');
+      const node = p ? entityNodes.get(p.id) : null;
+      if (!node) return null;
+      const anim = node.group.userData.anim;
+      return {
+        x: +node.group.position.x.toFixed(2),
+        z: +node.group.position.z.toFixed(2),
+        animating: !!anim,
+        waypoint: anim ? anim.currentWpIndex : null,
+        waypoints: anim ? anim.waypoints.length : 0
+      };
+    }
+  };
 }

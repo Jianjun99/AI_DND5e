@@ -1,0 +1,25 @@
+{
+  "gear": [
+    {
+      "id": "dragon_scale_shield",
+      "name": "Dragon Scale Shield",
+      "type": "shield",
+      "acBonus": 2,
+      "cost": 300,
+      "desc": "+2 AC — a shield of polished red dragon scales, warm to the touch."
+    },
+    {
+      "id": "ember_blade",
+      "name": "Ember Blade",
+      "type": "magic_weapon",
+      "base": "longsword",
+      "magic": 1,
+      "bonusDamage": {
+        "dice": "1d6",
+        "type": "fire"
+      },
+      "cost": 300,
+      "desc": "+1 longsword wreathed in smouldering embers: +1d6 fire damage."
+    }
+  ]
+}

@@ -42,7 +42,17 @@ export function createCharacterModel(ent, track = (o) => o) {
     buildNpcMiniature(bodyGroup, ent, rig, track);
   } else {
     // Monster species
-    if (isBoss) {
+    if (monsterId === 'young_fire_dragon' || (isBoss && ent.name && ent.name.toLowerCase().includes('dragon'))) {
+      buildDragonMiniature(bodyGroup, ent, rig, track);
+    } else if (monsterId === 'giant_spider') {
+      buildSpiderMiniature(bodyGroup, ent, rig, track);
+    } else if (monsterId === 'green_slime') {
+      buildSlimeMiniature(bodyGroup, ent, rig, track);
+    } else if (monsterId === 'fire_elemental') {
+      buildFireElementalMiniature(bodyGroup, ent, rig, track);
+    } else if (monsterId === 'animated_armor') {
+      buildAnimatedArmorMiniature(bodyGroup, ent, rig, track);
+    } else if (isBoss) {
       buildBossMiniature(bodyGroup, ent, rig, track);
     } else if (monsterId === 'skeleton') {
       buildSkeletonMiniature(bodyGroup, ent, rig, track);
@@ -60,18 +70,36 @@ export function createCharacterModel(ent, track = (o) => o) {
   }
 
   // Floating HP bar for monsters
+  const isDragon = monsterId === 'young_fire_dragon' || (isBoss && ent.name && ent.name.toLowerCase().includes('dragon'));
+  const isElite = !!(ent.isElite) && !isBoss;
   if (kind === 'monster') {
     const bar = makeHpBar();
-    bar.sprite.position.y = isBoss ? 1.9 : 1.35;
+    bar.sprite.position.y = isDragon ? 2.4 : (isBoss ? 1.9 : (isElite ? 1.6 : 1.35));
     root.add(bar.sprite);
     root.userData.bar = bar;
   }
 
   if (isBoss) {
     const bossTag = makeBossBadge(ent.name);
-    bossTag.position.y = 2.1;
+    bossTag.position.y = isDragon ? 2.65 : 2.1;
     root.add(bossTag);
     root.userData.bossBadge = bossTag;
+  }
+
+  // Elite monster: scale up + add colored badge + aura light
+  if (isElite) {
+    root.scale.set(1.15, 1.15, 1.15);
+    const affixColor = (ent.affix && ent.affix.color) || '#f59e0b';
+    const eliteBadge = makeEliteBadge(ent.name, affixColor);
+    eliteBadge.position.y = 1.75;
+    root.add(eliteBadge);
+    root.userData.eliteBadge = eliteBadge;
+    // Glowing aura point light in affix color
+    const lightColor = (ent.affix && ent.affix.lightColor) || 0xf59e0b;
+    const auraLight = new THREE.PointLight(lightColor, 1.2, 3.5, 2);
+    auraLight.position.set(0, 0.5, 0);
+    root.add(auraLight);
+    root.userData.auraLight = auraLight;
   }
 
   root.userData.rig = rig;
@@ -662,6 +690,369 @@ function buildBossMiniature(g, ent, rig, track) {
   rig.weapon = blade;
 }
 
+// ==========================================================================
+// 10. YOUNG FIRE DRAGON MINIATURE (Boss Yzmerith)
+// ==========================================================================
+function buildDragonMiniature(g, ent, rig, track) {
+  rig.isQuadruped = true;
+  const scales = 0x991b1b;
+  const belly = 0xd97706;
+  const horn = 0x1c1917;
+  const claw = 0x44403c;
+
+  // Massive Muscular Torso & Underbelly
+  const torso = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.55, 0.44, 0.85)), track(createMat(scales))));
+  torso.position.set(0, 0.46, 0);
+  g.add(torso);
+  rig.torso = torso;
+
+  const underbelly = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.42, 0.12, 0.75)), track(createMat(belly))));
+  underbelly.position.set(0, 0.28, 0);
+  g.add(underbelly);
+
+  // Dorsal Spines along back
+  for (let i = -0.3; i <= 0.35; i += 0.18) {
+    const spine = track(new THREE.Mesh(track(new THREE.ConeGeometry(0.04, 0.16, 4)), track(createMat(horn))));
+    spine.position.set(0, 0.72, i);
+    spine.rotation.x = -0.2;
+    g.add(spine);
+  }
+
+  // Muscular Quadruped Dragon Legs with Claws
+  rig.leftLeg = createDragonLeg(scales, claw, track);
+  rig.leftLeg.position.set(-0.28, 0.24, 0.28);
+  g.add(rig.leftLeg);
+
+  rig.rightLeg = createDragonLeg(scales, claw, track);
+  rig.rightLeg.position.set(0.28, 0.24, 0.28);
+  g.add(rig.rightLeg);
+
+  rig.leftArm = createDragonLeg(scales, claw, track);
+  rig.leftArm.position.set(-0.28, 0.24, -0.28);
+  g.add(rig.leftArm);
+
+  rig.rightArm = createDragonLeg(scales, claw, track);
+  rig.rightArm.position.set(0.28, 0.24, -0.28);
+  g.add(rig.rightArm);
+
+  // Dragon Neck and Horned Head
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 0.68, 0.52);
+  g.add(headGroup);
+  rig.head = headGroup;
+
+  const neck = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.22, 0.34, 0.28)), track(createMat(scales))));
+  neck.position.set(0, 0.12, 0.08);
+  neck.rotation.x = -0.35;
+  headGroup.add(neck);
+
+  const head = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.28, 0.22, 0.40)), track(createMat(scales))));
+  head.position.set(0, 0.26, 0.28);
+  headGroup.add(head);
+
+  // Dragon Snout
+  const snout = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.22, 0.14, 0.26)), track(createMat(scales))));
+  snout.position.set(0, 0.21, 0.52);
+  headGroup.add(snout);
+
+  // Glowing Fiery Eyes & Horns
+  for (const s of [-1, 1]) {
+    const eye = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.04, 0.03, 0.05)), track(new THREE.MeshBasicMaterial({ color: 0xfacc15 }))));
+    eye.position.set(s * 0.14, 0.30, 0.34);
+    headGroup.add(eye);
+
+    const dragonHorn = track(new THREE.Mesh(track(new THREE.ConeGeometry(0.055, 0.38, 5)), track(createMat(horn))));
+    dragonHorn.position.set(s * 0.15, 0.42, 0.16);
+    dragonHorn.rotation.x = -0.55;
+    dragonHorn.rotation.z = s * 0.35;
+    headGroup.add(dragonHorn);
+  }
+
+  // Sweeping Draconic Wings
+  for (const s of [-1, 1]) {
+    const wingGroup = new THREE.Group();
+    wingGroup.position.set(s * 0.26, 0.65, -0.05);
+    wingGroup.rotation.y = s * 0.3;
+    wingGroup.rotation.z = s * 0.25;
+
+    const wingBone = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.05, 0.70, 0.05)), track(createMat(horn))));
+    wingBone.position.set(s * 0.30, 0.28, 0);
+    wingBone.rotation.z = s * 0.6;
+    wingGroup.add(wingBone);
+
+    const membrane = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.55, 0.45, 0.01)), track(createMat(0x7f1d1d))));
+    membrane.position.set(s * 0.28, 0.15, -0.04);
+    wingGroup.add(membrane);
+
+    g.add(wingGroup);
+  }
+
+  // Spiked Serpentine Tail
+  const tail = track(new THREE.Mesh(track(new THREE.CylinderGeometry(0.06, 0.14, 0.75, 5)), track(createMat(scales))));
+  tail.position.set(0, 0.34, -0.72);
+  tail.rotation.x = 1.2;
+  g.add(tail);
+
+  const tailSpike = track(new THREE.Mesh(track(new THREE.ConeGeometry(0.08, 0.24, 4)), track(createMat(horn))));
+  tailSpike.position.set(0, 0.22, -1.1);
+  tailSpike.rotation.x = 1.4;
+  g.add(tailSpike);
+}
+
+function createDragonLeg(color, clawColor, track) {
+  const g = new THREE.Group();
+  const thigh = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.14, 0.26, 0.16)), track(createMat(color))));
+  thigh.position.y = -0.08;
+  g.add(thigh);
+
+  const paw = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.16, 0.10, 0.20)), track(createMat(clawColor))));
+  paw.position.set(0, -0.22, 0.04);
+  g.add(paw);
+  return g;
+}
+
+// ==========================================================================
+// 11. GIANT SPIDER MINIATURE
+// ==========================================================================
+function buildSpiderMiniature(g, ent, rig, track) {
+  rig.isQuadruped = true;
+  const chitin = 0x18181b;
+  const accent = 0xdc2626;
+
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 0.24, 0.14);
+  g.add(headGroup);
+  rig.head = headGroup;
+
+  const thorax = track(new THREE.Mesh(track(new THREE.SphereGeometry(0.18, 8, 8)), track(createMat(chitin))));
+  thorax.scale.set(1.0, 0.65, 1.2);
+  headGroup.add(thorax);
+
+  for (const s of [-0.07, -0.02, 0.02, 0.07]) {
+    const eye = track(new THREE.Mesh(track(new THREE.SphereGeometry(0.024, 5, 5)), track(new THREE.MeshBasicMaterial({ color: 0xef4444 }))));
+    eye.position.set(s, 0.06, 0.18);
+    headGroup.add(eye);
+  }
+
+  for (const s of [-1, 1]) {
+    const fang = track(new THREE.Mesh(track(new THREE.ConeGeometry(0.028, 0.12, 4)), track(createMat(0x450a0a))));
+    fang.position.set(s * 0.06, -0.06, 0.22);
+    fang.rotation.x = 0.5;
+    headGroup.add(fang);
+  }
+
+  const abdomen = track(new THREE.Mesh(track(new THREE.SphereGeometry(0.32, 10, 10)), track(createMat(chitin))));
+  abdomen.scale.set(1.1, 0.85, 1.4);
+  abdomen.position.set(0, 0.32, -0.28);
+  g.add(abdomen);
+  rig.torso = abdomen;
+
+  const mark = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.10, 0.02, 0.14)), track(createMat(accent))));
+  mark.position.set(0, 0.55, -0.28);
+  g.add(mark);
+
+  rig.leftLeg = createSpiderLeg(-1, track);
+  rig.leftLeg.position.set(-0.16, 0.20, 0.12);
+  g.add(rig.leftLeg);
+
+  rig.rightLeg = createSpiderLeg(1, track);
+  rig.rightLeg.position.set(0.16, 0.20, 0.12);
+  g.add(rig.rightLeg);
+
+  rig.leftArm = createSpiderLeg(-1, track);
+  rig.leftArm.position.set(-0.16, 0.20, -0.12);
+  g.add(rig.leftArm);
+
+  rig.rightArm = createSpiderLeg(1, track);
+  rig.rightArm.position.set(0.16, 0.20, -0.12);
+  g.add(rig.rightArm);
+
+  for (const s of [-1, 1]) {
+    const leg2 = createSpiderLeg(s, track);
+    leg2.position.set(s * 0.17, 0.20, 0.02);
+    g.add(leg2);
+
+    const leg3 = createSpiderLeg(s, track);
+    leg3.position.set(s * 0.15, 0.20, -0.22);
+    g.add(leg3);
+  }
+}
+
+function createSpiderLeg(side, track) {
+  const g = new THREE.Group();
+  const upper = track(new THREE.Mesh(track(new THREE.CylinderGeometry(0.02, 0.025, 0.30, 4)), track(createMat(0x1c1917))));
+  upper.position.set(side * 0.12, 0.08, 0);
+  upper.rotation.z = side * 0.9;
+  g.add(upper);
+
+  const lower = track(new THREE.Mesh(track(new THREE.ConeGeometry(0.02, 0.26, 4)), track(createMat(0x09090b))));
+  lower.position.set(side * 0.24, -0.06, 0);
+  lower.rotation.z = side * -0.3;
+  g.add(lower);
+  return g;
+}
+
+// ==========================================================================
+// 12. GREEN SLIME MINIATURE
+// ==========================================================================
+function buildSlimeMiniature(g, ent, rig, track) {
+  const slimeColor = 0x10b981;
+  const coreColor = 0x059669;
+
+  const domeMat = new THREE.MeshLambertMaterial({ color: slimeColor, transparent: true, opacity: 0.80 });
+  track(domeMat);
+  const dome = track(new THREE.Mesh(track(new THREE.SphereGeometry(0.38, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2)), domeMat));
+  dome.position.y = 0;
+  dome.scale.set(1.15, 0.95, 1.15);
+  g.add(dome);
+  rig.torso = dome;
+
+  const core = track(new THREE.Mesh(track(new THREE.SphereGeometry(0.20, 8, 8)), track(createMat(coreColor))));
+  core.position.set(0, 0.14, 0);
+  g.add(core);
+
+  const skull = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.09, 0.09, 0.09)), track(createMat(0xfafaf9))));
+  skull.position.set(0.08, 0.16, 0.06);
+  skull.rotation.set(0.4, 0.2, 0.5);
+  g.add(skull);
+
+  const dagger = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.04, 0.18, 0.02)), track(createMat(0x94a3b8))));
+  dagger.position.set(-0.09, 0.12, -0.07);
+  dagger.rotation.set(-0.6, 0.3, 0.8);
+  g.add(dagger);
+
+  rig.leftLeg = track(new THREE.Mesh(track(new THREE.SphereGeometry(0.12, 6, 6)), domeMat));
+  rig.leftLeg.position.set(-0.16, 0.04, 0.14);
+  g.add(rig.leftLeg);
+
+  rig.rightLeg = track(new THREE.Mesh(track(new THREE.SphereGeometry(0.12, 6, 6)), domeMat));
+  rig.rightLeg.position.set(0.16, 0.04, 0.14);
+  g.add(rig.rightLeg);
+}
+
+// ==========================================================================
+// 13. FIRE ELEMENTAL MINIATURE
+// ==========================================================================
+function buildFireElementalMiniature(g, ent, rig, track) {
+  const flameYellow = 0xfef08a;
+  const flameOrange = 0xf97316;
+  const flameRed = 0xdc2626;
+
+  const core = track(new THREE.Mesh(track(new THREE.CylinderGeometry(0.14, 0.08, 0.65, 7)), track(createMat(flameYellow))));
+  core.position.y = 0.52;
+  g.add(core);
+  rig.torso = core;
+
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2;
+    const tongue = track(new THREE.Mesh(track(new THREE.ConeGeometry(0.11, 0.55, 5)), track(createMat(i % 2 === 0 ? flameOrange : flameRed))));
+    tongue.position.set(Math.cos(angle) * 0.14, 0.50 + (i % 2) * 0.12, Math.sin(angle) * 0.14);
+    tongue.rotation.y = angle;
+    tongue.rotation.z = Math.cos(angle) * 0.25;
+    g.add(tongue);
+  }
+
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 0.92, 0);
+  g.add(headGroup);
+  rig.head = headGroup;
+
+  const crown = track(new THREE.Mesh(track(new THREE.ConeGeometry(0.18, 0.35, 5)), track(createMat(flameYellow))));
+  headGroup.add(crown);
+
+  for (const s of [-1, 1]) {
+    const eye = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.04, 0.04, 0.04)), track(new THREE.MeshBasicMaterial({ color: 0xffffff }))));
+    eye.position.set(s * 0.07, 0.06, 0.11);
+    headGroup.add(eye);
+  }
+
+  rig.leftArm = createFlameArm(flameOrange, flameYellow, track);
+  rig.leftArm.position.set(-0.26, 0.62, 0);
+  g.add(rig.leftArm);
+
+  rig.rightArm = createFlameArm(flameOrange, flameYellow, track);
+  rig.rightArm.position.set(0.26, 0.62, 0);
+  g.add(rig.rightArm);
+
+  rig.leftLeg = track(new THREE.Mesh(track(new THREE.ConeGeometry(0.18, 0.38, 6)), track(createMat(flameRed))));
+  rig.leftLeg.position.set(-0.08, 0.18, 0);
+  g.add(rig.leftLeg);
+
+  rig.rightLeg = track(new THREE.Mesh(track(new THREE.ConeGeometry(0.18, 0.38, 6)), track(createMat(flameOrange))));
+  rig.rightLeg.position.set(0.08, 0.18, 0);
+  g.add(rig.rightLeg);
+}
+
+function createFlameArm(color1, color2, track) {
+  const g = new THREE.Group();
+  const upper = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.08, 0.22, 0.08)), track(createMat(color1))));
+  upper.position.y = -0.10;
+  g.add(upper);
+
+  const fist = track(new THREE.Mesh(track(new THREE.SphereGeometry(0.07, 6, 6)), track(createMat(color2))));
+  fist.position.set(0, -0.22, 0.02);
+  g.add(fist);
+  return g;
+}
+
+// ==========================================================================
+// 14. ANIMATED ARMOR MINIATURE
+// ==========================================================================
+function buildAnimatedArmorMiniature(g, ent, rig, track) {
+  const armorSteel = 0x94a3b8;
+  const brassTrim = 0xd97706;
+
+  rig.leftLeg = createLegGroup(armorSteel, 0x475569, track);
+  rig.leftLeg.position.set(-0.12, 0.32, 0);
+  g.add(rig.leftLeg);
+
+  rig.rightLeg = createLegGroup(armorSteel, 0x475569, track);
+  rig.rightLeg.position.set(0.12, 0.32, 0);
+  g.add(rig.rightLeg);
+
+  const torso = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.32, 0.36, 0.22)), track(createMat(armorSteel))));
+  torso.position.y = 0.52;
+  g.add(torso);
+  rig.torso = torso;
+
+  const trim = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.34, 0.06, 0.24)), track(createMat(brassTrim))));
+  trim.position.y = 0.65;
+  g.add(trim);
+
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 0.84, 0);
+  g.add(headGroup);
+  rig.head = headGroup;
+
+  const helm = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.22, 0.24, 0.22)), track(createMat(armorSteel))));
+  headGroup.add(helm);
+
+  const visor = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.15, 0.04, 0.05)), track(new THREE.MeshBasicMaterial({ color: 0x38bdf8 }))));
+  visor.position.set(0, 0.02, 0.11);
+  headGroup.add(visor);
+
+  rig.leftArm = createArmGroup(armorSteel, 0x475569, track);
+  rig.leftArm.position.set(-0.21, 0.65, 0);
+  g.add(rig.leftArm);
+
+  const shield = createHeaterShield(0x1e3a8a, 0xd97706, track);
+  shield.position.set(-0.06, -0.16, 0.10);
+  shield.rotation.y = -0.4;
+  rig.leftArm.add(shield);
+  rig.shield = shield;
+  rig.hasShield = true;
+
+  rig.rightArm = createArmGroup(armorSteel, 0x475569, track);
+  rig.rightArm.position.set(0.21, 0.65, 0);
+  g.add(rig.rightArm);
+
+  const sword = createBroadsword(track);
+  sword.position.set(0, -0.18, 0.14);
+  sword.rotation.x = 0.3;
+  rig.rightArm.add(sword);
+  rig.weapon = sword;
+}
+
 function buildDefaultMonsterMiniature(g, ent, rig, track) {
   buildZombieMiniature(g, ent, rig, track);
 }
@@ -811,6 +1202,22 @@ function makeBossBadge(name) {
   const tex = new THREE.CanvasTexture(c);
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
   spr.scale.set(1.8, 0.28, 1);
+  return spr;
+}
+
+function makeEliteBadge(name, color = '#f59e0b') {
+  const c = document.createElement('canvas');
+  c.width = 180; c.height = 24;
+  const g = c.getContext('2d');
+  g.font = 'bold 12px sans-serif';
+  g.textAlign = 'center';
+  g.fillStyle = color;
+  g.shadowColor = 'rgba(0,0,0,0.8)';
+  g.shadowBlur = 4;
+  g.fillText(`★ ${name || 'ELITE'} ★`, 90, 17);
+  const tex = new THREE.CanvasTexture(c);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  spr.scale.set(1.9, 0.28, 1);
   return spr;
 }
 

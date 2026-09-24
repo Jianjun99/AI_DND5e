@@ -11,7 +11,7 @@
 - 测试：`scripts/smoke-test.mjs`（CI 每次推送跑）；平衡模拟：`scripts/balance-sim.mjs`
 - 架构文档：`ARCHITECTURE.md`（Mermaid 图）；模组指南：`MODDING.md`
 
-## 当前版本：v1.6.0（待发布 / 3D 手办动画 + 升级向导 + 战术先攻条 + 换装 + 英雄殿堂）
+## 当前版本：v1.8.0（已发布：精英词缀怪物 + 战利品稀有度 + 视角绑定/尸体修复 + 升级徽章修复 + 酒馆赌桌 + 实验性魔药）
 
 ## 已实现功能清单（勿重复实现）
 - 角色创建：10 种族 / 12 职业 / 16 背景 / 属性（数组/4d6/点购）/ 法术 / 装备
@@ -64,16 +64,81 @@
   data/ 卷里（gitignore ✓，备份导出已剔除 apiKey ✓）
 - Docker Desktop 快捷方式：`C:\Users\xu991\AppData\Local\Programs\DockerDesktop\Docker Desktop.exe`
   （容器有时被 OOM 杀掉 exit 137——重启 `docker start ai-dnd` 即可）
+- 镜像验证流程：`docker build -t ai-dnd:review .` → `docker run -d --name ai-dnd-review -p 3101:3000 -v ai-dnd-review-data:/app/data ai-dnd:review`
+  → 所有测试用 `BASE_URL=http://localhost:3101` 直连容器（冒烟 + 两套 e2e 均可）。镜像里没有 tests/，
+  想在容器里跑 node 测试要先 `docker cp tests ai-dnd-review:/app/tests`（容器是 Node 20，宿主是 Node 24）。
+  Git Bash 下 `docker exec … ls /app/…` 会被路径转换破坏，需加 `MSYS_NO_PATHCONV=1`
 - GitHub release 创建：bash 层 `git credential fill` 取 token → 传 GH_TOKEN 环境变量 →
   node 脚本 POST /releases（execSync 里跑不了 bash 管道）
 
 ## 测试体系
-- `node scripts/smoke-test.mjs`：端到端基础链路健康度探针（CI 每次推送必跑）
-- `node scripts/test-all.mjs` / `npm test`：全套 6 大测试套件，包含 D&D 2024 规则单元测试、
-  3D 手办步态测试、移动/寻路/视野集成测试、战斗/动作集成测试、角色升级/地牢装备换装/楼层下潜集成测试、
-  Headless Chrome CDP 端到端浏览器渲染与动作测试（295 项断言 100% 通过）。
+- `node scripts/smoke-test.mjs`：端到端基础链路健康度探针（CI 每次推送必跑，自动侦测 3000/3100 端口）
+- `node scripts/test-all.mjs` / `npm test`：全套 10 大测试套件，包含 D&D 2024 规则单元测试、
+  3D 手办步态测试（含火龙/蜘蛛/史莱姆/火元素/活动铠甲）、精英词缀与战利品稀有度单元测试、
+  地图棋盘可见性与镜头数学单元测试、移动/寻路/视野集成测试、战斗/动作集成测试、
+  战术对抗（借机攻击/夹击/推撞）、角色升级（1-12 级与 6 环法术位）/地牢装备换装/楼层下潜/拓展地图集成测试、
+  Headless Chrome CDP 端到端浏览器渲染与动作测试（2 套，含回合经济 HUD、出口光柱、镜头绑定）。
+- e2e 测试必须给浏览器 `--user-data-dir` 独立档案目录：Windows 上浏览器是分离进程树，
+  清理时按档案目录名 PowerShell 杀进程，否则残留进程占住 CDP 端口导致下一次运行超时。
+- e2e 里不要断言「走路中途」的镜头坐标：headless 下 rAF 帧率不稳，中途采样会随机失败。
+  已改为「最终收敛到角色」+ 单元测试断言 `stepCameraTowards` 不会瞬移 + 源码守卫（render 里的 snap 有 guard）。
+  另外镜头偏好存在 localStorage，复用 profile 会串味 —— 测试开头要把 `dnd_cam_follow` 重置为 on。
+
+## 赌桌 & 实验性魔药（v1.8.0 已发布）
+- `server/game/gambling.js`：轮盘 / 骰宝 / 老虎机。**每张表都拆成纯函数求值器 + 掷骰器**，
+  所以赔付率能被穷举验算（测试里就是穷举的：轮盘 36/37、骰宝 97.2%、老虎机 88.8% / 恶魔契约 84.3%）。
+  所有赔率/注码/奖表都是模块顶部的表，改数字不用碰逻辑；`slotsRtp()`/`rouletteRtp()` 会告诉你改完的庄家优势。
+  结算约定：**每个游戏都返回净额 `delta`**（输了是 -注，赢了是 +注×赔率），路由只加一次 `char.gold += result.delta`。
+- `server/game/potions.js`：三档魔药（thin/standard/fine 15/40/90 gp，好/中/坏 55-25-20 → 75-20-5），
+  **买下的瞬间就掷好效果并藏起来**（实例带 uniqueId，和词缀装备同一套约定），
+  用「智力（奥秘）」检定揭晓（DC 12/14/16，**每瓶只有一次机会**）。
+  效果全部复用引擎已有的 buff id（longstrider / altar_blessed / blessed / brew_fortune /
+  divine_favor / poisoned 条件）+ `engine.adjustTempHp`（本场最大生命增减）+ `engine.blockRest`（少一段休息）。
+- **仅限本场地牢的道具**（赌场奖品 token）：赌到 → 存在 `char.pendingDelveItems` → `POST /api/game/start`
+  时带进地牢并标记 `delveOnly` → `sync-delve` **过滤掉**，没用掉的随场作废。
+  诅咒走 `char.pendingCurses`，同样在开局时施加。
+- 引擎新增：`engine.levelUpInfo`（上一节）、`adjustTempHp`、`blockRest`、`brew_fortune` 优势读取、
+  `startGame` 接受 `carryItems`、`applyCondition` 现在有导出（potions.js 需要它）。
+- **顺手修的**：`longRest` 以前调 `applyClassAndSpecies` 时漏了 `recomputeOnly=true`，
+  **每次长休最大生命白涨一个生命骰**（平衡模拟里 bot 一直在偷吃这个）。修完普通单人 55-60%、困难 50-53%。
+- **顺手修的**：`/api/city/buy` 现在会写透到该角色所有活动地牢存档（`addItemForCharacter`）——
+  以前在城里买了东西再继续一局更早的地牢，结算时 `sync-delve` 会用快照背包覆盖档案，刚买的直接消失。
+
+## 经验 / 升级（v1.8.0 已发布）
+- **升级就绪状态只有一个来源**：`engine.levelUpInfo(char)` → `{ currentLevel, nextLevel, currentXp, xpNeeded, canLevelUp }`。
+  它挂在 `/api/characters`、`/api/characters/:id`、`/api/city/info` 的 `character.levelUp`，
+  以及地牢视图的 `state.levelUp`（地牢视图取**角色档案**而不是地牢快照 —— 否则「在城里升级后再继续旧地牢」
+  会让徽章显示可以升级、点开却被 `/level-up` 拒绝，这就是用户报的 bug）。
+- 客户端**不要再写 XP 表**：play.js / overworld.js 以前各自复制了一份 `XP_THRESHOLDS`（还漏了 11、12 级），
+  已删除，徽章只读 `levelUp.canLevelUp`。新增等级段时只改 `engine.XP_THRESHOLDS` 一处。
+- e2e 里有该 bug 的回归测试（改 characters.json 造出「档案 Lv3/1000xp + 快照 Lv2/950xp」的错配）。
+
+## 视角与棋盘（v1.8.0 已发布）
+- `public/js/entity-visibility.js`：纯函数 `isEntityOnBoard`（死亡/逃跑离开棋盘，玩家永不隐藏）、
+  `stepCameraTowards`（帧率无关的镜头缓动）、`clampToMap`。2D/2.5D 共用。
+- 尸体会留在场上的老 bug：`layoutEntities` 里 `if (!disc.has(key) || (e.alive === false && …)) return;`
+  只跳过*更新*，没删掉已有 node → 尸体模型永久留在场景里。现在按 `isEntityOnBoard` 移除节点。
+- 镜头绑定：`createMap3D(…, { follow, onFollowChange })` → `setFollow(v)` / `isFollowing()`；默认跟随，
+  右键（或中键）拖拽即解绑并能平移到地图任意处，滚轮缩放；点 HUD 的 🎥 按钮（或按 F）切回跟随并归位。
+- 镜头不再瞬移：`render()` 只在换图/首次/超远传送时 snap，其它帧由 rAF 循环 `stepCameraTowards` 缓动跟随
+  *手办模型*的位置（模型沿 waypoint 走，约 4.6 格/秒）。
+- rAF 循环里每帧调用 `animateFrom(currentGame)`：走路被打断（连续两次移动）时手办不会卡在少一格的位置。
+- `window.__dndDebug` 是 e2e 用的测试缝（camera / follow / boardCount / playerTile / modelState）。
+
+## 精英怪物 & 战利品稀有度（v1.8.0 已发布）
+- `server/game/affixes.js`：5 种精英词缀（炽炎/石肤/嗜血/剧毒/狂雷）+ 武器/护甲词缀 + `rollMagicItem()`
+- 精英生成：`generateMapState` 与 `rollWanderingMonster` 里非 boss 怪物 18% 概率；boss 永不为精英
+- 精英词缀：HP ×1.15~1.4、XP ×1.5、掉落保底 1 件魔法/稀有装备 + 15-30 gp；boss 保底稀有/传奇 + 50-100 gp
+- 战斗实现：`monsterAttack` 附加元素骰/吸血/中毒（`applyCondition` 1 回合，攻击劣势），
+  `applyDamage(state,target,amt,type,events,{magical})` 支持怪物抗性 + 石肤「非魔法武器」豁免
+- 装备实现：稀有物品带 `uniqueId`，装备/解析一律用 `engine.invEntry` / `engine.equippedBonus`；
+  `atk.dmgMod`（能力调整值）现在真正计入伤害；魔法武器加值只算一次（勿在 attackMods 里重复加）
+- 客户端：`play.js` 背包弹窗按稀有度着色 + `[🔵魔法/🟣稀有/🟠传奇]` 标签；tooltip 支持
+  `data-item-tooltip` 传 JSON（程序化生成的装备）；3D 里精英有彩色名牌 + 光环点光源 + 1.15 倍体型
 
 ## 版本历史
 v1.0.0 首发 → v1.2.0 连通地牢+模组+任务 → v1.3.0 UI 修复 → v1.4.0 等级6-10+嚎叫丘陵+音频
 → v1.5.0 Overworld+Oakhaven+纸娃娃+路上遭遇+撤退+审查修复
-→ v1.6.0 3D模型与步态动画 + 升级向导 + 战术先攻条 + 局内换装 + 楼层过渡 + 英雄殿堂图鉴 + 全套测试（当前）
+→ v1.6.0 3D模型与步态动画 + 升级向导 + 战术先攻条 + 局内换装 + 楼层过渡 + 英雄殿堂图鉴 + 全套测试
+→ v1.7.0 等级上限 12 + 阳光峡谷 3 大新地图 + 无尽深渊程序化地牢 + 5 大新怪 3D 手办 + 传奇成就
+→ v1.8.0 精英词缀怪物 + 战利品稀有度/词缀系统 + 视角解绑与平滑跟随 + 尸体移除修复 + 升级徽章一致性修复 + 酒馆赌桌 + 实验性魔药（当前）

@@ -147,6 +147,28 @@ A map is an ASCII grid. `#` = wall, `.` = floor, `,` = rubble (costs double move
   optional `bonusDamage` adds elemental dice on every hit.
 - `type: "potion"` — `heal` dice; usable with the Potion button or "drink a potion".
 
+## Experimental brews & prize tokens (core systems)
+
+Two random-outcome systems live in the engine rather than in content packs, so every pack's
+world gets them for free:
+
+- **`server/game/potions.js`**
+  - `POTION_TIERS` — the three apothecary shelves (`thin` / `standard` / `fine`): price, the INT
+    (Arcana) identification DC, and the good / mixed / bad weights.
+  - `POTION_EFFECTS` — one row per outcome: `{ id, kind: 'good'|'mixed'|'bad', weight, name, desc,
+    apply(ctx) }` where `ctx = { engine, state, char, p, events, roll, tier }`. Effects are built
+    from buff ids the engine already reads (`longstrider`, `altar_blessed`, `blessed`,
+    `brew_fortune`, `divine_favor`, the `poisoned` condition), plus `engine.adjustTempHp` for
+    max-HP swings and `engine.blockRest` for a lost rest. Adding an outcome = adding one row.
+  - `DELVE_TOKENS` — the gambling prizes (luck coin, talisman, slaying oil, incense, purge vial…).
+    Each is `delveOnly`: it rides into one delve and is discarded when that delve ends.
+- **`server/game/gambling.js`**
+  - `ROULETTE_BETS`, `SICBO_BETS`, `SLOT_TIERS`, `GAMBLE_CURSES`. Each table splits into a pure
+    evaluator (`evalRoulette`, `evalSicBo`, `evalSlots`) and a spinner that supplies randomness, so
+    the odds are verifiable by exhaustive enumeration — `tests/unit/gambling-and-potions.test.mjs`
+    does exactly that (roulette 36/37, sic bo 97.2%, slots 88.8% standard / 84.3% devil).
+  - Edit a paytable and the unit suite reports what it did to the house edge.
+
 ## Share with the community
 
 - **Export & import** (in-game) works one-on-one: pack → JSON file → friend imports it.

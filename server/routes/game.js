@@ -6,6 +6,8 @@ const dm = require('../game/dm');
 const portraits = require('../portraits');
 const endless = require('../game/endless');
 const contentMod = require('../game/content');
+const gambling = require('../game/gambling');
+const potions = require('../game/potions');
 
 const router = express.Router();
 
@@ -17,6 +19,11 @@ function sanitize(state) {
   view.objects = view.objects.filter(o => !(o.type === 'trap' && !o.revealed && !o.triggered));
   view.map.entities = undefined; // originals no longer needed client-side
   view.visible = engine.computeVision(state);
+  // The level-up badge must reflect the roster hero, not this delve's snapshot: a hero who
+  // levelled up in town and then continued an older delve would otherwise see a badge the
+  // level-up endpoint then refuses ("not enough XP").
+  const roster = findCharacter(view.characterId);
+  view.levelUp = engine.levelUpInfo(roster || view.character);
   return view;
 }
 
@@ -29,6 +36,12 @@ async function narrate(state, events, logStartIndex) {
     state.log = state.log.filter((l, i) => !(i >= logStartIndex && l.kind === 'dm_canned'));
     engine.addLog(state, 'dm', text);
   }
+}
+
+// rolled instances (brews, tokens) vanish once the last one is used
+function dropEmptyInstance(char, entry) {
+  if (!entry || !entry.uniqueId || !char || !Array.isArray(char.inventory)) return;
+  char.inventory = char.inventory.filter(i => i.uniqueId !== entry.uniqueId);
 }
 
 function consumeActionEconomy(state, kind) {
@@ -67,9 +80,31 @@ router.post('/start', async (req, res) => {
   if (mapId === 'endless_1') {
     contentMod.injectMap(endless.generateFloor(1));
   }
-  const state = engine.startGame(char, { bringAlly: allyOption, difficulty, mapId });
+  // gambled delve-only prizes ride along, and any curse bought at the table lands here
+  const carryItems = (char.pendingDelveItems || []).slice();
+  const state = engine.startGame(char, { bringAlly: allyOption, difficulty, mapId, carryItems });
   if (mapId === 'endless_1') state.endlessDepth = 1;
   const events = [];
+  if (carryItems.length) {
+    const names = carryItems.map(i => i.name || i.itemId).join('、');
+    events.push({ type: 'carry_in', narrate: true, text: `你带上了场外赢来的东西：${names}。（仅限本场地牢，离场作废）` });
+  }
+  const pendingCurses = (char.pendingCurses || []).slice();
+  if (pendingCurses.length) {
+    pendingCurses.forEach(id => {
+      const curse = gambling.GAMBLE_CURSES[id];
+      if (curse) curse.apply({ engine, state, events });
+    });
+  }
+  if (carryItems.length || pendingCurses.length) {
+    const chars = store.getCharacters();
+    const idx = chars.findIndex(c => c.id === char.id);
+    if (idx >= 0) {
+      chars[idx].pendingDelveItems = [];
+      chars[idx].pendingCurses = [];
+      store.saveCharacters(chars);
+    }
+  }
   const intro = {
     type: 'scene', narrate: true,
     text: `${state.mapName} closes around ${char.name}. ${state.map.objectiveText || 'The dark ahead is waiting.'}`
@@ -160,8 +195,43 @@ router.post('/:id/action', async (req, res) => {
         }
         case 'useItem': {
           const gearDef = engine.byId(engine.GEAR, action.itemId);
-          const inv = state.character.inventory.find(x => x.itemId === action.itemId && x.qty > 0);
-          if (!inv) { events.push({ type: 'error', text: 'None left.' }); break; }
+          // rolled instances (brews, tokens) are addressed by uniqueId; plain items by itemId
+          const inv = engine.invEntry(state.character, action.itemId);
+          if (!inv || !(inv.qty > 0)) { events.push({ type: 'error', text: 'None left.' }); break; }
+
+          // experimental brew: the outcome was rolled at purchase and is only revealed when drunk
+          if (inv.kind === 'mystery_potion') {
+            if (state.mode === 'combat') {
+              const econErr = consumeActionEconomy(state, 'bonus');
+              if (econErr) { events.push({ type: 'error', text: econErr }); break; }
+            }
+            inv.qty--;
+            if (inv.qty <= 0) dropEmptyInstance(state.character, inv);
+            const brewCtx = {
+              engine, state, char: state.character, p: engine.playerEntity(state), events,
+              roll: (expr) => engine.rollExpr(expr)
+            };
+            const drunk = potions.drinkMysteryPotion(inv, brewCtx);
+            if (drunk) engine.addLog(state, 'mech', `${state.character.name} drains the ${inv.name} — ${drunk.text}. ${inv.qty} remaining.`);
+            break;
+          }
+
+          // delve-only prize token (luck coin, talisman, oil...)
+          if (inv.kind === 'delve_token') {
+            if (state.mode === 'combat') {
+              const econErr = consumeActionEconomy(state, 'bonus');
+              if (econErr) { events.push({ type: 'error', text: econErr }); break; }
+            }
+            inv.qty--;
+            if (inv.qty <= 0) dropEmptyInstance(state.character, inv);
+            potions.useToken(inv, {
+              engine, state, char: state.character, p: engine.playerEntity(state), events,
+              roll: (expr) => engine.rollExpr(expr), rng: Math.random
+            });
+            engine.addLog(state, 'mech', `${state.character.name} uses the ${inv.name}. ${inv.qty} remaining.`);
+            break;
+          }
+
           // scrolls: cast the stored spell once — no spell slot needed
           if (gearDef && gearDef.type === 'scroll' && gearDef.spell) {
             const spell = engine.findSpell(gearDef.spell);
@@ -266,45 +336,30 @@ router.post('/:id/action', async (req, res) => {
             state.character.equipped[slot] = null;
             events.push({ type: 'equip', text: `Unequipped ${slot}.`, slot, itemId: null });
           } else {
-            const hasItem = (state.character.inventory || []).some(i => i.itemId === itemId && i.qty > 0);
+            // rolled affix gear is equipped by its unique id, plain items by their catalogue id
+            const hasItem = (state.character.inventory || []).some(i => (i.itemId === itemId || i.uniqueId === itemId) && i.qty > 0);
             if (!hasItem) { events.push({ type: 'error', text: 'Item not in inventory' }); break; }
             state.character.equipped[slot] = itemId;
-            events.push({ type: 'equip', text: `Equipped ${itemId} in ${slot}.`, slot, itemId });
+            const label = engine.invEntry(state.character, itemId);
+            events.push({ type: 'equip', text: `Equipped ${(label && label.name) || itemId} in ${slot}.`, slot, itemId });
           }
           const armorId = state.character.equipped.armor;
           const offHandId = state.character.equipped.offHand;
           const reorder = (itId) => {
-            const idx = (state.character.inventory || []).findIndex(i => i.itemId === itId);
+            const idx = (state.character.inventory || []).findIndex(i => i.itemId === itId || i.uniqueId === itId);
             if (idx > 0) { const [it] = state.character.inventory.splice(idx, 1); state.character.inventory.unshift(it); }
           };
           if (armorId) reorder(armorId);
           if (offHandId) reorder(offHandId);
           const cls = (engine.CLASSES || []).find(c => c.id === state.character.className);
           if (cls) engine.applyClassAndSpecies(state.character, cls, null, state.character.level || 1, true);
-          if (state.character.equipped.mainHand) {
-            const w = engine.resolveWeapon(state.character.equipped.mainHand);
-            if (w) {
-              const dexMod = Math.floor(((state.character.abilities?.dex || 10) - 10) / 2);
-              const strMod = Math.floor(((state.character.abilities?.str || 10) - 10) / 2);
-              const isFinesse = (w.props || []).includes('finesse');
-              const isRanged = !!w.range && w.range > 5;
-              const abilityMod = isRanged ? dexMod : (isFinesse ? Math.max(strMod, dexMod) : strMod);
-              const prof = (state.character.profBonus || 2);
-              const mainAtk = {
-                weaponId: w.id, name: w.name,
-                bonus: prof + abilityMod + (w.magic || 0),
-                dmgDice: w.damage || '1d6',
-                dmgMod: abilityMod + (w.magic || 0),
-                dmgType: w.damageType || 'slashing',
-                ranged: isRanged, range: w.range || 5, props: w.props || []
-              };
-              const rest = (state.character.attacks || []).filter(a => a.weaponId !== w.id);
-              const un = rest.find(a => a.weaponId === 'unarmed');
-              state.character.attacks = [mainAtk, ...(rest.filter(a => a !== un)), un].filter(Boolean);
-            }
-          }
           const pe = engine.playerEntity(state);
-          if (pe) pe.ac = state.character.acBase;
+          if (pe) {
+            pe.ac = engine.currentAc(state, pe);
+            // Vigor-style gear changes max HP while worn
+            pe.hpMax = state.character.hpMax;
+            pe.hp = Math.min(pe.hp, pe.hpMax);
+          }
           try {
             const chars = store.getCharacters();
             const cIdx = chars.findIndex(c => c.id === state.character.id);
@@ -325,7 +380,11 @@ router.post('/:id/action', async (req, res) => {
             const cls = (engine.CLASSES || []).find(c => c.id === state.character.className);
             if (cls) engine.applyClassAndSpecies(state.character, cls, null, state.character.level || 1, true);
             const pe = engine.playerEntity(state);
-            if (pe) pe.ac = state.character.acBase;
+            if (pe) {
+              pe.ac = engine.currentAc(state, pe);
+              pe.hpMax = state.character.hpMax;
+              pe.hp = Math.min(pe.hp, pe.hpMax);
+            }
             events.push({ type: 'equip', text: `Unequipped ${slot}.`, slot, itemId: null });
             try {
               const chars = store.getCharacters();

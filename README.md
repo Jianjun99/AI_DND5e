@@ -68,6 +68,9 @@ Requires Node.js 20+.
 | **Three dungeons** | The Sunless Crypt (levels 1-5), The Drowned Vault beneath it, and The Howling Hills — an outdoor bandit-stronghold delve for levels 5-10. Connected by stairs, each with its own safe-zone camp. |
 | **Subclasses & loot** | Every class gains a subclass at level 3 (Battle Master, Assassin-style Thief, Draconic Bloodline…). Monsters drop gold and chance-based loot; chests hide magic gear with real effects. Synthesized sound effects and an optional AI-DM voice-over are built in. |
 | **Companion** | Bram the Scout can join you as an AI-controlled ally (recommended for solo balance). |
+| **Oakhaven** | A town hub between delves: tavern (rests, rumors, a **gambling table**), armory, apothecary, guildhall bounties, and a Hall of Heroes with your bestiary and trophies. |
+| **Gambling** | Three tables at honest real-world odds (roulette 97.3% return, sic bo 97.2%, slots ~89%): bet gold, win gold or **delve-only prize tokens** (luck coin, talisman, slaying oil…). The opt-in **Devil's Bargain** tier pays far more — but three skulls curse your next delve. |
+| **Experimental brews** | The apothecary sells unidentified potions: the effect is rolled when you buy the bottle and stays hidden until you read it with an INT (Arcana) check — once per bottle — or drink it blind. Mostly good (temp HP, advantage, +5 max HP), sometimes mixed, occasionally poison, a lost rest or a lost hit die. |
 | **Death** | Fall, and you wake at camp at half HP with the monsters back at their posts — the delve continues. |
 
 ### The AI Dungeon Master (optional)

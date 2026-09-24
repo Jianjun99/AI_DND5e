@@ -231,6 +231,25 @@ export function createMapRenderer(canvas, opts = {}) {
       }
     }
 
+    // Victory / Exit waypoint highlight if area cleared
+    const aliveMonsters = (game.entities || []).filter(e => e.kind === 'monster' && e.alive !== false);
+    if (aliveMonsters.length === 0) {
+      const camp = (map.victory && map.victory.campfire) || map.victoryTile || (game.objects || []).find(o => o.id === 'campfire' || o.type === 'campfire') || map.playerStart;
+      if (camp) {
+        ctx.save();
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 2]);
+        ctx.strokeRect(px(camp.x) - 2, px(camp.y) - 2, TILE + 4, TILE + 4);
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#fef08a';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('EXIT', px(camp.x) + TILE / 2, px(camp.y) - 3);
+        ctx.restore();
+      }
+    }
+
     // hover highlight
     if (hover) {
       ctx.strokeStyle = 'rgba(232,220,192,.6)';

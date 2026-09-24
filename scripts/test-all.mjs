@@ -10,11 +10,15 @@ const ROOT = path.join(__dirname, '..');
 const testSuites = [
   { name: 'Unit Tests: D&D 2024 Rules Engine', file: 'tests/unit/rules.test.mjs' },
   { name: 'Unit Tests: 3D Procedural Miniatures & Walk Animations', file: 'tests/unit/models3d.test.mjs' },
+  { name: 'Unit Tests: Elite Affixes & Loot Rarity', file: 'tests/unit/affixes-and-loot.test.mjs' },
+  { name: 'Unit Tests: Map Board Visibility & Camera', file: 'tests/unit/map-entities.test.mjs' },
+  { name: 'Unit Tests: Tavern Gambling & Experimental Brews', file: 'tests/unit/gambling-and-potions.test.mjs' },
   { name: 'Integration Tests: Movement, Pathfinding & Vision', file: 'tests/integration/movement.test.mjs' },
   { name: 'Integration Tests: Combat, Actions & Health', file: 'tests/integration/combat.test.mjs' },
   { name: 'Integration Tests: Tactics (OA, Flanking, Shove)', file: 'tests/integration/tactics.test.mjs' },
   { name: 'Integration Tests: Character Progression & Delve Systems', file: 'tests/integration/progression-systems.test.mjs' },
-  { name: 'End-to-End Tests: Browser 3D Rendering & Movement (CDP)', file: 'tests/e2e/browser-movement-cdp.test.mjs' }
+  { name: 'End-to-End Tests: Browser 3D Rendering & Movement (CDP)', file: 'tests/e2e/browser-movement-cdp.test.mjs' },
+  { name: 'End-to-End Tests: Turn Economy, Minimap & Cleared Beacon (CDP)', file: 'tests/e2e/gameplay-refinements-cdp.test.mjs' }
 ];
 
 async function runTest(suite) {

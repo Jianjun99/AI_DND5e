@@ -2,8 +2,9 @@
 
 export const RARITIES = {
   common: { label: 'Common', color: '#d8cfc0', border: 'rgba(216, 207, 192, 0.4)', bgGlow: 'rgba(216, 207, 192, 0.05)' },
+  magic: { label: 'Magic', color: '#60a5fa', border: 'rgba(96, 165, 250, 0.55)', bgGlow: 'rgba(96, 165, 250, 0.12)' },
   uncommon: { label: 'Uncommon', color: '#4ade80', border: 'rgba(74, 222, 128, 0.5)', bgGlow: 'rgba(74, 222, 128, 0.1)' },
-  rare: { label: 'Rare', color: '#60a5fa', border: 'rgba(96, 165, 250, 0.6)', bgGlow: 'rgba(96, 165, 250, 0.12)' },
+  rare: { label: 'Rare', color: '#c084fc', border: 'rgba(192, 132, 252, 0.6)', bgGlow: 'rgba(192, 132, 252, 0.14)' },
   very_rare: { label: 'Very Rare', color: '#c084fc', border: 'rgba(192, 132, 252, 0.7)', bgGlow: 'rgba(192, 132, 252, 0.15)' },
   legendary: { label: 'Legendary', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.8)', bgGlow: 'rgba(245, 158, 11, 0.2)' },
   artifact: { label: 'Artifact', color: '#e11d48', border: 'rgba(225, 29, 72, 0.85)', bgGlow: 'rgba(225, 29, 72, 0.25)' }
@@ -326,12 +327,12 @@ export function buildItemTooltipHtml(item, rulesData = {}) {
   const staticData = ITEM_DATABASE[itemId] || {};
   def = def || staticData || {};
 
-  let name = def.name || (typeof item === 'object' ? item.name : null);
+  let name = (typeof item === 'object' && item && item.name) || def.name || null;
   if (!name || name === itemId) {
     name = itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
 
-  const rarityKey = staticData.rarity || def.rarity || 'common';
+  const rarityKey = (typeof item === 'object' && item.rarity) || staticData.rarity || def.rarity || 'common';
   const rarity = RARITIES[rarityKey] || RARITIES.common;
   const category = staticData.category || def.type || 'Adventuring Equipment';
 
@@ -348,10 +349,20 @@ export function buildItemTooltipHtml(item, rulesData = {}) {
   if (def.heal) stats.push(`🧪 <b>+${def.heal} HP</b>`);
   if (def.range) stats.push(`🎯 <b>${def.range} ft</b>`);
   if (def.cost) stats.push(`💰 <b>${def.cost} gp</b>`);
+  // rolled affix gear: show the rolled modifiers, not just the base item
+  if (typeof item === 'object' && item) {
+    if (item.magic) stats.push(`✨ <b>+${item.magic}</b> ${item.type === 'weapon' ? 'to hit & damage' : 'enhancement'}`);
+    if (item.bonusDamage) stats.push(`🔥 <b>+${item.bonusDamage.dice}</b> ${item.bonusDamage.type} damage`);
+    if (item.vampiricHeal) stats.push(`🩸 <b>+${item.vampiricHeal} HP</b> on hit`);
+    if (item.acBonus) stats.push(`🛡 <b>+${item.acBonus} AC</b>`);
+    if (item.hpBonus) stats.push(`❤️ <b>+${item.hpBonus} Max HP</b>`);
+    if (item.speedBonus) stats.push(`👣 <b>+${item.speedBonus} ft</b> speed`);
+  }
 
   const props = staticData.properties || def.props || [];
   const lore = staticData.lore || def.desc || 'A sturdy adventurer’s implement, scarred by past subterranean trials.';
-  const effect = staticData.effect || (def.desc && def.desc !== lore ? def.desc : '');
+  const rolledDesc = (typeof item === 'object' && item && item.desc) ? item.desc : '';
+  const effect = rolledDesc || staticData.effect || (def.desc && def.desc !== lore ? def.desc : '');
 
   return `
     <div class="tooltip-header" style="border-bottom-color: ${rarity.border};">
@@ -448,7 +459,12 @@ export function initTooltips(container = document, rulesCatalog = {}) {
 
     el.addEventListener('mouseenter', (e) => {
       const itemId = el.getAttribute('data-item-tooltip');
-      if (itemId) showTooltip(e, itemId, rulesCatalog);
+      if (!itemId) return;
+      // rolled / procedurally generated gear passes its full data as JSON
+      if (itemId.trim().startsWith('{')) {
+        try { return showTooltip(e, JSON.parse(itemId), rulesCatalog); } catch { /* fall through to id lookup */ }
+      }
+      showTooltip(e, itemId, rulesCatalog);
     });
 
     el.addEventListener('mousemove', (e) => {

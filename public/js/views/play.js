@@ -10,7 +10,8 @@ import { tts } from '../tts.js';
 import { initTooltips } from '../tooltip.js';
 import { openLevelUpModal } from './levelup.js';
 
-const XP_THRESHOLDS = { 2: 300, 3: 900, 4: 2700, 5: 6500, 6: 8500, 7: 13000, 8: 19000, 9: 26000, 10: 34000 };
+// Level-up readiness comes from the server (game.levelUp) so the badge can never claim a
+// level the level-up endpoint would refuse — see engine.levelUpInfo.
 
 let game = null;
 let selectedTarget = null;
@@ -18,6 +19,7 @@ let activeNpc = null;
 let appearanceShown = null;
 let portraitShown = null;
 let summaryShown = false;
+let questObjectiveFolded = false;
 let busy = false;
 
 export async function playView(main, saveRef) {
@@ -92,23 +94,6 @@ export async function playView(main, saveRef) {
   selectedTarget = null; activeNpc = null; appearanceShown = null; portraitShown = null;
 
   main.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:4px;">
-      <div style="display:flex; align-items:baseline; gap:10px;">
-        <h1 style="font-size:24px; margin:0;">${esc(game.mapName)}</h1>
-        <select id="personaQuickSelect" class="small" style="background:var(--card); border:1px solid var(--border); color:var(--text); padding:3px 8px; border-radius:4px; font-size:12px; cursor:pointer;" title="Change AI DM Narrative Persona">
-          <option value="classic">🎲 Classic DM</option>
-          <option value="grimdark">💀 Grimdark DM</option>
-          <option value="epic">⚔️ Epic DM</option>
-          <option value="snarky">🃏 Snarky DM</option>
-          <option value="eldritch">👁️ Eldritch DM</option>
-        </select>
-      </div>
-      <div>
-        <a class="btn small" href="#/character/${game.characterId}">Sheet</a>
-        <button class="btn small" id="dmSettingsBtn">⚙ DM Settings</button>
-        <a class="btn small" href="#/">Heroes</a>
-      </div>
-    </div>
     <div class="play-layout">
       <div>
         <div class="map-wrap" id="mapWrap">
@@ -117,8 +102,9 @@ export async function playView(main, saveRef) {
           <!-- 2D Minimap (Corner overlay in 3D mode, full in 2D mode) -->
           <div id="minimapContainer" class="minimap-container">
             <div class="minimap-header">
-              <span class="minimap-title">🧭 Minimap</span>
+              <span class="minimap-title">🧭 ${esc(game.mapName)}</span>
               <div class="minimap-controls">
+                <button class="minimap-btn" id="cameraFollowBtn" title="Camera follows your hero (click for a free camera · right-drag to pan · F)">🎥 跟随</button>
                 <button class="minimap-btn" id="minimapExpandBtn" title="Toggle Minimap Size">⤢</button>
                 <button class="minimap-btn" id="viewToggleMinimap" title="Switch to Full 2D View">2D Full</button>
               </div>
@@ -212,6 +198,13 @@ export async function playView(main, saveRef) {
     return res;
   }
 
+  function isAreaCleared(g) {
+    if (!g) return false;
+    if (g.mode === 'victory' || g.mode === 'retreat' || (g.flags && g.flags.victory)) return true;
+    const mons = (g.entities || []).filter(e => e.kind === 'monster' && e.alive !== false);
+    return mons.length === 0;
+  }
+
   let currentHoverTile = null;
   function updateHoverCues(tile) {
     currentHoverTile = tile;
@@ -221,6 +214,8 @@ export async function playView(main, saveRef) {
     const hoverIcon = document.getElementById('guidanceHoverIcon');
     const hoverText = document.getElementById('guidanceHoverText');
     if (!modePill || !hoverText || !game) return;
+
+    const cleared = isAreaCleared(game);
 
     if (game.mode === 'combat') {
       const myTurn = !game.combat || game.combat.order[game.combat.turnIdx]?.id === 'player';
@@ -241,18 +236,38 @@ export async function playView(main, saveRef) {
       modePill.className = 'guidance-mode-pill';
       modePill.textContent = '🏆 Victorious';
       movePill.textContent = '👣 Complete';
+    } else if (cleared) {
+      modePill.className = 'guidance-mode-pill';
+      modePill.style.background = 'rgba(201, 169, 89, 0.25)';
+      modePill.style.color = 'var(--gold)';
+      modePill.style.borderColor = 'var(--gold)';
+      modePill.textContent = '🏆 Delve Cleared!';
+      const sp = player()?.speedFt || game.character?.speedFt || 30;
+      movePill.textContent = `👣 ${sp} ft (${Math.floor(sp / 5)} tiles)`;
     } else {
       modePill.className = 'guidance-mode-pill';
+      modePill.style.background = '';
+      modePill.style.color = '';
+      modePill.style.borderColor = '';
       modePill.textContent = '🧭 Exploration';
       const sp = player()?.speedFt || game.character?.speedFt || 30;
       movePill.textContent = `👣 ${sp} ft (${Math.floor(sp / 5)} tiles)`;
     }
 
-    if (objPill) objPill.textContent = `🎯 ${charObjective(game)}`;
+    if (objPill) {
+      if (cleared && game.mode !== 'over') {
+        objPill.innerHTML = `🌟 <b>Delve Cleared:</b> Head to Campfire / Entrance to Return to Town`;
+      } else {
+        objPill.textContent = `🎯 ${charObjective(game)}`;
+      }
+    }
 
     if (!tile) {
       hoverIcon.textContent = '💡';
-      if (game.mode === 'combat') {
+      if (cleared && game.mode !== 'combat' && game.mode !== 'over') {
+        hoverIcon.textContent = '🌟';
+        hoverText.innerHTML = '<b>Delve Cleared!</b> All monsters slain. Follow the golden beacon light back to the Campfire or click <b>"Return to Oakhaven"</b>.';
+      } else if (game.mode === 'combat') {
         const myTurn = !game.combat || game.combat.order[game.combat.turnIdx]?.id === 'player';
         hoverText.innerHTML = myTurn
           ? '<b>Your Turn!</b> Click a blue tile to move, click a monster to target, or select an action. Press <span class="guidance-action-key">SPACE</span> to end turn.'
@@ -384,6 +399,32 @@ export async function playView(main, saveRef) {
     };
   }
 
+  // Camera binding: the view rides the hero by default; the button frees it so the
+  // player can survey the map, and re-centres when switched back on.
+  let camFollow = localStorage.getItem('dnd_cam_follow') !== 'off';
+  const followBtn = document.getElementById('cameraFollowBtn');
+  function renderFollowBtn() {
+    if (!followBtn) return;
+    const wrap = document.getElementById('mapWrap');
+    if (wrap) wrap.dataset.camFollow = camFollow ? 'on' : 'off';
+    followBtn.textContent = camFollow ? '🎥 跟随' : '🎥 自由';
+    followBtn.classList.toggle('active', camFollow);
+    followBtn.title = camFollow
+      ? 'Camera is bound to your hero — click to free it (right-drag to pan, F)'
+      : 'Free camera — right-drag to pan, wheel to zoom, click to re-centre on your hero (F)';
+    followBtn.style.display = activeView === '3d' ? '' : 'none';
+  }
+  function setFollow(next) {
+    camFollow = !!next;
+    localStorage.setItem('dnd_cam_follow', camFollow ? 'on' : 'off');
+    if (renderer3d) renderer3d.setFollow(camFollow);
+    renderFollowBtn();
+  }
+  if (followBtn) {
+    followBtn.onclick = () => setFollow(!camFollow);
+  }
+  renderFollowBtn();
+
   function activeRender(gameState) {
     const wrap = document.getElementById('mapWrap');
     const map3dEl = document.getElementById('map3d');
@@ -399,9 +440,12 @@ export async function playView(main, saveRef) {
           onTileClick: (x, y) => handleTileClick(x, y),
           onTileHover: t => updateHoverCues(t),
           isSelected: e => selectedTarget && e.id === selectedTarget.id,
-          getSelected: () => selectedTarget
+          getSelected: () => selectedTarget,
+          follow: camFollow,
+          onFollowChange: v => { camFollow = v; localStorage.setItem('dnd_cam_follow', v ? 'on' : 'off'); renderFollowBtn(); }
         });
       }
+      renderFollowBtn();
       if (wrap) {
         wrap.classList.remove('view-2d');
         wrap.classList.add('view-3d');
@@ -418,6 +462,7 @@ export async function playView(main, saveRef) {
       }
       if (renderer3d && map3dEl) map3dEl.style.display = 'none';
       if (btn2D) btn2D.style.display = 'block';
+      if (followBtn) followBtn.style.display = 'none';   // the 2D board always shows the whole map
       renderer.render(gameState);
     }
   }
@@ -426,6 +471,17 @@ export async function playView(main, saveRef) {
     const t = renderer.tileFromEvent(ev);
     if (t) handleTileClick(t.x, t.y);
   });
+
+  // Test seam: the e2e suite inspects camera binding and the board through here.
+  window.__dndDebug = {
+    camera: () => (renderer3d && renderer3d.debugState ? renderer3d.debugState() : null),
+    follow: () => camFollow,
+    boardCount: () => (game && game.entities ? game.entities.filter(e => e.kind === 'player' || (e.alive !== false && !e.fled)).length : 0),
+    playerTile: () => { const p = player(); return p ? { x: p.x + 0.5, z: p.y + 0.5 } : null; },
+    levelUp: () => (game && game.levelUp) || null,
+    badgeShown: () => !!document.getElementById('btnDelveLevelUp'),
+    modelState: () => (renderer3d && renderer3d.modelState ? renderer3d.modelState() : null)
+  };
 
   const onKey = (e) => {
     if (e.key === 'Escape') {
@@ -448,6 +504,16 @@ export async function playView(main, saveRef) {
     if (['1', '2', '3', '4', '5'].includes(e.key)) {
       const idx = parseInt(e.key, 10) - 1;
       useQuickSlot(idx);
+    }
+    if (e.key === 'b' || e.key === 'B' || e.key === 'i' || e.key === 'I') {
+      e.preventDefault();
+      const existing = document.getElementById('delveInventoryModal');
+      if (existing) existing.remove();
+      else openDelveInventoryModal();
+    }
+    if ((e.key === 'f' || e.key === 'F') && activeView === '3d') {
+      e.preventDefault();
+      setFollow(!camFollow);
     }
   };
   document.addEventListener('keydown', onKey);
@@ -729,12 +795,17 @@ export async function playView(main, saveRef) {
       const isActive = idx === c.turnIdx;
       const fillClass = pct < 25 ? 'danger' : pct < 50 ? 'warn' : '';
       const avatar = isPlayer ? '🧙' : (ent?.icon || (isDead ? '💀' : '👾'));
+      const elite = !isPlayer && ent && ent.isElite;
+      const eliteTag = elite
+        ? `<span class="elite-monster-label" style="--elite-color:${esc((ent.affix && ent.affix.color) || '#f59e0b')}" title="${esc((ent.affix && ent.affix.desc) || 'Elite Champion')}">★ ${esc((ent.affix && ent.affix.name) || '')}</span>`
+        : '';
       return `
-        <div class="initiative-card ${isActive ? 'active' : ''} ${isDead ? 'dead' : ''}" data-target-id="${o.id}" title="${esc(o.name)} (${hp}/${hpMax} HP, AC ${ent?.ac || 10}, Init ${o.total})">
+        <div class="initiative-card ${isActive ? 'active' : ''} ${isDead ? 'dead' : ''} ${elite ? 'elite' : ''}" data-target-id="${o.id}" title="${esc(o.name)} (${hp}/${hpMax} HP, AC ${ent?.ac || 10}, Init ${o.total})${elite ? ' — ' + esc((ent.affix && ent.affix.desc) || 'Elite Champion') : ''}">
           <div class="init-avatar-token">${isDead ? '💀' : avatar}</div>
           <div class="init-info-col">
             <div class="init-name-row">
               <span class="init-combatant-name">${esc(o.name.split(' ')[0])}</span>
+              ${eliteTag}
               <span class="init-score-badge">${o.total}</span>
             </div>
             <div class="init-hp-track">
@@ -921,6 +992,10 @@ export async function playView(main, saveRef) {
     activeRender(game);
     renderSide();
     updateInitiativeRibbon();
+    const invModal = document.getElementById('delveInventoryModal');
+    if (invModal) {
+      renderDelveInventoryModal(invModal);
+    }
     if ((game.mode === 'victory' || game.mode === 'over' || game.mode === 'retreat') && !summaryShown) {
       summaryShown = true;
       sfx.play((game.mode === 'victory' || game.mode === 'retreat') ? 'victory' : 'death');
@@ -1020,6 +1095,266 @@ export async function playView(main, saveRef) {
     if (rr) rr.addEventListener('click', () => { dismiss(); summaryShown = false; act({ type: 'respawn' }); });
   }
 
+  function openDelveInventoryModal() {
+    let modal = document.getElementById('delveInventoryModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.className = 'modal-back';
+      modal.id = 'delveInventoryModal';
+      document.body.appendChild(modal);
+    }
+    renderDelveInventoryModal(modal);
+  }
+
+  function renderDelveInventoryModal(modal) {
+    if (!modal) modal = document.getElementById('delveInventoryModal');
+    if (!modal) return;
+    const char = game.character;
+    const eq = char.equipped || {};
+    const rules = appState.rules;
+
+    const getItemName = (id) => {
+      if (!id || id === 'none') return null;
+      const own = (char.inventory || []).find(i => i.uniqueId === id);
+      if (own && own.name) return own.name;
+      const w = rules.weapons.find(x => x.id === id);
+      const a = rules.armor.find(x => x.id === id);
+      const g = rules.gear.find(x => x.id === id);
+      return (w || a || g)?.name || id;
+    };
+
+    const getItemDesc = (id) => {
+      if (!id || id === 'none') return '';
+      const own = (char.inventory || []).find(i => i.uniqueId === id);
+      if (own && own.desc) return own.desc;
+      const w = rules.weapons.find(x => x.id === id);
+      if (w) return `${w.damage} ${w.damageType || ''}`;
+      const a = rules.armor.find(x => x.id === id);
+      if (a) return `AC ${a.ac}`;
+      const g = rules.gear.find(x => x.id === id);
+      if (g) return g.desc || (g.acBonus ? `+${g.acBonus} AC` : '');
+      return '';
+    };
+
+    const tooltipPayload = (id) => {
+      const own = (char.inventory || []).find(i => i.uniqueId === id);
+      if (own && own.rarity) return esc(JSON.stringify({ ...own, ...(rules.weapons.find(x => x.id === own.itemId) || {}) }));
+      return id;
+    };
+
+    const slots = [
+      { key: 'armor', label: '🦺 Armor', item: eq.armor, emptyText: 'Unarmored' },
+      { key: 'mainHand', label: '🗡️ Main Hand', item: eq.mainHand, emptyText: 'Unarmed' },
+      { key: 'offHand', label: '🛡️ Off-Hand', item: eq.offHand, emptyText: 'Empty' },
+      { key: 'cloak', label: '🧥 Cloak', item: eq.cloak, emptyText: 'None' },
+      { key: 'ring1', label: '💍 Ring', item: eq.ring1, emptyText: 'None' },
+    ];
+
+    modal.innerHTML = `
+      <div class="modal delve-inventory-modal" style="position:relative; max-width:680px; width:94%; max-height:86vh; display:flex; flex-direction:column; text-align:left; padding:20px 24px;">
+        <button class="btn small" id="closeDelveInvX" style="position:absolute; top:14px; right:14px; min-width:32px; padding:4px 8px; font-weight:bold; cursor:pointer;" title="Close">✕</button>
+        <h2 style="margin:0 0 4px; display:flex; align-items:center; gap:8px;">
+          🎒 Backpack & Equipment
+        </h2>
+        <div class="muted small" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+          <span>${esc(char.name)} · Level ${char.level} · AC ${acNow()} · Speed ${speedNow()} ft</span>
+          <span style="color:var(--gold); font-weight:600;">💰 ${char.gold || 0} gp</span>
+        </div>
+
+        <div style="font-size:12px; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">
+          ⚔️ Equipped Loadout
+        </div>
+        <div class="delve-inv-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(115px, 1fr)); gap:8px; margin-bottom:14px;">
+          ${slots.map(s => {
+            const hasItem = Boolean(s.item && s.item !== 'none');
+            return `
+              <div class="delve-inv-slot ${hasItem ? 'occupied' : ''}" style="background:var(--bg2); border:1px solid ${hasItem ? 'var(--gold-dim)' : 'var(--border)'}; border-radius:6px; padding:6px 8px; min-height:64px; display:flex; flex-direction:column; justify-content:space-between;" ${hasItem ? `data-item-tooltip="${tooltipPayload(s.item)}" style="cursor:help;"` : ''}>
+                <div>
+                  <div style="font-size:10px; text-transform:uppercase; color:var(--muted); font-weight:600;">${s.label}</div>
+                  <div style="font-size:12px; font-weight:600; color:${hasItem ? 'var(--gold)' : 'var(--muted)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    ${hasItem ? esc(getItemName(s.item)) : s.emptyText}
+                  </div>
+                  ${hasItem && getItemDesc(s.item) ? `<div style="font-size:10px; color:var(--muted);">${esc(getItemDesc(s.item))}</div>` : ''}
+                </div>
+                ${hasItem ? `
+                  <button class="btn small" data-delve-inv-unequip="${s.key}" style="padding:1px 5px; font-size:10px; align-self:flex-start; margin-top:4px;">Doff / Stow</button>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <div style="font-size:12px; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">
+            📦 Backpack Inventory (${(char.inventory || []).length} items)
+          </div>
+          <span class="muted small">Click an item or button to use / equip</span>
+        </div>
+
+        <div class="delve-inv-scroll-list" style="flex:1; overflow-y:auto; border:1px solid var(--border); border-radius:6px; background:var(--bg); padding:6px 10px; max-height:280px;">
+          ${(char.inventory || []).length === 0 ? `
+            <div class="muted small" style="padding:16px; text-align:center;">Backpack is empty.</div>
+          ` : (char.inventory || []).map(i => {
+            const def = (rules.weapons || []).find(w => w.id === i.itemId)
+              || (rules.armor || []).find(w => w.id === i.itemId)
+              || (rules.gear || []).find(w => w.id === i.itemId);
+            const entry = { ...(def || {}), ...i }; // rolled affix gear keeps its own name, rarity and modifiers
+            const usable = def && (def.type === 'potion' || def.type === 'scroll');
+            const isWeapon = (rules.weapons || []).some(w => w.id === i.itemId);
+            const isArmor = (rules.armor || []).some(a => a.id === i.itemId && a.type !== 'shield');
+            const isShield = i.itemId === 'shield' || (def && def.type === 'shield') || i.type === 'shield';
+            const isCloak = i.itemId.includes('cloak');
+            const isRing = i.itemId.includes('ring');
+            const ref = i.uniqueId || i.itemId; // rolled items are addressed by unique id
+            const worn = (slot) => eq[slot] === ref || eq[slot] === i.itemId;
+
+            let actionHtml = '';
+            if (isWeapon) {
+              if (worn('mainHand')) {
+                actionHtml = `<span class="chip" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; margin:0;">Wielded</span>`;
+              } else {
+                actionHtml = `<button class="btn small" data-delve-inv-equip="mainHand" data-item="${ref}">Wield</button>`;
+              }
+            } else if (isArmor) {
+              if (worn('armor')) {
+                actionHtml = `<span class="chip" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; margin:0;">Worn</span>`;
+              } else {
+                actionHtml = `<button class="btn small" data-delve-inv-equip="armor" data-item="${ref}">Wear</button>`;
+              }
+            } else if (isShield) {
+              if (worn('offHand')) {
+                actionHtml = `<span class="chip" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; margin:0;">Shielded</span>`;
+              } else {
+                actionHtml = `<button class="btn small" data-delve-inv-equip="offHand" data-item="${ref}">Hold</button>`;
+              }
+            } else if (isCloak) {
+              if (worn('cloak')) {
+                actionHtml = `<span class="chip" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; margin:0;">Donned</span>`;
+              } else {
+                actionHtml = `<button class="btn small" data-delve-inv-equip="cloak" data-item="${ref}">Don</button>`;
+              }
+            } else if (isRing) {
+              if (worn('ring1')) {
+                actionHtml = `<span class="chip" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; margin:0;">Attuned</span>`;
+              } else {
+                actionHtml = `<button class="btn small" data-delve-inv-equip="ring1" data-item="${ref}">Attune</button>`;
+              }
+            }
+
+            const meta = i.rarity ? null : def;
+            const detail = i.desc || (meta && (meta.damage || meta.ac || meta.desc)
+              ? (meta.damage ? `${meta.damage} ${meta.damageType || ''}` : (meta.ac ? `AC ${meta.ac}` : meta.desc))
+              : '');
+
+            // experimental brews: hidden until identified or drunk
+            if (i.kind === 'mystery_potion') {
+              const kindTag = i.identified
+                ? (i.effect.kind === 'good' ? '🔵 有益' : i.effect.kind === 'bad' ? '🟣 有害' : '🟠 复杂')
+                : '❓ 未鉴定';
+              const row = i.identified
+                ? `${i.effect.name} — ${i.effect.desc}`
+                : (i.clues || []).join(' · ');
+              return `
+                <div class="stat-line item-row potion-row ${i.identified ? 'rarity-' + (i.effect.kind === 'good' ? 'magic' : i.effect.kind === 'bad' ? 'rare' : 'legendary') : 'potion-unknown'}"
+                     data-item-tooltip='${esc(JSON.stringify({ ...entry, rarity: i.identified ? (i.effect.kind === 'good' ? 'magic' : i.effect.kind === 'bad' ? 'rare' : 'legendary') : 'common' }))}' style="cursor:help; padding:6px 2px; align-items:center;">
+                  <div style="min-width:0; flex:1; padding-right:8px;">
+                    <span class="item-affix-tag ${i.identified ? 'rarity-magic-tag' : 'rarity-common-tag'}">${kindTag}</span>
+                    <span style="font-weight:600;">${esc(i.name)}</span>
+                    <span class="muted small" style="margin-left:6px;">(${esc(row)})</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                    <button class="btn small primary" data-delve-inv-use="${ref}">${i.identified ? '饮下' : '盲饮'}</button>
+                    <span class="muted small" style="min-width:26px; text-align:right;">×${i.qty}</span>
+                  </div>
+                </div>
+              `;
+            }
+
+            // delve-only prize tokens won at the tavern
+            if (i.kind === 'delve_token') {
+              return `
+                <div class="stat-line item-row rarity-legendary" data-item-tooltip='${esc(JSON.stringify(entry))}' style="cursor:help; padding:6px 2px; align-items:center;">
+                  <div style="min-width:0; flex:1; padding-right:8px;">
+                    <span class="item-affix-tag rarity-legendary-tag">⏳ 仅本场地牢</span>
+                    <span style="font-weight:600;">${esc(i.name)}</span>
+                    <span class="muted small" style="margin-left:6px;">(${esc(i.desc || '')})</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                    <button class="btn small primary" data-delve-inv-use="${ref}">使用</button>
+                    <span class="muted small" style="min-width:26px; text-align:right;">×${i.qty}</span>
+                  </div>
+                </div>
+              `;
+            }
+
+            return `
+              <div class="stat-line item-row ${i.rarity ? 'rarity-' + i.rarity : ''}" data-item-tooltip='${i.rarity ? esc(JSON.stringify(entry)) : i.itemId}' style="cursor:help; padding:6px 2px; align-items:center;">
+                <div style="min-width:0; flex:1; padding-right:8px;">
+                  ${i.rarity ? `<span class="item-affix-tag rarity-${i.rarity}-tag">${i.rarity === 'legendary' ? '🟠 传奇' : i.rarity === 'rare' ? '🟣 稀有' : '🔵 魔法'}</span>` : ''}
+                  <span style="font-weight:600;">${esc(i.name || (def ? def.name : i.itemId))}</span>
+                  ${detail ? `<span class="muted small" style="margin-left:6px;">(${esc(detail)})</span>` : ''}
+                </div>
+                <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                  ${usable && i.qty > 0 ? `<button class="btn small primary" data-delve-inv-use="${i.itemId}">Use</button>` : ''}
+                  ${actionHtml}
+                  <span class="muted small" style="min-width:26px; text-align:right;">×${i.qty}</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center;">
+          <a href="#/sheet/${game.characterId}" target="_blank" class="btn small" title="Open full character sheet in new tab">📜 Full Character Sheet ↗</a>
+          <button class="btn primary" id="closeDelveInvDone">Done</button>
+        </div>
+      </div>
+    `;
+
+    initTooltips(modal, rules);
+
+    const dismiss = () => {
+      if (modal && modal.parentNode) modal.parentNode.removeChild(modal);
+    };
+
+    const closeX = modal.querySelector('#closeDelveInvX');
+    if (closeX) closeX.addEventListener('click', dismiss);
+    const closeDone = modal.querySelector('#closeDelveInvDone');
+    if (closeDone) closeDone.addEventListener('click', dismiss);
+    modal.onclick = (e) => {
+      if (e.target === modal) dismiss();
+    };
+
+    modal.querySelectorAll('[data-delve-inv-equip]').forEach(b => b.addEventListener('click', async () => {
+      const slot = b.dataset.delveInvEquip;
+      const itemId = b.dataset.item;
+      sfx.play('equip');
+      await act({ type: 'equip', slot, itemId });
+      toast(`Equipped ${itemId}!`);
+    }));
+
+    modal.querySelectorAll('[data-delve-inv-unequip]').forEach(b => b.addEventListener('click', async () => {
+      const slot = b.dataset.delveInvUnequip;
+      sfx.play('equip');
+      await act({ type: 'unequip', slot });
+      toast(`Unequipped ${slot}!`);
+    }));
+
+    modal.querySelectorAll('[data-delve-inv-use]').forEach(b => b.addEventListener('click', async () => {
+      const itemId = b.dataset.delveInvUse;
+      const def = (rules.gear || []).find(g => g.id === itemId);
+      if (def && def.type === 'scroll' && def.spell) {
+        const sp = (rules.spells || []).find(x => x.id === def.spell);
+        if (sp && ['enemy', 'burst'].includes(sp.target) && !selectedTarget) {
+          return toast('Target a creature first on the map.');
+        }
+        await act({ type: 'useItem', itemId, targetId: selectedTarget ? selectedTarget.id : 'player' });
+      } else {
+        await act({ type: 'useItem', itemId });
+      }
+    }));
+  }
+
   function renderSide() {
     const char = game.character;
     const p = player();
@@ -1062,11 +1397,26 @@ export async function playView(main, saveRef) {
         <div class="hp-text"><span>Speed ${speedNow()} ft</span><span>XP ${char.xp} · ${char.gold} gp</span></div>
         <div class="hp-text"><span>Slots: ${slotText()}</span><span>HD left: ${char.level - (char.hdUsed || 0)}</span></div>
         ${(() => {
-          const nextLvl = (char.level || 1) + 1;
-          const canLvl = char.pendingLevelUp || (XP_THRESHOLDS[nextLvl] && char.xp >= XP_THRESHOLDS[nextLvl]);
-          return canLvl ? `<button class="btn small levelup-badge-btn" id="btnDelveLevelUp" style="width:100%; margin-top:8px;">⚡ LEVEL UP AVAILABLE (Ascend to Lvl ${nextLvl})</button>` : '';
+          const lu = game.levelUp || {};
+          const canLvl = !!lu.canLevelUp;
+          const nextLvl = lu.nextLevel || ((char.level || 1) + 1);
+          return canLvl ? `<button class="btn small levelup-badge-btn" id="btnDelveLevelUp" style="width:100%; margin-top:8px;" title="${lu.currentXp || char.xp || 0} / ${lu.xpNeeded || '—'} XP">⚡ LEVEL UP AVAILABLE (Ascend to Lvl ${nextLvl})</button>` : '';
         })()}
         ${(p.conditions.length || (p.buffs || []).filter(b => b.id !== 'concentrating').length) ? `<div style="margin-top:6px;">${p.conditions.map(c => `<span class="chip red">${esc(c)}</span>`).join('')}${(p.buffs || []).filter(b => b.id !== 'concentrating' && b.id !== 'cond_' ).map(b => `<span class="chip blue">${esc(b.id)}</span>`).join('')}</div>` : ''}
+        ${((game.flags && game.flags.restsBlocked) || (char.tempHpMod || 0) !== 0 || (char.inventory || []).some(i => i.delveOnly)) ? `
+          <div style="margin-top:6px;">
+            ${(game.flags && game.flags.restsBlocked) ? `<span class="chip red" title="本场地牢的休息被药剂或诅咒夺走">🕯️ 安息被打断 ×${game.flags.restsBlocked}</span>` : ''}
+            ${(char.tempHpMod || 0) < 0 ? `<span class="chip red" title="本场地牢的最大生命被削弱">💔 最大生命 ${char.tempHpMod}（本场）</span>` : ''}
+            ${(char.tempHpMod || 0) > 0 ? `<span class="chip blue" title="本场地牢的最大生命被强化">❤️ 最大生命 +${char.tempHpMod}（本场）</span>` : ''}
+            ${(char.inventory || []).filter(i => i.delveOnly && i.kind === 'delve_token' && i.qty > 0).map(i => `<span class="chip gold-chip" title="${esc(i.desc || '')}">${esc(i.name)}</span>`).join('')}
+          </div>` : ''}
+        
+        <div style="display:flex; gap:6px; margin-top:10px;">
+          <button class="btn small" id="btnOpenDelveInventory" style="flex:1; background:var(--bg2); border-color:var(--gold-dim); color:var(--parchment); font-weight:600;" title="Open inventory and manage equipment (Hotkey [B] or [I])">
+            🎒 Backpack & Gear (${(char.inventory || []).length})
+          </button>
+          <a href="#/sheet/${game.characterId}" target="_blank" class="btn small" title="Open full character sheet in new tab" style="text-decoration:none; padding:4px 8px;">📜 Sheet</a>
+        </div>
       </div>
 
       ${(() => {
@@ -1079,14 +1429,6 @@ export async function playView(main, saveRef) {
         <p class="small" style="font-family:var(--font-serif); color:var(--parchment); margin:6px 0 0;">${esc(appearanceShown || (selectedTarget && selectedTarget.name) || '')}</p>
       </div>`;
       })()}
-
-      ${game.quests && game.quests.active ? `
-      <div class="card" style="border-color:var(--gold-dim);">
-        <h3>📜 Side Quest</h3>
-        <p class="small" style="color:var(--gold); font-weight:600;">${esc(game.quests.active.shortText)}</p>
-        <p class="small muted">${esc(game.quests.active.text)}</p>
-        <p class="small" style="margin-top:6px;"><span class="chip">💰 ${game.quests.active.reward.gold} gp</span> <span class="chip blue">✨ ${game.quests.active.reward.xp} XP</span></p>
-      </div>` : ''}
 
       ${p.conditions.includes('unconscious') ? `
       <div class="card" style="border-color:#6b3a35;">
@@ -1111,55 +1453,39 @@ export async function playView(main, saveRef) {
           <button class="btn" data-act="longrest">🔥 Long Rest</button>
           <button class="btn" data-act="potion">🧪 Potion (${potCount})</button>
           ${atCampfire() ? `<button class="btn" data-act="recap" style="grid-column:1 / -1;">✍ Write journal entry</button>` : ''}
-          ${(atCampfire() || atEntrance() || game.mode === 'retreat' || game.mode === 'victory') ? `<button class="btn primary" data-act="retreat" style="grid-column:1 / -1; background:linear-gradient(180deg, #3d5a42, #29422e); border-color:#508059;">${game.mode === 'retreat' || game.mode === 'victory' ? '🏆 View Summary / Return to Town' : '🏰 Retreat to Oakhaven'}</button>` : `<button class="btn" data-act="retreat" style="grid-column:1 / -1;">🏰 Retreat to Oakhaven</button>`}
+          ${(atCampfire() || atEntrance() || game.mode === 'retreat' || game.mode === 'victory' || isAreaCleared(game)) ? `<button class="btn primary ${isAreaCleared(game) ? 'cleared-beacon-btn' : ''}" data-act="retreat" style="grid-column:1 / -1; background:linear-gradient(180deg, #3d5a42, #29422e); border-color:#508059;">${game.mode === 'retreat' || game.mode === 'victory' ? '🏆 View Summary / Return to Town' : (isAreaCleared(game) ? '🏆 Area Cleared! Return to Oakhaven' : '🏰 Retreat to Oakhaven')}</button>` : `<button class="btn" data-act="retreat" style="grid-column:1 / -1;">🏰 Retreat to Oakhaven</button>`}
           <button class="btn" data-act="journal" style="grid-column:1 / -1;">📖 Journal${(game.journal || []).length ? ` (${game.journal.length})` : ''}</button>
         </div>
         <div style="margin-top:8px;">${classActions()}</div>
       </div>`}
 
-      <div class="card">
-        <h3>Inventory & Equipment</h3>
-        ${char.inventory.map(i => {
-          const def = (appState.rules.weapons || []).find(w => w.id === i.itemId) || (appState.rules.armor || []).find(w => w.id === i.itemId) || (appState.rules.gear || []).find(w => w.id === i.itemId);
-          const usable = def && (def.type === 'potion' || def.type === 'scroll');
-          const isWeapon = (appState.rules.weapons || []).some(w => w.id === i.itemId);
-          const isArmor = (appState.rules.armor || []).some(a => a.id === i.itemId);
-          const isShield = i.itemId === 'shield' || (def && def.type === 'shield');
-          const isCloak = i.itemId.includes('cloak');
-          const isRing = i.itemId.includes('ring');
-          let equipBtn = '';
-          const eq = char.equipped || {};
-          if (isWeapon) {
-            if (eq.mainHand === i.itemId) equipBtn = `<span class="delve-inv-btn equipped">Wielded</span>`;
-            else equipBtn = `<button class="delve-inv-btn" data-equip-slot="mainHand" data-equip-item="${i.itemId}">Wield</button>`;
-          } else if (isArmor) {
-            if (eq.armor === i.itemId) equipBtn = `<span class="delve-inv-btn equipped">Worn</span>`;
-            else equipBtn = `<button class="delve-inv-btn" data-equip-slot="armor" data-equip-item="${i.itemId}">Wear</button>`;
-          } else if (isShield) {
-            if (eq.offHand === i.itemId) equipBtn = `<span class="delve-inv-btn equipped">Shielded</span>`;
-            else equipBtn = `<button class="delve-inv-btn" data-equip-slot="offHand" data-equip-item="${i.itemId}">Hold</button>`;
-          } else if (isCloak) {
-            if (eq.cloak === i.itemId) equipBtn = `<span class="delve-inv-btn equipped">Donned</span>`;
-            else equipBtn = `<button class="delve-inv-btn" data-equip-slot="cloak" data-equip-item="${i.itemId}">Don</button>`;
-          } else if (isRing) {
-            if (eq.ring1 === i.itemId) equipBtn = `<span class="delve-inv-btn equipped">Attuned</span>`;
-            else equipBtn = `<button class="delve-inv-btn" data-equip-slot="ring1" data-equip-item="${i.itemId}">Attune</button>`;
-          }
-
-          return `<div class="stat-line" data-item-tooltip="${i.itemId}" style="cursor:help;">
-            <span>${def ? def.name : i.itemId}</span>
-            <span style="display:flex; align-items:center;">
-              ${usable && i.qty > 0 ? `<button class="btn small" data-useitem="${i.itemId}" style="margin-right:4px;">Use</button>` : ''}
-              ${equipBtn}
-              <span style="margin-left:6px;">×${i.qty}</span>
-            </span>
-          </div>`;
-        }).join('')}
-      </div>
-
-      <div class="card">
-        <h3>Objective</h3>
-        <p class="small muted">${charObjective(game)}</p>
+      <div class="card quest-objective-card" style="border-color:var(--gold-dim);">
+        <div class="quest-fold-header" id="toggleQuestFoldBtn" title="Click to fold or expand quests & goals">
+          <h3 style="margin:0; display:flex; align-items:center; gap:6px;">
+            📜 Quests & Goals
+            <span class="chip ${questObjectiveFolded ? '' : 'blue'}" style="font-size:10px; padding:1px 6px;">${questObjectiveFolded ? 'Folded' : 'Active'}</span>
+          </h3>
+          <button class="btn small" style="padding:2px 8px; font-size:11px;" id="btnQuestFoldToggle">
+            ${questObjectiveFolded ? '▶ Expand' : '▼ Fold'}
+          </button>
+        </div>
+        ${questObjectiveFolded ? `
+          <div class="small muted" style="margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(charObjective(game))}">
+            🎯 ${esc(charObjective(game))}
+          </div>
+        ` : `
+          <div style="margin-top:8px;">
+            <div style="font-size:12px; font-weight:600; color:var(--gold); margin-bottom:3px;">🎯 Dungeon Objective</div>
+            <p class="small muted" style="margin:0 0 8px;">${esc(charObjective(game))}</p>
+            ${game.quests && game.quests.active ? `
+              <div style="border-top:1px dashed var(--border); padding-top:6px; margin-top:6px;">
+                <div style="font-size:12px; font-weight:600; color:var(--parchment); margin-bottom:2px;">📜 ${esc(game.quests.active.shortText)}</div>
+                <p class="small muted" style="margin:0 0 6px;">${esc(game.quests.active.text)}</p>
+                <div class="small"><span class="chip">💰 ${game.quests.active.reward.gold} gp</span> <span class="chip blue">✨ ${game.quests.active.reward.xp} XP</span></div>
+              </div>
+            ` : ''}
+          </div>
+        `}
       </div>
     `;
 
@@ -1284,8 +1610,23 @@ export async function playView(main, saveRef) {
   function combatHud(myTurn) {
     const c = game.combat;
     const targetLine = selectedTarget
-      ? `Target: <b>${esc(selectedTarget.name)}</b> (${selectedTarget.hpMax ? selectedTarget.hp + '/' + selectedTarget.hpMax + ' HP, ' : 'Object, '}AC ${selectedTarget.ac || 10})`
+      ? `Target: <b>${esc(selectedTarget.name)}</b> (${selectedTarget.hpMax ? selectedTarget.hp + '/' + selectedTarget.hpMax + ' HP, ' : 'Object, '}AC ${selectedTarget.ac || 10})${selectedTarget.isElite ? ` <span class="elite-monster-label" style="--elite-color:${esc((selectedTarget.affix && selectedTarget.affix.color) || '#f59e0b')}" title="${esc((selectedTarget.affix && selectedTarget.affix.desc) || 'Elite Champion')}">★ 精英：${esc((selectedTarget.affix && selectedTarget.affix.desc) || 'Champion')}</span>` : ''}`
       : 'Click a monster or object on the map to target it.';
+    const p = player();
+    const actionUsed = !!c.actionUsed;
+    const bonusUsed = !!c.bonusUsed;
+    const mvLeft = c.movementLeft ?? 0;
+    const reactionUsed = !!(p && p.reactionUsed);
+
+    const canAttack = myTurn && !actionUsed;
+    const canCast = myTurn && !actionUsed;
+    const canDodge = myTurn && !actionUsed;
+    const canDash = myTurn && !actionUsed;
+    const potCount = (game.character.inventory || []).filter(i => ['potion_healing', 'potion_greater'].includes(i.itemId)).reduce((s, i) => s + i.qty, 0);
+    const canPotion = myTurn && !bonusUsed && potCount > 0;
+
+    const allMainActionsSpent = myTurn && actionUsed && (bonusUsed || potCount === 0) && mvLeft === 0;
+
     return `
       <div class="combat-banner">
         <span class="round">⚔ Round ${c.round}</span> — ${myTurn ? '<b style="color:var(--gold);">Your turn!</b>' : '<span class="muted">Enemies act…</span>'}
@@ -1296,16 +1637,54 @@ export async function playView(main, saveRef) {
       </div>
       <div class="card">
         <p class="target-line">${targetLine}</p>
-        ${renderQuickSlots(myTurn)}
-        <h3>Your turn</h3>
-        <div class="action-grid">
-          <button class="btn" data-act="attack" ${myTurn ? '' : 'disabled'}>🗡 Attack</button>
-          <button class="btn" data-act="castmenu" ${myTurn ? '' : 'disabled'}>✨ Cast…</button>
-          <button class="btn" data-act="dodge" ${myTurn ? '' : 'disabled'}>🛡 Dodge</button>
-          <button class="btn" data-act="dash" ${myTurn ? '' : 'disabled'}>💨 Dash</button>
-          <button class="btn" data-act="potion">🧪 Potion (${(game.character.inventory || []).filter(i => ['potion_healing', 'potion_greater'].includes(i.itemId)).reduce((s, i) => s + i.qty, 0)})</button>
-          <button class="btn" data-act="endturn" ${myTurn ? '' : 'disabled'}>⏭ End Turn</button>
+        
+        <div class="turn-economy-bar" title="Turn Economy: Action, Bonus Action, Movement, and Reaction">
+          <span class="economy-pill ${actionUsed ? 'spent' : 'ready'}" title="${actionUsed ? 'Action spent this turn (cannot Attack, Cast, Dodge, or Dash)' : 'Action ready — use for Attack, Cast Spell, Dodge, or Dash'}">
+            <span class="economy-dot"></span> Action: ${actionUsed ? 'Spent' : 'Ready'}
+          </span>
+          <span class="economy-pill ${bonusUsed ? 'spent' : 'ready'}" title="${bonusUsed ? 'Bonus action spent this turn' : 'Bonus action ready — use for Potion or bonus class abilities'}">
+            <span class="economy-dot"></span> Bonus: ${bonusUsed ? 'Spent' : 'Ready'}
+          </span>
+          <span class="economy-pill ${mvLeft > 0 ? 'ready' : 'spent'}" title="Movement remaining this turn (click tiles or WASD to step)">
+            👣 ${mvLeft} ft (${Math.floor(mvLeft / 5)} sq)
+          </span>
+          <span class="economy-pill ${reactionUsed ? 'spent' : 'ready'}" title="${reactionUsed ? 'Reaction spent this round' : 'Reaction ready for Opportunity Attacks & Shield'}">
+            ⚡ Reaction: ${reactionUsed ? 'Spent' : 'Ready'}
+          </span>
         </div>
+
+        ${renderQuickSlots(myTurn)}
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <h3 style="margin:0;">Combat Actions</h3>
+          ${myTurn && actionUsed ? '<span class="muted small" style="font-size:11px; color:#f87171;">Action spent</span>' : ''}
+        </div>
+
+        <div class="action-grid">
+          <button class="btn" data-act="attack" ${canAttack ? '' : 'disabled'} title="${actionUsed ? 'Action already spent this turn' : 'Perform a weapon attack on the targeted enemy'}">
+            🗡 Attack <span class="action-cost-badge action">Act</span>
+          </button>
+          <button class="btn" data-act="castmenu" ${canCast ? '' : 'disabled'} title="${actionUsed ? 'Action already spent this turn' : 'Cast a cantrip or spell'}">
+            ✨ Cast… <span class="action-cost-badge action">Act</span>
+          </button>
+          <button class="btn" data-act="dodge" ${canDodge ? '' : 'disabled'} title="${actionUsed ? 'Action already spent this turn' : 'Take Dodge action — attacks against you have disadvantage'}">
+            🛡 Dodge <span class="action-cost-badge action">Act</span>
+          </button>
+          <button class="btn" data-act="dash" ${canDash ? '' : 'disabled'} title="${actionUsed ? 'Action already spent this turn' : 'Take Dash action — double your movement speed'}">
+            💨 Dash <span class="action-cost-badge action">Act</span>
+          </button>
+          <button class="btn" data-act="potion" ${canPotion ? '' : (potCount > 0 && !myTurn ? 'disabled' : (bonusUsed ? 'disabled' : ''))} title="${bonusUsed ? 'Bonus action already spent this turn' : (potCount === 0 ? 'No potions left' : 'Drink a healing potion')}">
+            🧪 Potion (${potCount}) <span class="action-cost-badge bonus">Bns</span>
+          </button>
+          <button class="btn primary" data-act="endturn" ${myTurn ? '' : 'disabled'} title="Finish your turn and let other combatants act (Hotkey [Space])">
+            ⏭ End Turn
+          </button>
+        </div>
+        ${allMainActionsSpent ? `
+          <div class="all-spent-notice">
+            💡 All actions and movement spent! Press <b>Space</b> or click <b>End Turn</b>.
+          </div>
+        ` : ''}
         <div style="margin-top:8px;">${classActions(myTurn)}</div>
         <div id="castMenu"></div>
       </div>`;
@@ -1374,10 +1753,13 @@ export async function playView(main, saveRef) {
       if (a === 'attack') {
         if (!selectedTarget) return toast('Click a monster or object first to target it.');
         const char = game.character;
-        const melee = char.attacks.find(x => !x.ranged && x.weaponId !== 'unarmed');
+        const mainRef = (char.equipped || {}).mainHand;
+        const mainAtk = char.attacks.find(x => x.weaponId === mainRef);
+        const melee = (mainAtk && !mainAtk.ranged) ? mainAtk : char.attacks.find(x => !x.ranged && x.weaponId !== 'unarmed');
+        const rangedAtk = (mainAtk && mainAtk.ranged) ? mainAtk : char.attacks.find(x => x.ranged);
         const atk = selectedTarget && Math.abs(player().x - selectedTarget.x) + Math.abs(player().y - selectedTarget.y) <= 1
           ? (melee || char.attacks[0])
-          : (char.attacks.find(x => x.ranged) || char.attacks[0]);
+          : (rangedAtk || char.attacks[0]);
         act({ type: 'attack', targetId: selectedTarget.id, weaponId: atk.weaponId });
       }
       if (a === 'castmenu') renderCastMenu();
@@ -1405,12 +1787,30 @@ export async function playView(main, saveRef) {
     const btnLvl = document.getElementById('btnDelveLevelUp');
     if (btnLvl) {
       btnLvl.onclick = () => {
-        openLevelUpModal(game.character.id, (upd) => {
+        openLevelUpModal(game.character.id, async (upd) => {
           game.character = upd;
-          renderSide();
+          // re-read the server's level-up verdict so the badge reflects the new level
+          try {
+            const fresh = await api.getGame(game.id);
+            game = fresh.state;
+          } catch {}
+          update();
           toast(`⚡ Level Up applied: Level ${upd.level}!`);
         });
       };
+    }
+
+    const btnOpenInv = document.getElementById('btnOpenDelveInventory');
+    if (btnOpenInv) {
+      btnOpenInv.addEventListener('click', () => openDelveInventoryModal());
+    }
+
+    const toggleQuestFold = document.getElementById('toggleQuestFoldBtn');
+    if (toggleQuestFold) {
+      toggleQuestFold.addEventListener('click', () => {
+        questObjectiveFolded = !questObjectiveFolded;
+        renderSide();
+      });
     }
 
     document.querySelectorAll('[data-equip-slot]').forEach(b => b.addEventListener('click', async () => {

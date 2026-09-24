@@ -134,5 +134,35 @@ test('Wizard character generation with INT spellcasting and spellbook', () => {
   assert(char.spellSlots && char.spellSlots[1] === 2, 'Wizard should have 2 lvl 1 spell slots');
 });
 
+// Level-up readiness — the one rule the HUD badge and the level-up endpoint must share
+test('levelUpInfo gates on the engine XP table at every boundary', () => {
+  const at = (level, xp) => engine.levelUpInfo({ level, xp });
+
+  const below = at(2, 899);
+  assert(below.nextLevel === 3 && below.xpNeeded === 900 && below.canLevelUp === false,
+    `899 XP at level 2 is not enough for level 3 (got ${JSON.stringify(below)})`);
+  assert(at(2, 900).canLevelUp === true, 'Exactly 900 XP at level 2 unlocks level 3');
+  assert(at(2, 950).canLevelUp === true, '950 XP at level 2 unlocks level 3');
+  // the reported bug: a hero who levelled up in town then entered an older delve was told
+  // "level 3 available" while the endpoint demanded level 4's XP
+  const stale = at(3, 1000);
+  assert(stale.nextLevel === 4 && stale.xpNeeded === 2700 && stale.canLevelUp === false,
+    `A level 3 hero with 1000 XP must not be offered another level (got ${JSON.stringify(stale)})`);
+  const l3 = at(3, 2700);
+  assert(l3.canLevelUp === true && l3.nextLevel === 4, 'Level 4 unlocks at 2700 XP');
+});
+
+test('levelUpInfo covers the extended level cap and stops cleanly at 12', () => {
+  assert(engine.levelUpInfo({ level: 10, xp: 50000 }).canLevelUp === true, 'Level 11 unlocks at 50,000 XP');
+  const l11 = engine.levelUpInfo({ level: 11, xp: 74999 });
+  assert(l11.nextLevel === 12 && l11.xpNeeded === 75000 && l11.canLevelUp === false, 'Level 12 needs 75,000 XP');
+  assert(engine.levelUpInfo({ level: 11, xp: 75000 }).canLevelUp === true, '75,000 XP unlocks level 12');
+  const capped = engine.levelUpInfo({ level: 12, xp: 999999 });
+  assert(capped.xpNeeded === null && capped.canLevelUp === false, 'At the cap there is no further level to claim');
+  const fresh = engine.levelUpInfo(undefined);
+  assert(fresh.currentLevel === 1 && fresh.nextLevel === 2 && fresh.xpNeeded === 300 && fresh.canLevelUp === false,
+    'A brand-new hero needs 300 XP for level 2');
+});
+
 console.log(`\nUnit Tests Summary: ${passed} passed, ${failed} failed.`);
 if (failed > 0) process.exit(1);

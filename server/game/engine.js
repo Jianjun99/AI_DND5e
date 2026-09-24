@@ -3,6 +3,7 @@
 const path = require('path');
 const fs = require('fs');
 const content = require('./content');
+const affixes = require('./affixes');
 
 const SHARED = path.join(__dirname, '..', '..', 'shared');
 const load = (f) => JSON.parse(fs.readFileSync(path.join(SHARED, f), 'utf8'));
@@ -60,8 +61,40 @@ const SHOP_ITEMS = [
   { id: 'scroll_sleep', name: 'Scroll of Sleep', price: 80, desc: 'One-shot: put a creature to sleep.' }
 ];
 
-// Weapons resolve either from the weapon table or from magic gear (built on a base weapon)
-function resolveWeapon(id) {
+// Find an inventory entry by unique rolled id first, then by base item id (plain items win over rolled twins)
+function invEntry(char, ref) {
+  if (!char || !char.inventory || !ref || ref === 'none') return null;
+  const byUnique = char.inventory.find(i => i.uniqueId === ref);
+  if (byUnique) return byUnique;
+  return char.inventory.find(i => i.itemId === ref && !i.uniqueId) || char.inventory.find(i => i.itemId === ref) || null;
+}
+
+// Sum one affix bonus (acBonus / hpBonus / speedBonus) across every currently equipped item
+function equippedBonus(char, key) {
+  if (!char || !char.equipped || !char.inventory) return 0;
+  let total = 0;
+  Object.keys(char.equipped).forEach(slot => {
+    const it = invEntry(char, char.equipped[slot]);
+    if (it && it[key]) total += it[key];
+  });
+  return total;
+}
+
+// Weapons resolve either from the weapon table, magic gear, or custom rolled affix items in inventory
+function resolveWeapon(id, char) {
+  const inv = invEntry(char, id);
+  if (inv && (inv.magic || inv.bonusDamage || inv.vampiricHeal || (inv.uniqueId && inv.rarity))) {
+    const base = byId(WEAPONS, inv.itemId) || byId(WEAPONS, id);
+    if (base) {
+      return Object.assign({}, base, {
+        id: inv.uniqueId || inv.itemId,
+        name: inv.name || base.name,
+        magic: inv.magic || 0,
+        bonusDamage: inv.bonusDamage || null,
+        vampiricHeal: inv.vampiricHeal || null
+      });
+    }
+  }
   const w = byId(WEAPONS, id);
   if (w) return w;
   const g = content.getGear(id);
@@ -77,10 +110,14 @@ function itemName(id) {
   return (w || a || g || { name: id }).name;
 }
 
-function addItemToInventory(char, id, qty = 1) {
-  const existing = char.inventory.find(i => i.itemId === id);
-  if (existing) existing.qty += qty;
-  else char.inventory.push({ itemId: id, qty });
+function addItemToInventory(char, itemOrId, qty = 1) {
+  if (typeof itemOrId === 'string') {
+    const existing = char.inventory.find(i => i.itemId === itemOrId && !i.rarity);
+    if (existing) existing.qty += qty;
+    else char.inventory.push({ itemId: itemOrId, qty });
+  } else if (itemOrId && typeof itemOrId === 'object') {
+    char.inventory.push({ ...itemOrId, qty: itemOrId.qty || qty });
+  }
 }
 
 // ---------------------------------------------------------------- dice ----
@@ -230,9 +267,20 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
   let gained;
   if (char.hpMax === 0) gained = cls.hitDie + conM;
   else gained = recomputeOnly ? 0 : Math.max(1, die(cls.hitDie) + conM);
-  char.hpMax = Math.max(1, (char.hpMax || 0) + gained + hpPerLevelExtra);
+  // Vigor-style affix gear adds max HP only while equipped — swap out the previous value before re-adding.
+  // char.tempHpMod is the delve-scoped counterpart (brews and curses); it lives on the delve
+  // snapshot, so it never leaks back into the roster character.
+  const itemHpBonus = equippedBonus(char, 'hpBonus');
+  const prevItemHp = char.itemHpBonus || 0;
+  const tempHpMod = char.tempHpMod || 0;
+  const prevTempMod = char.appliedTempHpMod || 0;
+  char.hpMax = Math.max(1, (char.hpMax || 0) - prevItemHp - prevTempMod + itemHpBonus + tempHpMod + gained + hpPerLevelExtra);
+  char.itemHpBonus = itemHpBonus;
+  char.appliedTempHpMod = tempHpMod;
 
-  const armorItem = char.inventory.map(i => byId(ARMORS, i.itemId)).find(Boolean);
+  const equippedArmorId = char.equipped && char.equipped.armor;
+  const equippedArmor = byId(ARMORS, (invEntry(char, equippedArmorId) || {}).itemId);
+  const armorItem = equippedArmor || char.inventory.map(i => byId(ARMORS, i.itemId)).find(Boolean);
   let ac;
   if (armorItem) {
     const f = armorItem.ac;
@@ -245,8 +293,13 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
   else if (char.invocations.includes('armor_of_shadows')) ac = 13 + dexM;
   else ac = 10 + dexM;
   if (!armorItem && cls.id === 'sorcerer' && char.subclass === 'draconic') ac += 1; // Draconic Resilience
+  // a shield counts whether it is the plain shield, a gear shield, or a rolled affix shield
+  const offEntry = invEntry(char, char.equipped && char.equipped.offHand);
+  const offIsShield = !!offEntry && (offEntry.type === 'shield'
+    || (content.getGear(offEntry.itemId) || {}).type === 'shield'
+    || (content.getGear(char.equipped && char.equipped.offHand) || {}).type === 'shield');
   const hasShieldEquipped = char.equipped
-    ? (char.equipped.offHand === 'shield' || (content.getGear(char.equipped.offHand) && content.getGear(char.equipped.offHand).type === 'shield'))
+    ? (char.equipped.offHand === 'shield' || offIsShield)
     : char.inventory.some(i => i.itemId === 'shield');
   if (hasShieldEquipped) ac += 2;
   // cloak and special items contribute if equipped (or in legacy unequipped inventories)
@@ -276,7 +329,8 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
     + (cls.id === 'barbarian' && level >= 7 ? 2 : 0); // Feral Instinct
 
   char.attacks = char.inventory.map(inv => {
-    const w = resolveWeapon(inv.itemId);
+    // rolled affix gear resolves by its unique id so each piece keeps its own name and bonuses
+    const w = resolveWeapon(inv.uniqueId || inv.itemId, char);
     if (!w) return null;
     const finesse = w.props.includes('finesse');
     const ranged = w.type.endsWith('ranged');
@@ -293,7 +347,7 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
       ranged, range: w.range || 5, props: w.props,
       heavy: w.props.includes('heavy'), light: w.props.includes('light'),
       twoHanded: w.props.includes('two_handed'), finesse, versatile: w.versatile || null,
-      magic: w.magic || 0, bonusDamage: w.bonusDamage || null
+      magic: w.magic || 0, bonusDamage: w.bonusDamage || null, vampiricHeal: w.vampiricHeal || null
     };
   }).filter(Boolean);
   const unarmedAb = abilities.str >= abilities.dex ? abilities.str : abilities.dex;
@@ -302,6 +356,12 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
     dmgDice: cls.id === 'monk' ? (level >= 10 ? '1d10' : level >= 5 ? '1d8' : '1d6') : '1', dmgMod: mod(unarmedAb), dmgType: 'bludgeoning',
     ranged: false, range: 5, props: [], heavy: false, light: false, twoHanded: false, finesse: false
   });
+  // the wielded weapon leads the list — the client offers attacks[0] / the first melee entry by default
+  const mainRef = char.equipped && char.equipped.mainHand;
+  if (mainRef) {
+    const mi = char.attacks.findIndex(a => a.weaponId === mainRef);
+    if (mi > 0) { const [mainAtk] = char.attacks.splice(mi, 1); char.attacks.unshift(mainAtk); }
+  }
 
   if (cls.spellcasting) {
     const table = SLOTS[cls.spellcasting.slots];
@@ -443,14 +503,18 @@ function generateMapState(mapDef, difficulty) {
       const def = content.getMonster(e.kind);
       if (!def) return; // unknown kinds are warned about at startGame
       const hp = Math.max(1, Math.round(rollExpr(def.hp).total * DIFFICULTY[difficulty].hpMult));
-      ents.push({
+      const mon = {
         id: e.id, kind: 'monster', monsterId: e.kind, name: e.name || def.name,
         x: e.x, y: e.y, hp, hpMax: hp, ac: def.ac, speedFt: def.speed, abilities: def.abilities,
         attacks: def.attacks, darkvision: def.darkvision || 0, xp: def.xp, boss: !!def.boss,
         vulnerabilities: def.vulnerabilities || [], traits: def.traits || [],
         chief: !!e.chief, conditions: [], buffs: [], alive: true, aware: false, fled: false,
         sx: e.x, sy: e.y
-      });
+      };
+      if (!def.boss && (e.isElite || Math.random() < 0.18)) {
+        affixes.applyMonsterAffix(mon);
+      }
+      ents.push(mon);
     } else if (e.type === 'npc') {
       ents.push({ id: 'npc_' + e.id, kind: 'npc', npcId: e.id, name: e.name, x: e.x, y: e.y, icon: e.icon || '🗣️', alive: true });
       objects.push({ ...e, type: 'npcMarker' });
@@ -514,11 +578,20 @@ function startGame(character, options = {}) {
     world: {},
     quests: { active: null, completed: [] },
     stats: { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 },
-    entities: [], objects: [], discovered: [], flags: { hasRelic: false, altarBlessed: false, victory: false, failed: false },
+    entities: [], objects: [], discovered: [], flags: { hasRelic: false, altarBlessed: false, victory: false, failed: false, restsBlocked: 0 },
     npcChat: {}, stealth: null, log: [], journal: [], appearances: {}, createdAt: Date.now(), updatedAt: Date.now()
   };
 
   const p = state.character;
+  // Delve-only gear never survives a delve, and this snapshot is the dive's own inventory
+  p.inventory = (p.inventory || []).filter(i => !i.delveOnly);
+  // Town-bought / gambled prizes that were waiting to be carried in (they expire at the end of this delve)
+  (options.carryItems || []).forEach(item => {
+    p.inventory.push({ ...(item.uniqueId ? item : { itemId: item.itemId || item }), delveOnly: true, qty: item.qty || 1 });
+  });
+  // delve-scoped max-HP modifiers start fresh; the swap-out bookkeeping must match
+  p.tempHpMod = 0;
+  p.appliedTempHpMod = 0;
   // difficulty adjusts starting supplies on this delve's snapshot
   const potionPack = p.inventory.find(i => i.itemId === 'potion_healing');
   if (potionPack) potionPack.qty = Math.max(0, potionPack.qty + DIFFICULTY[difficulty].bonusPotions);
@@ -782,6 +855,7 @@ function currentSpeed(state, ent) {
     if (b.id === 'cond_slowed' && b.speedPenalty) s -= b.speedPenalty;
   });
   if (hasBuff(ent, 'wolfform')) s = Math.max(s, 40);
+  if (ent.kind === 'player' && state.character) s += equippedBonus(state.character, 'speedBonus');
   return Math.max(0, s);
 }
 
@@ -801,19 +875,26 @@ function currentAc(state, ent) {
   let ac = char.acBase;
   if (hasBuff(ent, 'mage_armor') && !charHasArmor(char)) ac = 13 + mod(char.abilities.dex);
   if (hasBuff(ent, 'shield')) ac += 5;
+  if (char && char.equipped && char.inventory) ac += equippedBonus(char, 'acBonus');
   return ac;
 }
 function charHasArmor(char) { return char.inventory.some(i => byId(ARMORS, i.itemId)); }
 
 // ---------------------------------------------------------------- damage ----
-function applyDamage(state, target, amount, dmgType, events) {
+function applyDamage(state, target, amount, dmgType, events, opts = {}) {
   if (!target || target.alive === false || amount <= 0) return 0;
   let dmg = amount;
   if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
   if (target.kind === 'player') state.stats.dmgTaken += amount;
-  const resList = target.kind === 'player' ? (state.character.resistances || []) : [];
+  const resList = target.kind === 'player' ? (state.character.resistances || []) : (target.resistances || []);
   if (target.kind === 'player' && hasBuff(target, 'rage') && ['bludgeoning', 'piercing', 'slashing'].includes(dmgType)) dmg = Math.floor(dmg / 2);
-  if (resList.includes(dmgType)) dmg = Math.floor(dmg / 2);
+  // Stone-skinned champions resist weapons — but magic weapons and spells cut straight through
+  const resistsPhysicalOnly = !!(target.affix && target.affix.nonmagicalPhysical);
+  if (resList.includes(dmgType) && !(resistsPhysicalOnly && opts.magical && ['bludgeoning', 'piercing', 'slashing'].includes(dmgType))) {
+    const before = dmg;
+    dmg = Math.floor(dmg / 2);
+    if (before > 1) addLog(state, 'mech', `${target.name} resists the ${dmgType} damage (${before} → ${dmg}).`);
+  }
   if ((target.vulnerabilities || []).includes(dmgType)) dmg *= 2;
   if (target.tempHp) {
     const absorbed = Math.min(target.tempHp, dmg);
@@ -885,6 +966,7 @@ function healEntity(state, ent, amt, events, source) {
 // attack mods: adv/dis on the d20; atkRolls add to the attack total; dmgDice add to damage
 function attackMods(state, attacker, target, atk, events) {
   const out = { adv: false, dis: false, atkRolls: [], dmgDice: [], bonusFlat: 0 };
+  if (attacker.conditions && attacker.conditions.includes('poisoned')) out.dis = true;
   if (attacker.kind !== 'player') {
     if (hasBuff(attacker, 'disadv_next')) out.dis = true;
     if (!atk.ranged && hasFlank(state, attacker, target) && !hasBuff(target, 'dodge')) out.adv = true;
@@ -897,6 +979,7 @@ function attackMods(state, attacker, target, atk, events) {
   const char = state.character;
   const p = attacker;
   if (hasBuff(p, 'adv_next_attack')) { out.adv = true; }
+  if (hasBuff(p, 'brew_fortune')) out.adv = true;   // hunter's-eye brew / token
   if (state.flags.reckless && !atk.ranged) out.adv = true;
   if (!atk.ranged && !atk.spell && hasFlank(state, p, target)) out.adv = true;
   if (hasBuff(target, 'dodge')) out.dis = true;
@@ -971,8 +1054,14 @@ function monsterAttack(state, attacker, target, atk, events) {
   // difficulty scales only monster damage, never the ally's
   const dmgMult = attacker.kind === 'monster' ? DIFFICULTY[state.difficulty || 'normal'].dmgMult : 1;
   const enrageFlat = attacker.enraged ? 2 : 0;
+  let extraAffixTxt = '';
+  if (attacker.affix && attacker.affix.bonusDamage) {
+    const extra = rollExpr(attacker.affix.bonusDamage.dice).total;
+    rolled.total += extra;
+    extraAffixTxt = ` (+${extra} ${attacker.affix.bonusDamage.type})`;
+  }
   const dmg = { total: Math.max(1, Math.round((rolled.total + enrageFlat) * dmgMult)), dice: rolled.dice };
-  let text = `${atkStr} hits ${target.name}${crit ? ' — CRITICAL HIT!' : ''} for ${dmg.total} ${atk.damageType} damage.`;
+  let text = `${atkStr} hits ${target.name}${crit ? ' — CRITICAL HIT!' : ''} for ${dmg.total} ${atk.damageType} damage${extraAffixTxt}.`;
   events.push({ type: 'attack_in', narrate: true, text, data: { dmg: dmg.total, crit, targetId: target.id, targetX: target.x, targetY: target.y } });
   addLog(state, 'mech', text);
   // Stone's Endurance (Goliath reaction, auto-used on heavy hits)
@@ -987,6 +1076,17 @@ function monsterAttack(state, attacker, target, atk, events) {
     return;
   }
   const dealt = applyDamage(state, target, dmg.total, atk.damageType, events);
+  if (attacker.affix && dealt > 0) {
+    if (attacker.affix.vampiricLeech) {
+      const healAmt = Math.max(1, Math.floor(dealt * attacker.affix.vampiricLeech));
+      healEntity(state, attacker, healAmt, events, `${attacker.name}'s Vampiric Leech`);
+    }
+    if (attacker.affix.inflictsCondition) {
+      applyCondition({ id: attacker.affix.inflictsCondition, rounds: 1 }, target);
+      const ev = { type: 'condition', narrate: true, text: `${target.name} is poisoned by ${attacker.name}'s venomous strike — disadvantage on attacks until the end of its next turn!` };
+      events.push(ev); addLog(state, 'mech', ev.text);
+    }
+  }
   if (isPlayer) {
     addLog(state, 'mech', `${target.name} takes ${dealt} damage (${Math.max(0, target.hp)}/${target.hpMax} HP).`);
     if (target.hp > 0 && target.hp < target.hpMax * 0.4) hint(state, 'lowhp', 'Marla the Peddler', 'You are bleeding, dear! Potions are a bonus action — drink one before you faint on me.', events);
@@ -1071,8 +1171,9 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
   }
   let dmg = damageRoll(atk.dmgDice, { crit, gwf: char.fightingStyle === 'great_weapon', rerollAll: char.savageAttacker && !state.flags.savage_used });
   if (char.savageAttacker) state.flags.savage_used = true;
-  let dmgTotal = dmg.total + mods.bonusFlat;
+  let dmgTotal = dmg.total + (atk.dmgMod || 0) + mods.bonusFlat;
   const bonusTxts = [];
+  if (atk.dmgMod) bonusTxts.push(`+${atk.dmgMod} mod`);
   mods.dmgDice.forEach(b => {
     if (b.oncePerTurn && state.flags['used_' + b.oncePerTurn]) return;
     if (b.flat) { dmgTotal += b.flat; bonusTxts.push(`+${b.flat} ${b.type}`); return; }
@@ -1090,8 +1191,11 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
   const text = `${p.name} strikes ${target.name} with ${atk.name}${crit ? ' — CRITICAL HIT!' : ''}: ${dmg.total}${bonusTxts.length ? ' ' + bonusTxts.join(' ') : ''} = ${dmgTotal} ${atk.dmgType} damage.`;
   events.push({ type: 'attack', narrate: true, text, data: { dmg: dmgTotal, crit, target: target.name, targetId: target.id, targetX: target.x, targetY: target.y } });
   addLog(state, 'mech', text);
-  const dealt = applyDamage(state, target, dmgTotal, atk.dmgType, events);
+  const dealt = applyDamage(state, target, dmgTotal, atk.dmgType, events, { magical: !!atk.magic || !!atk.spell });
   addLog(state, 'mech', `${target.name} takes ${dealt} damage (${target.hp}/${target.hpMax} HP${target.alive === false ? ', slain' : ''}).`);
+  if (atk.vampiricHeal && dealt > 0) {
+    healEntity(state, p, atk.vampiricHeal, events, `${atk.name} (vampiric)`);
+  }
   // Extra Attack (level 5 martials): the Attack action strikes twice
   if (opts.allowExtra && state.mode === 'combat' && !state.flags.used_extra && hasExtraAttack(char)
       && target.alive !== false && manhattan(p, target) <= 1 && atk.weaponId !== 'unarmed') {
@@ -1249,7 +1353,7 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
     if (char.subclass === 'evoker') dmg.total += spMod;
     const ev = { type: 'spell_hit', narrate: true, text: `${p.name}'s ${sp.name} strikes ${target.name}${crit ? ' — CRITICAL!' : ''}: ${dmg.total} ${sp.damage.type} damage.`, data: { dmg: dmg.total, crit, targetId: target.id, targetX: target.x, targetY: target.y } };
     events.push(ev); addLog(state, 'mech', ev.text);
-    applyDamage(state, target, dmg.total, sp.damage.type, events);
+    applyDamage(state, target, dmg.total, sp.damage.type, events, { magical: true });
     if (char.subclass === 'fiend' && target.alive === false) fiendBlessing(state, char, events);
     if (sp.condition && target.alive !== false) applyCondition(sp.condition, target);
     if (sp.id === 'eldritch_blast' && char.invocations.includes('repelling_blast') && target.alive !== false) {
@@ -1295,7 +1399,7 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
     const dmg = rollExpr(sp.damage.dice);
     const ev = { type: 'spell_hit', narrate: true, text: `${sp.name} slams into ${target.name} unerringly: ${dmg.total} ${sp.damage.type} damage.`, data: { dmg: dmg.total, targetId: target.id, targetX: target.x, targetY: target.y } };
     events.push(ev); addLog(state, 'mech', ev.text);
-    applyDamage(state, target, dmg.total, sp.damage.type, events);
+    applyDamage(state, target, dmg.total, sp.damage.type, events, { magical: true });
     if (char.subclass === 'fiend' && target.alive === false) fiendBlessing(state, char, events);
     return true;
   }
@@ -1686,6 +1790,9 @@ function rollWanderingMonster(state, events) {
     vulnerabilities: def.vulnerabilities || [], traits: def.traits || [],
     conditions: [], buffs: [], alive: true, aware: true, fled: false, wanderer: true, sx: spot.x, sy: spot.y
   };
+  if (Math.random() < 0.18) {
+    affixes.applyMonsterAffix(mon);
+  }
   state.entities.push(mon);
   state.flags.wanders++;
   const ev = { type: 'wandering', narrate: true, text: 'A wandering ' + def.name + ' comes snuffling around the corner - it has found you!' };
@@ -1907,6 +2014,22 @@ function checkCombatEnd(state, events) {
 }
 
 // ---------------------------------------------------------------- XP / rest ----
+// Single source of truth for the level-up affordance: the client renders its badge
+// from this, so a badge can never disagree with what /level-up will accept.
+function levelUpInfo(char) {
+  const currentLevel = (char && char.level) || 1;
+  const nextLevel = currentLevel + 1;
+  const xpNeeded = XP_THRESHOLDS[nextLevel] || null;
+  const currentXp = (char && char.xp) || 0;
+  return {
+    currentLevel,
+    nextLevel,
+    currentXp,
+    xpNeeded,
+    canLevelUp: xpNeeded !== null && currentXp >= xpNeeded
+  };
+}
+
 function awardXp(state, amount, events) {
   const char = state.character;
   char.xp += amount;
@@ -1966,10 +2089,44 @@ function levelUp(state, newLevel, events) {
   }
 }
 
+// Temporary (delve-scoped) max-HP adjustments from brews, tokens and curses.
+// `delta` is applied to the running total; pass { clear: true } to wipe it (purge token).
+function adjustTempHp(state, delta, events, source, opts = {}) {
+  const char = state.character;
+  const p = playerEntity(state);
+  if (!char) return 0;
+  const before = char.tempHpMod || 0;
+  char.tempHpMod = opts.clear ? 0 : before + delta;
+  char.hpMax = Math.max(1, (char.hpMax || 0) + (char.tempHpMod - before));
+  char.appliedTempHpMod = char.tempHpMod;
+  if (p) {
+    p.hpMax = char.hpMax;
+    p.hp = Math.min(p.hp, p.hpMax);
+  }
+  const applied = char.tempHpMod - before;
+  if (applied !== 0 && events) {
+    addLog(state, 'mech', `${source ? source + ': ' : ''}max HP ${applied > 0 ? '+' : ''}${applied} this delve (${char.hpMax} max).`);
+  }
+  return char.tempHpMod;
+}
+
+// A brew or a curse can rob the hero of a rest. Consumed by the next short rest attempt.
+function blockRest(state, count = 1) {
+  state.flags = state.flags || {};
+  state.flags.restsBlocked = Math.max(0, (state.flags.restsBlocked || 0) + count);
+  return state.flags.restsBlocked;
+}
+
 function shortRest(state, events) {
   const char = state.character;
   const p = playerEntity(state);
   if (state.mode === 'combat') { events.push({ type: 'error', text: 'You cannot rest while enemies are near!' }); return; }
+  if ((state.flags && state.flags.restsBlocked) > 0) {
+    blockRest(state, -1);
+    const blocked = { type: 'rest_blocked', narrate: true, text: 'You sit down, but your body refuses to settle — the brew still churns in your gut. This rest is lost.' };
+    events.push(blocked); addLog(state, 'system', blocked.text);
+    return;
+  }
   const hdMax = char.level;
   char.hdUsed = char.hdUsed || 0;
   let spent = 0;
@@ -2019,13 +2176,14 @@ function longRest(state, events) {
   char.slots = { ...char.slotsMax };
   char.uses = {}; char.pools = {};
   const cls = byId(CLASSES, char.className);
-  applyClassAndSpecies(char, cls, null, char.level); // re-init uses/pools
+  applyClassAndSpecies(char, cls, null, char.level, true); // re-init uses/pools without rolling new HP
   char.freeSpellUses = 0;
   char.uses.arcane_recovery_used = false;
   char.uses.land_recovery_used = false;
   state.flags.dropUsed = false;
   state.flags.savage_used = false;
   state.flags.reckless = false;
+  state.flags.restsBlocked = 0;   // a night at camp settles any brew in your gut
   state.entities.forEach(e => { e.buffs = []; });
   state.flags.altarBlessed = false;
   removeBuff(p, 'altar_blessed');
@@ -2089,25 +2247,71 @@ function lootChest(state, chest, events) {
   events.push(ev); addLog(state, 'mech', ev.text);
 }
 
-// Roll a slain monster's loot table: gold dice + chance-based items
+// Roll a slain monster's loot table: gold dice + chance-based items + guaranteed rarity drops for Elites & Bosses
 function rollLoot(state, mon, events) {
   const def = content.getMonster(mon.monsterId);
-  if (!def || !def.loot) return;
   const char = state.character;
   const parts = [];
-  if (def.loot.gold) {
-    const g = rollExpr(def.loot.gold).total;
-    if (g > 0) { char.gold += g; if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 }; state.stats.goldFound += g; parts.push(`${g} gp`); }
+  let g = 0;
+  if (def && def.loot && def.loot.gold) {
+    g = rollExpr(def.loot.gold).total;
   }
+  // Elite bonus gold: 15-30 gp
+  if (mon.isElite) g += die(16) + 14;
+  // Boss bonus gold: 50-100 gp
+  if (mon.boss) g += die(51) + 49;
+  if (g > 0) {
+    char.gold += g;
+    if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
+    state.stats.goldFound += g;
+    parts.push(`${g} gp`);
+  }
+
   const gained = [];
-  (def.loot.items || []).forEach(it => {
-    if (Math.random() < (it.chance === undefined ? 1 : it.chance)) {
-      const qty = it.qty || 1;
-      addItemToInventory(char, it.id, qty);
-      parts.push(itemName(it.id));
-      gained.push(it);
-    }
-  });
+  if (def && def.loot && def.loot.items) {
+    def.loot.items.forEach(it => {
+      if (Math.random() < (it.chance === undefined ? 1 : it.chance)) {
+        const qty = it.qty || 1;
+        addItemToInventory(char, it.id, qty);
+        parts.push(itemName(it.id));
+        gained.push(it);
+      }
+    });
+  }
+
+  // Rarity & Affix loot rolls:
+  if (mon.isElite) {
+    // Elite Champion: 100% guaranteed Magic (75%) or Rare (25%) item drop!
+    const rarity = Math.random() < 0.25 ? 'rare' : 'magic';
+    const magicItem = affixes.rollMagicItem(rarity);
+    addItemToInventory(char, magicItem);
+    parts.push(`[${rarity === 'rare' ? '稀有 🟣' : '魔法 🔵'}] ${magicItem.name}`);
+    gained.push(magicItem);
+    events.push({
+      type: 'elite_loot',
+      narrate: true,
+      text: `🏆 ELITE SLAIN: ${mon.name} falls! Discovered ${magicItem.name} (${magicItem.desc})!`
+    });
+  } else if (mon.boss) {
+    // Boss Monster: 100% guaranteed Rare (75%) or Legendary (25%) item drop!
+    const rarity = Math.random() < 0.25 ? 'legendary' : 'rare';
+    const magicItem = affixes.rollMagicItem(rarity);
+    addItemToInventory(char, magicItem);
+    parts.push(`[${rarity === 'legendary' ? '传奇 🟠' : '稀有 🟣'}] ${magicItem.name}`);
+    gained.push(magicItem);
+    events.push({
+      type: 'boss_loot',
+      narrate: true,
+      text: `👑 BOSS VANQUISHED: ${mon.name} slain! Bestowed ${magicItem.name} (${magicItem.desc})!`
+    });
+  } else if (Math.random() < 0.05) {
+    // Normal monster: 5% chance of rolling a Magic item
+    const magicItem = affixes.rollMagicItem('magic');
+    addItemToInventory(char, magicItem);
+    parts.push(`[魔法 🔵] ${magicItem.name}`);
+    gained.push(magicItem);
+  }
+
   applyPickupEffects(state, gained, events);
   if (parts.length) {
     const ev = { type: 'loot', narrate: true, text: `${mon.name} drops ${parts.join(', ')}!` };
@@ -2257,17 +2461,18 @@ function interactObject(state, objId, events) {
 module.exports = {
   SPECIES, CLASSES, BACKGROUNDS, FEATS, WEAPONS, ARMORS, GEAR, SPELLS, MONSTERS, ALLY_DEF, ALLIES, MAPS,
   ABILITIES, SKILL_ABILITY, ALL_SKILLS, XP_THRESHOLDS, SLOTS, DIFFICULTY, SHOP_ITEMS,
-  die, rollExpr, d20, mod, cap, byId,
-  buildCharacter, applyClassAndSpecies, skillMod, passivePerception,
+  die, rollExpr, d20, mod, cap, byId, invEntry, equippedBonus,
+  buildCharacter, applyClassAndSpecies, skillMod, passivePerception, levelUpInfo,
   getMap, tileChar, isWall, isBlocked, isDifficult, entityAt, roomAt, los, manhattan, bfsPath, computeVision, markDiscovered,
   startGame, addLog, playerEntity, currentActor, endTurn, beginPlayerTurn, currentSpeed,
-  hasBuff, getBuff, addBuff, removeBuff, currentAc, charHasArmor,
+  hasBuff, getBuff, addBuff, removeBuff, currentAc, charHasArmor, applyCondition,
   alertCheck, startCombat, checkCombatEnd, processUntilPlayer,
   movePlayer, playerAttack, castSpell, findSpell, interactObject, interactDoor,
   shortRest, longRest, skillCheck, damageRoll, applyDamage, healEntity, awardXp, checkPlayerDeath,
+  adjustTempHp, blockRest,
   triggerTrap, noticeTrapsNearby, alertForcedNoise, attackMods, monsterAttack, processMonsterTurn, processAllyTurn,
   detonateBarrel, triggerSpores, useFont, pullLever, triggerHazard,
   rollLoot, lootChest, applyPickupEffects, itemName, addItemToInventory, resolveWeapon,
   rollSideQuest, checkQuest, campfireOf, loadWorldMap, shoveTarget, maybeOpportunityAttack, hasFlank,
-  disarmTrap, unlockChest, travelTo
+  disarmTrap, unlockChest, travelTo, affixes
 };

@@ -1,7 +1,9 @@
 // tests/e2e/browser-movement-cdp.test.mjs — End-to-End Headless Browser CDP Test
 // Verifies 3D Miniature Models, Realistic Walking Traversal, and Minimap Sync
 import fs from 'node:fs';
-import { spawn } from 'node:child_process';
+import os from 'node:os';
+import path from 'node:path';
+import { spawn, spawnSync } from 'node:child_process';
 
 const BASE_URL = process.env.BASE_URL || (process.env.PORT ? `http://localhost:${process.env.PORT}` : 'http://localhost:3000');
 const CDP_PORT = 9224;
@@ -84,6 +86,9 @@ console.log(`  Launching headless browser targeting: ${targetUrl}`);
 const browserProc = spawn(browserBin, [
   '--headless=new',
   `--remote-debugging-port=${CDP_PORT}`,
+  // a private profile keeps the run isolated from any browser the user has open,
+  // and keeps the spawned pid the real browser process so cleanup can kill the tree
+  `--user-data-dir=${path.join(os.tmpdir(), 'ai-dnd-e2e-9224')}`,
   '--disable-gpu',
   '--no-sandbox',
   '--disable-dev-shm-usage',
@@ -114,6 +119,16 @@ let browserExited = false;
 function cleanup() {
   if (!browserExited) {
     browserExited = true;
+    // Windows browsers run as a detached process tree: kill every process holding this
+    // run's private profile, or the orphans keep the CDP port and the next run cannot attach.
+    if (process.platform === 'win32') {
+      const marker = path.join(os.tmpdir(), 'ai-dnd-e2e-9224');
+      try {
+        spawnSync('powershell', ['-NoProfile', '-Command',
+          `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -like '*${marker}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`],
+          { stdio: 'ignore' });
+      } catch {}
+    }
     try { browserProc.kill(); } catch {}
   }
 }
@@ -213,7 +228,7 @@ try {
   assert(player.x === 4 && player.y === 5, `Player moved to destination (4,5), got (${player.x},${player.y})`);
 
   // Move back to start position so retreat is valid
-  await apiReq('POST', `/api/game/${delveId}/action`, { type: 'move', x: 3, y: 7 });
+  await apiReq('POST', `/api/game/${delveId}/action`, { type: 'move', x: 4, y: 4 });
   await new Promise(r => setTimeout(r, 800));
 
   // Check 4: Retreat to Safety & Verify Summary Popup Does Not Get Stuck

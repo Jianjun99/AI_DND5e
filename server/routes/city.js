@@ -3,6 +3,8 @@ const store = require('../store');
 const engine = require('../game/engine');
 const content = require('../game/content');
 const dm = require('../game/dm');
+const potions = require('../game/potions');
+const gambling = require('../game/gambling');
 
 const router = express.Router();
 
@@ -223,8 +225,37 @@ const APOTHECARY_CATALOG = [
   { id: 'torch', name: 'Delver Torch (x3)', cost: 2, desc: 'Illuminates 20 ft radius in pitch-black chambers' },
   { id: 'scroll_magic_missile', name: 'Scroll of Magic Missile', cost: 75, desc: 'One-shot: 3d4+3 force damage, never misses' },
   { id: 'scroll_cure', name: 'Scroll of Cure Wounds', cost: 60, desc: 'One-shot: Regain 1d8+3 HP' },
-  { id: 'scroll_shield', name: 'Scroll of Shield', cost: 75, desc: 'One-shot: +5 AC until your next turn' }
+  { id: 'scroll_shield', name: 'Scroll of Shield', cost: 75, desc: 'One-shot: +5 AC until your next turn' },
+  // Experimental brews: the effect is rolled when you buy the bottle and stays hidden until
+  // you identify it (INT/Arcana) or drink it blind. See server/game/potions.js.
+  { type: 'mystery', id: 'potion_mystery_thin', name: '浑浊的小瓶', cost: 15, tier: 'thin', desc: '55% 有益 / 25% 复杂 / 20% 有害 · 可鉴定' },
+  { type: 'mystery', id: 'potion_mystery_standard', name: '冒泡的药剂', cost: 40, tier: 'standard', desc: '65% 有益 / 22% 复杂 / 13% 有害 · 可鉴定' },
+  { type: 'mystery', id: 'potion_mystery_fine', name: '虹彩的精华', cost: 90, tier: 'fine', desc: '75% 有益 / 20% 复杂 / 5% 有害 · 可鉴定' }
 ];
+
+// Items bought in town must reach the delve the player is already in: sync-delve treats the
+// delve inventory as authoritative, so a purchase made after a delve started would otherwise
+// be wiped out at settlement. Mirrors the equip write-through in routes/game.js.
+function addItemForCharacter(char, item) {
+  char.inventory = char.inventory || [];
+  const key = item.uniqueId || item.itemId;
+  const existing = char.inventory.find(i => (i.uniqueId || i.itemId) === key);
+  if (existing && !item.uniqueId) existing.qty += (item.qty || 1);
+  else char.inventory.push({ ...item, qty: item.qty || 1 });
+  try {
+    store.listSaves().forEach(s => {
+      if (s.characterId !== char.id) return;
+      const save = store.getSave(s.id);
+      if (!save || !save.character) return;
+      save.character.inventory = save.character.inventory || [];
+      const have = save.character.inventory.find(i => (i.uniqueId || i.itemId) === key);
+      if (have && !item.uniqueId) have.qty += (item.qty || 1);
+      else save.character.inventory.push({ ...item, qty: item.qty || 1 });
+      store.saveGame(save);
+    });
+  } catch {}
+  return char;
+}
 
 function lookupItemPrice(itemId) {
   const all = [...ARMORY_CATALOG, ...APOTHECARY_CATALOG];
@@ -237,6 +268,15 @@ function lookupItemPrice(itemId) {
   const g = (engine.GEAR || []).find(x => x.id === itemId);
   if (g && g.cost) return g.cost;
   return 10;
+}
+
+// Delve-only prizes wait on the hero until the next delve, then vanish with it.
+function tokensIntoPending(char, token) {
+  char.pendingDelveItems = char.pendingDelveItems || [];
+  const existing = char.pendingDelveItems.find(i => i.uniqueId === token.uniqueId);
+  if (existing) existing.qty += 1;
+  else char.pendingDelveItems.push(token);
+  return char;
 }
 
 // GET /api/city/info
@@ -268,7 +308,24 @@ router.get('/info', (req, res) => {
       armory: ARMORY_CATALOG,
       apothecary: APOTHECARY_CATALOG
     },
-    character: char || null
+    tables: {
+      roulette: { bets: gambling.ROULETTE_BETS, limits: gambling.GAMBLE_LIMITS.roulette, rtp: gambling.rouletteRtp() },
+      sicbo: { bets: gambling.SICBO_BETS, limits: gambling.GAMBLE_LIMITS.sicbo },
+      slots: {
+        symbols: gambling.SLOT_SYMBOLS,
+        tiers: Object.values(gambling.SLOT_TIERS).map(t => ({
+          id: t.id, name: t.name, stake: t.stake, blurb: t.blurb,
+          pay: t.pay, curseOnSkull: t.curseOnSkull
+        }))
+      },
+      tokens: Object.values(potions.DELVE_TOKENS).map(t => ({ id: t.id, name: t.name, icon: t.icon, desc: t.desc, value: t.value }))
+    },
+    character: char ? {
+      ...char,
+      levelUp: engine.levelUpInfo(char),
+      pendingDelveItems: char.pendingDelveItems || [],
+      pendingCurses: char.pendingCurses || []
+    } : null
   });
 });
 
@@ -339,10 +396,26 @@ router.post('/buy', (req, res) => {
   }
 
   char.gold -= totalCost;
-  char.inventory = char.inventory || [];
-  const existing = char.inventory.find(i => i.itemId === itemId);
+
+  // Experimental brews are rolled per bottle: each purchase is its own hidden outcome.
+  const catalogEntry = [...ARMORY_CATALOG, ...APOTHECARY_CATALOG].find(i => i.id === itemId);
+  if (catalogEntry && catalogEntry.type === 'mystery') {
+    const opened = [];
+    for (let i = 0; i < qty; i++) {
+      const bottle = potions.rollMysteryPotion(catalogEntry.tier || 'standard');
+      addItemForCharacter(char, bottle);
+      opened.push(bottle);
+    }
+    saveChar(char);
+    return res.json({
+      ok: true, char, opened,
+      message: `你买下 ${qty} 瓶${catalogEntry.name}——瓶里的东西还没人说得清。`
+    });
+  }
+
+  const existing = char.inventory.find(i => i.itemId === itemId && !i.uniqueId);
   if (existing) existing.qty += qty;
-  else char.inventory.push({ itemId, qty });
+  else addItemForCharacter(char, { itemId, qty });
 
   // Recalculate AC if bought armor
   const arm = (engine.ARMORS || []).find(a => a.id === itemId);
@@ -436,7 +509,8 @@ router.post('/sync-delve', (req, res) => {
     const dc = delve.character;
     if (typeof dc.gold === 'number') char.gold = dc.gold;
     if (typeof dc.xp === 'number') char.xp = dc.xp;
-    if (Array.isArray(dc.inventory)) char.inventory = dc.inventory;
+    // delve-only prizes (gambling tokens) expire with the delve they were carried into
+    if (Array.isArray(dc.inventory)) char.inventory = dc.inventory.filter(i => !i.delveOnly);
     if (typeof dc.level === 'number' && dc.level > char.level) char.level = dc.level;
     // use the hero's ACTUAL remaining HP from the delve (the entity, not the
     // untouched snapshot — otherwise retreating is a free full heal)
@@ -577,6 +651,27 @@ router.get('/hall-of-heroes', (req, res) => {
       desc: 'Descend through the ancient stairs into The Drowned Vault.',
       icon: '🔱',
       unlocked: !!(currentChar?.deepestFloor === 'drowned-vault' || (currentChar?.visitedMaps && currentChar.visitedMaps.includes('drowned-vault')))
+    },
+    {
+      id: 'dragon_slayer',
+      name: 'Dragonslayer of the Ember Queen',
+      desc: 'Conquer Yzmerith the young red dragon at the Sun Dragon’s Roost.',
+      icon: '🐉',
+      unlocked: (charBestiary['young_fire_dragon'] || globalBestiary['young_fire_dragon'] || 0) >= 1
+    },
+    {
+      id: 'endless_delver',
+      name: 'Into the Abyss',
+      desc: 'Reach Floor 5 or deeper within the Endless Depths.',
+      icon: '🌀',
+      unlocked: ((currentChar?.endlessDepth || 0) >= 5) || !!(currentChar?.visitedMaps && currentChar.visitedMaps.some(m => /^endless_([5-9]|\d{2,})/.test(m)))
+    },
+    {
+      id: 'paragon_hero',
+      name: 'Paragon of the Realm',
+      desc: 'Reach Level 10 or higher and master tier-3 class features.',
+      icon: '👑',
+      unlocked: currentLevel >= 10
     }
   ];
 
@@ -624,6 +719,94 @@ router.post('/rumor', async (req, res) => {
 
   const randomRumor = TAVERN_RUMORS[Math.floor(Math.random() * TAVERN_RUMORS.length)];
   res.json({ rumor: randomRumor });
+});
+
+// POST /api/city/gamble — the Boar & Lantern's gambling tables
+// { charId, game: 'roulette'|'sicbo'|'slots', stake, bet: {id, number?}, tier: 'standard'|'devil' }
+router.post('/gamble', (req, res) => {
+  const { charId, game, bet, tier } = req.body || {};
+  const char = getChar(charId);
+  if (!char) return res.status(404).json({ error: 'Character not found' });
+
+  const kind = String(game || 'roulette');
+  const limits = gambling.GAMBLE_LIMITS[kind] || gambling.GAMBLE_LIMITS.roulette;
+  const fixedStake = kind === 'slots' ? (gambling.SLOT_TIERS[tier] || gambling.SLOT_TIERS.standard).stake : null;
+  const stake = fixedStake !== null ? fixedStake : Math.floor(Number(req.body.stake) || 0);
+
+  if (!stake || stake <= 0) return res.status(400).json({ error: '请先下注。' });
+  if (limits.min !== null && (stake < limits.min || stake > limits.max)) {
+    return res.status(400).json({ error: `赌注需在 ${limits.min}–${limits.max} gp 之间。` });
+  }
+  if ((char.gold || 0) < stake) {
+    return res.status(400).json({ error: `金币不足：需要 ${stake} gp，你有 ${char.gold || 0} gp。` });
+  }
+
+  let result;
+  if (kind === 'roulette') {
+    const num = Number(bet && bet.number);
+    const chosen = (bet && bet.id) || 'red';
+    if (chosen === 'straight' && (!Number.isInteger(num) || num < 0 || num > 36)) {
+      return res.status(400).json({ error: '押单号需要选 0–36 之间的号码。' });
+    }
+    result = gambling.spinRoulette({ id: chosen, number: num }, stake);
+  } else if (kind === 'sicbo') {
+    result = gambling.spinSicBo({ id: (bet && bet.id) || 'small' }, stake);
+  } else if (kind === 'slots') {
+    result = gambling.spinSlots(tier || 'standard');
+  } else {
+    return res.status(400).json({ error: '没有这种赌桌。' });
+  }
+
+  // every table reports a NET gold delta (stake already accounted for): -stake on a loss,
+  // +stake*odds on a win
+  char.gold += result.delta;
+  const messages = [];
+  if (result.payout) messages.push(`赢得 ${result.payout} gp`);
+  else if (result.delta > 0) messages.push(`赢得 ${result.delta} gp`);
+
+  // prizes: delve-only tokens (carried into the next delve, discarded when it ends) and potions
+  const prizes = [];
+  (result.prizeTokens || []).forEach(id => {
+    const token = potions.makeToken(id);
+    tokensIntoPending(char, token);
+    prizes.push({ ...token, pending: true });
+  });
+  for (let i = 0; i < ((result.potionDrop && result.potionDrop.count) || 0); i++) {
+    const bottle = potions.rollMysteryPotion((result.potionDrop && result.potionDrop.tier) || 'standard');
+    addItemForCharacter(char, bottle);
+    prizes.push(bottle);
+  }
+
+  // the devil's bargain: three skulls call up a delve curse, applied when the next delve starts
+  let curse = null;
+  if (result.curse === 'rolled') {
+    curse = gambling.rollCurse();
+    char.pendingCurses = char.pendingCurses || [];
+    char.pendingCurses.push(curse.id);
+    messages.push(`诅咒：${curse.name}（下一场地牢生效）`);
+  }
+
+  saveChar(char);
+  res.json({
+    ok: true, char, stake, result, prizes, curse,
+    netGold: result.delta,
+    message: `${result.text}${messages.length ? ' ' + messages.join('，') + '。' : ''}`
+  });
+});
+
+// POST /api/city/identify — one INT (Arcana) check per bottle reveals its hidden effect
+router.post('/identify', (req, res) => {
+  const { charId, uniqueId } = req.body || {};
+  const char = getChar(charId);
+  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!uniqueId) return res.status(400).json({ error: 'Missing uniqueId' });
+
+  const check = engine.d20({});
+  const total = check.natural + engine.skillMod(char, 'arcana');
+  const outcome = potions.identifyPotion(char, uniqueId, total);
+  if (!outcome.ok) return res.status(400).json({ error: outcome.error });
+  saveChar(char);
+  res.json({ ok: true, char, roll: check.natural, total, dc: outcome.dc, success: outcome.success, effect: outcome.effect, message: outcome.text });
 });
 
 module.exports = router;

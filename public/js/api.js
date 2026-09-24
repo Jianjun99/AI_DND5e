@@ -44,5 +44,7 @@ export const api = {
   cityClaimBounty: (charId, bountyId) => req('POST', '/api/city/claim-bounty', { charId, bountyId }),
   citySyncDelve: (data) => req('POST', '/api/city/sync-delve', data),
   cityRumor: (topic) => req('POST', '/api/city/rumor', { topic }),
+  cityGamble: (payload) => req('POST', '/api/city/gamble', payload),
+  cityIdentify: (charId, uniqueId) => req('POST', '/api/city/identify', { charId, uniqueId }),
   hallOfHeroes: (charId) => req('GET', '/api/city/hall-of-heroes' + (charId ? `?charId=${charId}` : ''))
 };
