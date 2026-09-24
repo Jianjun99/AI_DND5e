@@ -2333,6 +2333,9 @@ label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px
   .guidance-main-row { gap: 4px; }
 
   .action-grid { grid-template-columns: 1fr; }
+  .btn { min-height: 42px; padding: 10px 16px; }
+  .btn.small { min-height: 38px; padding: 8px 12px; font-size: 13px; }
+  .action-grid .btn, .class-actions .btn { min-height: 44px; }
   .hp-choice-grid, .subclass-grid, .feat-grid { grid-template-columns: 1fr !important; }
   .levelup-modal, .delve-inventory-modal { width: 96% !important; padding: 16px !important; }
   .modal { max-width: min(520px, 94vw); }
