@@ -167,15 +167,23 @@ test('Venomous champion poisons its victim with disadvantage on attacks', () => 
   const { state, p, mon } = freshState();
   forceAffix(mon, 'venomous');
   mon.aware = true;
-  p.hp = p.hpMax;
+  // an always-hitting champion: only a natural 1 can miss, so the assertion does not depend on
+  // the dice (a +4 skeleton against AC 18 missed ~70% of the time and made this test flaky)
+  const alwaysHits = { ...mon.attacks[0], bonus: 99 };
+  mon.attacks = [alwaysHits];
   let poisoned = false;
+  let timedBuff = false;
   for (let i = 0; i < 12 && !poisoned; i++) {
+    p.hp = p.hpMax;   // death wipes buffs, so the victim must survive the loop
     const ev = [];
-    engine.monsterAttack(state, mon, p, mon.attacks[0], ev);
-    poisoned = p.conditions.includes('poisoned');
+    engine.monsterAttack(state, mon, p, alwaysHits, ev);
+    if (p.conditions.includes('poisoned')) {
+      poisoned = true;
+      timedBuff = (p.buffs || []).some(b => b.condId === 'poisoned');
+    }
   }
   assert(poisoned, 'A venomous hit must inflict the poisoned condition');
-  assert((p.buffs || []).some(b => b.condId === 'poisoned'), 'Poisoned must carry a timed buff so it expires');
+  assert(timedBuff, 'Poisoned must carry a timed buff so it expires');
   const mods = engine.attackMods(state, p, mon, { name: 'test', ranged: false, dmgType: 'slashing' }, []);
   assert(mods.dis === true, 'A poisoned attacker rolls with disadvantage');
 });
