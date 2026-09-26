@@ -81,7 +81,7 @@ export async function homeView(main) {
       if (c.warnings && c.warnings.length) {
         list.innerHTML += `<p class="small" style="color:#d98a80;">⚠ ${esc(c.warnings.join(' · '))}</p>`;
       }
-      list.querySelectorAll('[data-packexport]').forEach(b => b.addEventListener('click', async () => {
+      list.querySelectorAll('[data-packexport]').forEach(/** @param {HTMLButtonElement} b */ b => b.addEventListener('click', async () => {
         const blob = await (await fetch(`/api/content/pack/${b.dataset.packexport}/export`)).blob();
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -94,7 +94,7 @@ export async function homeView(main) {
 
   document.getElementById('packImportBtn').addEventListener('click', () => document.getElementById('packFile').click());
   document.getElementById('packFile').addEventListener('change', async e => {
-    const file = e.target.files[0];
+    const file = /** @type {HTMLInputElement} */ (e.target).files[0];
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
@@ -120,7 +120,7 @@ export async function homeView(main) {
   });
   document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
   document.getElementById('importFile').addEventListener('change', async e => {
-    const file = e.target.files[0];
+    const file = /** @type {HTMLInputElement} */ (e.target).files[0];
     if (!file) return;
     if (!confirm('Importing replaces ALL current heroes, delves and settings with the backup. Continue?')) return;
     try {

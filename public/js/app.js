@@ -95,7 +95,7 @@ export async function navigate() {
 // Topbar "Continue" — always points at the most recent delve so leaving the
 // game screen (settings, home) is never a dead end.
 async function refreshContinue() {
-  const btn = document.getElementById('continueBtn');
+  const btn = /** @type {HTMLAnchorElement} */ (document.getElementById('continueBtn'));
   if (!btn) return;
   try {
     const saves = await (await fetch('/api/game')).json();

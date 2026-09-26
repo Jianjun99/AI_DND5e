@@ -3,31 +3,20 @@
 > 本文件是给 AI 助手/开发者看的项目状态快照。更新版本后请同步更新此文件。
 > 架构与扩展方法见 `ARCHITECTURE.md`（含 cookbook）；模组格式见 `MODDING.md`。
 
-## ⚡ AI 协作地面规则（每次会话必须遵守）
+## ⚡ AI 协作地面规则
 
-1. **不要主动 commit / push**——用户说发版才发版（`[[no-commit-or-push-without-asking]]`）
-2. **引擎是唯一裁判**——所有数值（骰子/伤害/XP/掉落/锻造/赌桌/魔药）在引擎里掷，LLM 只旁白
-3. **服务端是唯一事实来源**——客户端不要复制引擎的数据表（重复的 XP 表已造成一次发布 bug）
-4. **改含模板字符串的文件时不要用 bash heredoc / `node -e` 包反引号**——用 Write 工具写补丁文件
-   （.cjs，单引号字符串 + join）或直接用 Edit 工具
-5. **每次改完跑完整验证**：`npx eslint .` + `npx tsc --noEmit` + `PORT=3100 node scripts/test-all.mjs`
-   （13 套件必须全绿）+ `node scripts/smoke-test.mjs`
-6. **改含模板字符串的文件时不要用 bash heredoc / `node -e` 包反引号**——用 Write 工具写补丁文件
-7. **版本号在 `package.json`**，`/api/health` 读它；发版时改这里，别改别处
-8. **`ARCHITECTURE.md` 是 AI 协作手册**——加完功能刷新它，别让它过期
-9. **测试不要依赖 RNG 的具体值**——用注入 rng 或穷举/宽松区间断言；不要在 headless e2e 里
-   断言「走路中途」的坐标（rAF 帧率不稳）
-10. **改含模板字符串的文件时用 Write 工具写 .cjs 补丁文件或 Edit 工具**——bash heredoc 的
-    反引号和引号转义是本项目最大的 AI 踩坑来源
+**规则正本在仓库根目录 `AGENTS.md`**（AI 编码工具默认自动加载它；`CLAUDE.md` 一行指向它）——
+内容包括：不主动 commit/push/发版、引擎是唯一裁判、服务端唯一事实来源、
+禁 bash heredoc / `node -e` 改模板字符串文件（用 Edit 或 Write 写 .cjs 补丁）、
+完整验证命令清单、e2e 不依赖 RNG 具体值与中途坐标。**改规则只改 AGENTS.md**，本文件不再重复维护。
 
 ## 📋 待办清单（优先级排序）
 
 | 优先级 | 任务 | 说明 |
 |---|---|---|
-| 高 | 逐步补 JSDoc 类型 | `checkJs` 已跑通（server/ 全覆盖、0 错误）。逐文件删 `@ts-nocheck`（如有）、补 `@typedef`——每做完一个文件 CI 就多一层保障 |
 | 高 | 保持 ARCHITECTURE.md 同步 | 每个版本更新后刷新它；它是 AI 协作的核心上下文 |
-| 中 | 缩减 play.js（1892 行） | 拆成 view 渲染 / 事件绑定 / 面板三块；闭包耦合少于引擎，可以安全做 |
-| 中 | 统一 `dmgType` / `damageType` 命名 | 角色武器攻击用 `dmgType`、怪物/法术用 `damageType`——是历史遗留，改名要一次全改 |
+| 中 | 缩减 play.js（1886 行）与 overworld.js（1733 行） | 拆成 view 渲染 / 事件绑定 / 面板三块；以 entity-visibility.js「纯函数模块 + 单元测试」为模板；闭包耦合少于引擎，可以安全做 |
+| 低 | 回收类型修复时标记的可疑点 | creator.js 背景特长的额外技能硬编码 `slice(0,2)`（应读 feat 的 `extraSkillPicks`）+ 一处双空串死三元；play.js difficulty 单选读取无兜底（模板恒有 checked，当前不可达）、`personaQuickSelect` / `data-useitem` / `data-equip-slot` / `data-unequip-slot` 疑似无创建点的死代码；overworld.js 路遇弹窗 `continueDelveBtn` 未判空 |
 | 中 | companion 个性化 | Bram/Valeria/Aldous 已有 AI 队友逻辑，加忠诚度 + DM 吐槽成本低 |
 | 低 | PWA / 离线缓存 | 游戏已经是无构建 vanilla JS，加 service worker 即可离线 |
 | 低 | 更多 ASI 特长 | 已有 5 个（Tough/Alert/Lucky/Healer/Savage Attacker），加更多提升 build 多样性 |
@@ -38,13 +27,37 @@
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
-- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.0,…}`（多架构 amd64+arm64）
+- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.1,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
 - 测试：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（13 套件）；平衡模拟：`scripts/balance-sim.mjs`
 - 架构文档：`ARCHITECTURE.md`（Mermaid 图）；模组指南：`MODDING.md`
 
-## 当前版本：v1.9.0（已发布：锻造台 + 图鉴变体 + 主线战役与结局 + arm64 多架构镜像 + 手机/平板适配）
+## 当前版本：v1.9.1（已发布：AI 协作基建 + tsc 全仓覆盖 + 活动铠甲渲染崩溃修复 + 测试假绿修复）
+
+## v1.9.1 发布内容（原「进行中」段落，转正）
+- **AI 协作入口**：根目录新增 `AGENTS.md`（地面规则正本 + 验证命令 + 硬约束速记 + 文档地图），
+  `CLAUDE.md` 一行指向它。PROJECT_STATE 顶部的规则列表已改为指针，不再两处维护。
+- **`dmgType` → `damageType` 统一**：角色攻击字段与 `applyDamage` 参数全部改为 `damageType`，
+  与怪物/法术攻击一致。老存档里的旧 `dmgType` 键是惰性残留——attacks 在加载时由
+  `applyClassAndSpecies` 重建（characters.js:95 / game.js:366、392），无需迁移。
+  ARCHITECTURE §7 对应坑位说明已改写。
+- **tsc 全量覆盖（server/ + public/js）**：`tsconfig.json` include 改 glob `public/js/**/*.js`
+  （新文件自动被检查），加 `lib: ["es2022","dom","dom.iterable"]`；`public/js/globals.d.ts`
+  集中声明 window/document 上的共享扩展名（`__rules` / `__dndDebug` / `webkitAudioContext`…）；
+  three.js 的 `/vendor/three.module.js` import 由 `paths` 映射到 `public/js/vendor-three.d.ts`
+  permissive stub——ambient `declare module` 对根相对路径不生效。修掉客户端 77 个历史 DOM cast
+  错误（纯 JSDoc 注解，零行为变更）后全仓 0 错误。
+- **修掉活动铠甲 3D 手办构建崩溃**（models3d.js）：`createHeaterShield` 签名早已改为只收
+  `track` 一个参数，`buildAnimatedArmorMiniature` 仍按旧签名传色值——阳光峡谷扩展包
+  roost/mill 图刷出活动铠甲时渲染必炸 `track is not a function`。e2e 用核心地图所以从未暴露。
+- **堵住 4 个测试套件的假绿**（rules / map-entities / models3d / affixes-and-loot）：
+  `test()` 的 catch 静默吞掉裸异常——裸 throw 既不计失败也不打印，套件照样 `0 failed` 退出 0。
+  统一换成 gambling 套件的 `before = failed` 守卫。修复后立即现形并顺手修掉 rules 套件里
+  3 条读旧 API 的断言（`char.scores`→`char.abilities`、`char.spellSlots`→`char.slots`、
+  `char.passivePerception`→`engine.passivePerception()`）——引擎早已改名，测试坏了没人知道。
+- **顺手修**：tooltip.js 触摸设备的 tooltip 一直在读 `container.__rules`（无人设置，恒为空目录），
+  已对齐鼠标路径改读调用方传入的 `rulesCatalog`。
 
 ## 已实现功能清单（勿重复实现）
 - 角色创建：10 种族 / 12 职业 / 16 背景 / 属性（数组/4d6/点购）/ 法术 / 装备
@@ -192,4 +205,5 @@ v1.0.0 首发 → v1.2.0 连通地牢+模组+任务 → v1.3.0 UI 修复 → v1.
 → v1.6.0 3D模型与步态动画 + 升级向导 + 战术先攻条 + 局内换装 + 楼层过渡 + 英雄殿堂图鉴 + 全套测试
 → v1.7.0 等级上限 12 + 阳光峡谷 3 大新地图 + 无尽深渊程序化地牢 + 5 大新怪 3D 手办 + 传奇成就
 → v1.8.0 精英词缀怪物 + 战利品稀有度/词缀系统 + 视角解绑与平滑跟随 + 尸体移除修复 + 升级徽章一致性修复 + 酒馆赌桌 + 实验性魔药
-→ v1.9.0 锻造台（余烬精华/重铸/升阶）+ 图鉴精英变体与首杀奖励 + 四幕主线战役与 AI 结局 + arm64 多架构镜像 + 手机/平板全站适配（当前）
+→ v1.9.0 锻造台（余烬精华/重铸/升阶）+ 图鉴精英变体与首杀奖励 + 四幕主线战役与 AI 结局 + arm64 多架构镜像 + 手机/平板全站适配
+→ v1.9.1 AI 协作基建（AGENTS.md/CLAUDE.md 入口）+ dmgType→damageType 统一 + tsc 全仓覆盖（含 public/js）+ 活动铠甲 3D 渲染崩溃修复 + 4 个测试套件假绿修复（当前）

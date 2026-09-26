@@ -30,7 +30,7 @@ export async function sheetView(main, charId) {
   }).join('');
 
   const attacks = (char.attacks || []).map(a =>
-    `<div class="stat-line"><span>${a.name} <span class="muted small">${a.dmgDice}${a.dmgMod ? fmtMod(a.dmgMod) : ''} ${a.dmgType}${a.ranged ? ' · ranged ' + a.range + 'ft' : ''}</span></span><span>${fmtMod(a.bonus)}</span></div>`
+    `<div class="stat-line"><span>${a.name} <span class="muted small">${a.dmgDice}${a.dmgMod ? fmtMod(a.dmgMod) : ''} ${a.damageType}${a.ranged ? ' · ranged ' + a.range + 'ft' : ''}</span></span><span>${fmtMod(a.bonus)}</span></div>`
   ).join('');
 
   const spells = char.spellcasting ? `
@@ -265,7 +265,7 @@ export async function sheetView(main, charId) {
       </div>
     `;
 
-    modal.querySelectorAll('[data-equip-id]').forEach(btn => {
+    (/** @type {NodeListOf<HTMLButtonElement>} */ (modal.querySelectorAll('[data-equip-id]'))).forEach(btn => {
       btn.addEventListener('click', async () => {
         const itemId = btn.getAttribute('data-equip-id');
         try {
@@ -301,14 +301,14 @@ export async function sheetView(main, charId) {
     });
   });
 
-  const regenBtn = document.getElementById('regenPortraitBtn');
+  const regenBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('regenPortraitBtn'));
   if (regenBtn) {
     regenBtn.addEventListener('click', async () => {
       regenBtn.disabled = true;
       regenBtn.textContent = 'Generating…';
       try {
         const port = await api.characterPortrait(char.id, true);
-        const img = document.getElementById('heroPortraitImg');
+        const img = /** @type {HTMLImageElement | null} */ (document.getElementById('heroPortraitImg'));
         if (img && port && port.url) img.src = port.url;
         regenBtn.textContent = '🎨 Regenerated!';
       } catch (e) {

@@ -1034,7 +1034,7 @@ function buildAnimatedArmorMiniature(g, ent, rig, track) {
   rig.leftArm.position.set(-0.21, 0.65, 0);
   g.add(rig.leftArm);
 
-  const shield = createHeaterShield(0x1e3a8a, 0xd97706, track);
+  const shield = createHeaterShield(track);
   shield.position.set(-0.06, -0.16, 0.10);
   shield.rotation.y = -0.4;
   rig.leftArm.add(shield);

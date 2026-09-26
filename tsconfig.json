@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "lib": ["es2022", "dom", "dom.iterable"],
     "module": "commonjs",
     "moduleResolution": "node",
     "allowJs": true,
@@ -12,8 +13,17 @@
     "noImplicitThis": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "/vendor/three.module.js": ["./public/js/vendor-three.d.ts"]
+    }
   },
-  "include": ["server/**/*.js", "server/game/typedefs.d.ts"],
-  "exclude": ["node_modules", "data", "public"]
+  "include": [
+    "server/**/*.js",
+    "server/game/typedefs.d.ts",
+    "public/js/globals.d.ts",
+    "public/js/**/*.js"
+  ],
+  "exclude": ["node_modules", "data"]
 }

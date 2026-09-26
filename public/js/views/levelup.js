@@ -2,6 +2,10 @@
 import { api } from '../api.js';
 import { sfx } from '../sfx.js';
 
+/**
+ * @param {string} characterId
+ * @param {(char: Record<string, any>) => void} [onComplete] called with the updated character after a successful level-up
+ */
 export function openLevelUpModal(characterId, onComplete = () => {}) {
   // Clean up any existing modal first
   document.querySelectorAll('.levelup-modal-back').forEach(el => el.remove());
@@ -29,7 +33,7 @@ export function openLevelUpModal(characterId, onComplete = () => {}) {
     backdrop.remove();
   };
 
-  backdrop.querySelector('.close-levelup-x').onclick = close;
+  /** @type {HTMLButtonElement} */ (backdrop.querySelector('.close-levelup-x')).onclick = close;
   backdrop.onclick = (e) => {
     if (e.target === backdrop) close();
   };
@@ -220,7 +224,7 @@ export function openLevelUpModal(characterId, onComplete = () => {}) {
     };
 
     // Subclass cards
-    document.querySelectorAll('.subclass-choice-card').forEach(card => {
+    document.querySelectorAll('.subclass-choice-card').forEach(/** @param {HTMLElement} card */ card => {
       card.onclick = () => {
         document.querySelectorAll('.subclass-choice-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
@@ -253,7 +257,7 @@ export function openLevelUpModal(characterId, onComplete = () => {}) {
     }
 
     // ASI stat selector
-    document.querySelectorAll('.btn-asi-stat').forEach(btn => {
+    document.querySelectorAll('.btn-asi-stat').forEach(/** @param {HTMLButtonElement} btn */ btn => {
       btn.onclick = () => {
         document.querySelectorAll('.btn-asi-stat').forEach(b => b.classList.remove('selected', 'primary'));
         btn.classList.add('selected', 'primary');
@@ -265,7 +269,7 @@ export function openLevelUpModal(characterId, onComplete = () => {}) {
     state.chosenAbilities = { str: 2 };
 
     // Feat cards
-    document.querySelectorAll('.feat-choice-card').forEach(card => {
+    document.querySelectorAll('.feat-choice-card').forEach(/** @param {HTMLElement} card */ card => {
       card.onclick = () => {
         document.querySelectorAll('.feat-choice-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
@@ -279,12 +283,12 @@ export function openLevelUpModal(characterId, onComplete = () => {}) {
 
     // Confirm
     document.getElementById('btnConfirmLevelUp').onclick = async () => {
-      const confirmBtn = document.getElementById('btnConfirmLevelUp');
+      const confirmBtn = /** @type {HTMLButtonElement} */ (document.getElementById('btnConfirmLevelUp'));
       confirmBtn.disabled = true;
       confirmBtn.textContent = 'Ascending…';
 
       // Spells
-      const spellCheckboxes = document.querySelectorAll('.chk-spell:checked');
+      const spellCheckboxes = /** @type {NodeListOf<HTMLInputElement>} */ (document.querySelectorAll('.chk-spell:checked'));
       state.chosenSpells = Array.from(spellCheckboxes).map(cb => cb.value);
 
       try {

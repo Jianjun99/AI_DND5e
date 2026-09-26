@@ -18,11 +18,17 @@ function assert(condition, message) {
 }
 
 function test(name, fn) {
+  const before = failed;
   try {
     fn();
     console.log(`  ✔ PASS: ${name}`);
   } catch (err) {
-    // Handled in assert
+    // assert() already reported and counted its own failure; anything else would otherwise
+    // vanish silently, so surface it as a failure too
+    if (failed === before) {
+      console.error(`  ❌ FAILED: ${name} — ${err && (err.stack || err.message)}`);
+      failed++;
+    }
   }
 }
 
@@ -184,7 +190,7 @@ test('Venomous champion poisons its victim with disadvantage on attacks', () => 
   }
   assert(poisoned, 'A venomous hit must inflict the poisoned condition');
   assert(timedBuff, 'Poisoned must carry a timed buff so it expires');
-  const mods = engine.attackMods(state, p, mon, { name: 'test', ranged: false, dmgType: 'slashing' }, []);
+  const mods = engine.attackMods(state, p, mon, { name: 'test', ranged: false, damageType: 'slashing' }, []);
   assert(mods.dis === true, 'A poisoned attacker rolls with disadvantage');
 });
 

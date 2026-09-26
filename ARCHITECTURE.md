@@ -2,7 +2,8 @@
 
 Everything an AI (or human) contributor needs to make reliable changes: how the system works,
 where every feature lives, the exact steps to extend each subsystem, and the checks that catch
-mistakes before they ship.
+mistakes before they ship. Ground rules, verification commands and the doc map live in
+`AGENTS.md` (auto-loaded by AI coding tools; `CLAUDE.md` points at it) — this file is the deep dive.
 
 ## 1. The big picture
 
@@ -234,7 +235,7 @@ settlement (`sync-delve` filters them out).
 | Step | What it catches |
 |---|---|
 | `npx eslint .` | Duplicate declarations (the campfireOf bug), unused variables that used to be live wiring, undefined identifiers (the `char` crash) |
-| `npx tsc --noEmit` | Type mismatches via JSDoc + checkJs (missing fields, wrong argument counts, `undefined` reads) |
+| `npx tsc --noEmit` | Type mismatches via JSDoc + checkJs (missing fields, wrong argument counts, `undefined` reads). server/ **and all of public/js** are covered — the include list is a glob, so new files are checked automatically. The vendored Three.js import is mapped by `paths` to the permissive stub `public/js/vendor-three.d.ts`; shared window/document expandos live in `public/js/globals.d.ts` |
 | `node scripts/smoke-test.mjs` | End-to-end API chain: health → character → delve → shop → gamble → brew → forge → campaign → movement → combat → content packs |
 | `node scripts/test-all.mjs` | 13 suites: rules engine, miniatures, affixes & loot, board & camera, gambling & brews, forge & campaign, movement, combat, tactics, progression, and three headless-browser e2e suites (3D rendering, turn economy, device adaptation) |
 
@@ -243,9 +244,16 @@ that is a deliberate opt-out — remove it as soon as the file is ready.
 
 ## 7. Known quirks (don't re-introduce these)
 
-- **`dmgType` vs `damageType`**: character weapon attacks use `dmgType`; monster attacks and
-  spells use `damageType`. Both are read in `attackMods` / `applyDamage`. Standardizing these is
-  a breaking rename — leave them as they are unless you have a full afternoon.
+- **Custom test runners must count failures.** Four suites (rules / map-entities / models3d /
+  affixes-and-loot) had `test()` wrappers that silently swallowed raw exceptions — a test that
+  threw counted as neither pass nor fail, the suite still exited 0, and two real bugs hid
+  behind that false green. They now use the `before = failed` guard pattern (copied from the
+  gambling suite). If you copy a runner, keep that guard.
+
+- **All damage-type fields are `damageType`** — character attacks, monster attacks, spells and
+  `applyDamage`'s parameter were unified (character attacks used to carry `dmgType`). Saves
+  written before the rename may still hold a stale `dmgType` key: it is inert, because
+  `applyClassAndSpecies` rebuilds `attacks` on every load.
 - **`char.uses` is a string-keyed counter bag** — TS infers `{}`, hence the `@type` annotation.
   Same for `char.pools`.
 - **`state.character` is a deep copy**, not the roster character. Changes to it are synced back

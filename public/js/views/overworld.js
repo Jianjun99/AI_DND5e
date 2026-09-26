@@ -16,6 +16,11 @@ let currentTab = 'map'; // 'map' or 'city'
 let currentDistrict = 'tavern'; // 'tavern', 'armory', 'apothecary', 'guildhall', 'hall_of_heroes'
 let selectedNodeId = 'oakhaven';
 
+// The early "no heroes" path returns undefined; the normal path returns a cleanup
+// (stops the ambient soundscape). The router only calls the cleanup when truthy.
+/**
+ * @returns {Promise<(function(): void) | undefined>} optional view cleanup function
+ */
 export async function overworldView(main, ...args) {
   // Parse query parameters
   const qStr = location.hash.includes('?') ? location.hash.split('?')[1] : '';
@@ -31,7 +36,7 @@ export async function overworldView(main, ...args) {
         <p class="muted" style="margin:16px 0;">You need a hero before setting foot in Oakhaven or exploring the realm.</p>
         <a class="btn primary big" href="#/create">✨ Create Your First Hero</a>
       </div>`;
-    return;
+    return undefined; // no cleanup — matches the normal path's "cleanup or undefined" contract
   }
 
   // Pick active character
@@ -1014,10 +1019,10 @@ function isForgeableItem(i) {
 // -------------------------------------------------------------
 function attachHeaderEvents(main, allChars) {
   // Character switcher dropdown
-  const switcher = document.getElementById('charSwitcher');
+  const switcher = /** @type {HTMLSelectElement | null} */ (document.getElementById('charSwitcher'));
   if (switcher) {
     switcher.addEventListener('change', async (e) => {
-      const selectedId = e.target.value;
+      const selectedId = /** @type {HTMLSelectElement} */ (e.target).value;
       activeChar = allChars.find(c => c.id === selectedId) || allChars[0];
       await loadCityInfo();
       render(main, allChars);
@@ -1045,9 +1050,9 @@ function attachHeaderEvents(main, allChars) {
   }
 
   // Bestiary filters
-  const seenSel = document.getElementById('bestiarySeenFilter');
-  const crSel = document.getElementById('bestiaryCrFilter');
-  const sortSel = document.getElementById('bestiarySortFilter');
+  const seenSel = /** @type {HTMLSelectElement | null} */ (document.getElementById('bestiarySeenFilter'));
+  const crSel = /** @type {HTMLSelectElement | null} */ (document.getElementById('bestiaryCrFilter'));
+  const sortSel = /** @type {HTMLSelectElement | null} */ (document.getElementById('bestiarySortFilter'));
   [seenSel, crSel, sortSel].forEach(sel => {
     if (!sel) return;
     sel.addEventListener('change', () => {
@@ -1097,12 +1102,12 @@ function attachMapEvents(main) {
   }
 
   // Embark button
-  const embarkBtn = document.getElementById('embarkBtn');
+  const embarkBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('embarkBtn'));
   if (embarkBtn) {
     embarkBtn.addEventListener('click', async () => {
       const mapId = embarkBtn.getAttribute('data-map-id') || 'crypt';
-      const diffSel = document.getElementById('dispatchDifficulty');
-      const compSel = document.getElementById('dispatchCompanion');
+      const diffSel = /** @type {HTMLSelectElement | null} */ (document.getElementById('dispatchDifficulty'));
+      const compSel = /** @type {HTMLSelectElement | null} */ (document.getElementById('dispatchCompanion'));
       const difficulty = diffSel ? diffSel.value : 'normal';
       const compVal = compSel ? compSel.value : 'none';
       const bringAlly = compVal === 'none' ? false : compVal;
@@ -1190,7 +1195,7 @@ function attachDistrictSpecificEvents(main) {
   main.querySelectorAll('input[name="rouletteBet"]').forEach(r => r.addEventListener('change', () => { gambleRouletteBet = r.value; }));
   main.querySelectorAll('input[name="sicboBet"]').forEach(r => r.addEventListener('change', () => { gambleSicBoBet = r.value; }));
 
-  const rollBtn = document.getElementById('gambleRollBtn');
+  const rollBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('gambleRollBtn'));
   if (rollBtn) {
     rollBtn.addEventListener('click', async () => {
       const out = document.getElementById('gambleResult');
@@ -1206,7 +1211,7 @@ function attachDistrictSpecificEvents(main) {
       if (gambleGame === 'roulette') {
         payload.bet = { id: gambleRouletteBet };
         if (gambleRouletteBet === 'straight') {
-          const n = Number(document.getElementById('rouletteNumber')?.value);
+          const n = Number((/** @type {HTMLInputElement | null} */ (document.getElementById('rouletteNumber')))?.value);
           payload.bet.number = Number.isInteger(n) ? n : 17;
         }
       }
@@ -1321,7 +1326,7 @@ function attachDistrictSpecificEvents(main) {
 
   if (armoryBuyTab && armorySellTab) {
     const showSection = (which) => {
-      [['buy', armoryBuyTab, buySec], ['sell', armorySellTab, sellSec], ['forge', armoryForgeTab, forgeSec]].forEach(([, btn, sec]) => {
+      (/** @type {[string, HTMLElement | null, HTMLElement | null][]} */ ([['buy', armoryBuyTab, buySec], ['sell', armorySellTab, sellSec], ['forge', armoryForgeTab, forgeSec]])).forEach(([, btn, sec]) => {
         if (!btn) return;
         btn.classList.toggle('primary', btn === which);
         sec?.classList.toggle('hidden', sec !== (which === armoryBuyTab ? buySec : which === armorySellTab ? sellSec : forgeSec));
@@ -1534,7 +1539,7 @@ function showRoadEncounterModal(char, mapId, embarkCallback) {
         </div>
       `;
 
-      modal.querySelectorAll('[data-buy-item]').forEach(btn => {
+      (/** @type {NodeListOf<HTMLButtonElement>} */ (modal.querySelectorAll('[data-buy-item]'))).forEach(btn => {
         btn.addEventListener('click', async () => {
           const itemId = btn.getAttribute('data-buy-item');
           const price = parseInt(btn.getAttribute('data-price'), 10);

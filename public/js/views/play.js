@@ -15,7 +15,7 @@ import { openLevelUpModal } from './levelup.js';
 
 let game = null;
 let selectedTarget = null;
-let activeNpc = null;
+/** @type {{ id: string, name: string } | null} */ let activeNpc = null;
 let appearanceShown = null;
 let summaryShown = false;
 let questObjectiveFolded = false;
@@ -25,7 +25,7 @@ export async function playView(main, saveRef) {
   // Start a fresh delve: show the setup modal (map + difficulty + companion)
   if (saveRef === 'new') {
     const charId = new URLSearchParams(location.hash.split('?')[1] || '').get('char');
-    if (!charId) { location.hash = '#/'; return; }
+    if (!charId) { location.hash = '#/'; return undefined; }
     const chars = await api.listCharacters();
     const char = chars.find(c => c.id === charId);
     const rules = appState.rules;
@@ -71,9 +71,9 @@ export async function playView(main, saveRef) {
         </div>
       </div>`;
     document.getElementById('beginBtn').addEventListener('click', async () => {
-      const mapId = (document.querySelector('input[name="mapPick"]:checked') || {}).value || 'crypt';
-      const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
-      const companionChoice = (document.querySelector('input[name="companionPick"]:checked') || {}).value || 'bram';
+      const mapId = (/** @type {HTMLInputElement} */ (document.querySelector('input[name="mapPick"]:checked') || {})).value || 'crypt';
+      const difficulty = /** @type {HTMLInputElement} */ (document.querySelector('input[name="difficulty"]:checked')).value;
+      const companionChoice = (/** @type {HTMLInputElement} */ (document.querySelector('input[name="companionPick"]:checked') || {})).value || 'bram';
       const bringAlly = companionChoice === 'none' ? false : companionChoice;
       try {
         const { state } = await api.startGame(charId, { bringAlly, difficulty, mapId });
@@ -525,7 +525,7 @@ export async function playView(main, saveRef) {
   document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
 
   function sendChat() {
-    const input = document.getElementById('chatInput');
+    const input = /** @type {HTMLInputElement} */ (document.getElementById('chatInput'));
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
@@ -603,7 +603,7 @@ export async function playView(main, saveRef) {
         </div>`;
       initTooltips(modal, appState.rules);
       modal.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', async () => {
-        await act({ type: 'buy', itemId: b.dataset.buy });
+        await act({ type: 'buy', itemId: /** @type {HTMLButtonElement} */ (b).dataset.buy });
         render();
       }));
       document.getElementById('closeShop').addEventListener('click', () => modal.remove());
@@ -723,7 +723,7 @@ export async function playView(main, saveRef) {
 
       if (isTrap) {
         document.getElementById('btnDisarm').addEventListener('click', async () => {
-          document.getElementById('btnDisarm').disabled = true;
+          /** @type {HTMLButtonElement} */ (document.getElementById('btnDisarm')).disabled = true;
           const nat = await rollAnimated(20, 'Disarm Trap');
           const total = nat + disarmMod;
           modal.remove();
@@ -731,14 +731,14 @@ export async function playView(main, saveRef) {
         });
       } else {
         document.getElementById('btnPick').addEventListener('click', async () => {
-          document.getElementById('btnPick').disabled = true;
+          /** @type {HTMLButtonElement} */ (document.getElementById('btnPick')).disabled = true;
           const nat = await rollAnimated(20, 'Pick Lock');
           const total = nat + pickMod;
           modal.remove();
           await act({ type: 'skillCheckObject', objectId: obj.id, method: 'pick', rollTotal: total });
         });
         document.getElementById('btnForce').addEventListener('click', async () => {
-          document.getElementById('btnForce').disabled = true;
+          /** @type {HTMLButtonElement} */ (document.getElementById('btnForce')).disabled = true;
           const nat = await rollAnimated(20, 'Force Lock');
           const total = nat + forceMod;
           modal.remove();
@@ -824,8 +824,8 @@ export async function playView(main, saveRef) {
     `;
 
     container.querySelectorAll('.initiative-card:not(.dead)').forEach(card => {
-      card.onclick = () => {
-        const targetId = card.dataset.targetId;
+      /** @type {HTMLElement} */ (card).onclick = () => {
+        const targetId = /** @type {HTMLElement} */ (card).dataset.targetId;
         if (targetId && targetId !== 'player') {
           const ent = game.entities.find(e => e.id === targetId);
           if (ent && ent.alive !== false) {
@@ -1014,7 +1014,7 @@ export async function playView(main, saveRef) {
   const dmSettingsBtn = document.getElementById('dmSettingsBtn');
   if (dmSettingsBtn) dmSettingsBtn.addEventListener('click', () => openSettingsModal());
 
-  const pSelect = document.getElementById('personaQuickSelect');
+  const pSelect = /** @type {HTMLSelectElement} */ (document.getElementById('personaQuickSelect'));
   if (pSelect) {
     pSelect.value = game.dmPersona || (appState.settings && appState.settings.llm && appState.settings.llm.persona) || 'classic';
     pSelect.addEventListener('change', async () => {
@@ -1491,7 +1491,7 @@ export async function playView(main, saveRef) {
     wireSide(myTurn);
     initTooltips(document.getElementById('sidePanel'), appState.rules);
     document.getElementById('sfxBtn').addEventListener('click', () => { sfx.toggle(); renderSide(); });
-    document.getElementById('volSlider').addEventListener('input', (e) => { sfx.setVolume(+(e.target.value) / 100); });
+    document.getElementById('volSlider').addEventListener('input', (e) => { sfx.setVolume(+(/** @type {HTMLInputElement} */ (e.target).value) / 100); });
     const vt = document.getElementById('viewToggle');
     if (vt) vt.onclick = toggleView;
     document.getElementById('ttsBtn').addEventListener('click', () => { tts.toggle(); renderSide(); toast(tts.isEnabled() ? '🗣️ AI DM voice-on' : '🤐 AI DM voice-off'); });
@@ -1712,12 +1712,12 @@ export async function playView(main, saveRef) {
 
   function wireSide(myTurn) {
     document.querySelectorAll('[data-quickslot]').forEach(b => b.addEventListener('click', () => {
-      const idx = parseInt(b.dataset.quickslot, 10);
+      const idx = parseInt(/** @type {HTMLElement} */ (b).dataset.quickslot, 10);
       useQuickSlot(idx);
     }));
 
     document.querySelectorAll('[data-useitem]').forEach(b => b.addEventListener('click', () => {
-      const itemId = b.dataset.useitem;
+      const itemId = /** @type {HTMLElement} */ (b).dataset.useitem;
       const def = appState.rules.gear.find(g => g.id === itemId);
       if (def && def.type === 'scroll' && def.spell) {
         const sp = appState.rules.spells.find(x => x.id === def.spell);
@@ -1727,7 +1727,7 @@ export async function playView(main, saveRef) {
     }));
 
     document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
-      const a = b.dataset.act;
+      const a = /** @type {HTMLButtonElement} */ (b).dataset.act;
       if (a === 'rest') act({ type: 'rest', kind: 'short' });
       if (a === 'longrest') act({ type: 'rest', kind: 'long' });
       if (a === 'potion') {
@@ -1763,7 +1763,7 @@ export async function playView(main, saveRef) {
       if (a === 'castmenu') renderCastMenu();
     }));
     document.querySelectorAll('[data-classact]').forEach(b => b.addEventListener('click', () => {
-      const id = b.dataset.classact;
+      const id = /** @type {HTMLButtonElement} */ (b).dataset.classact;
       const action = { type: 'classAction', id, targetId: selectedTarget ? selectedTarget.id : null };
       if (id === 'cunning_action') {
         const mode = prompt('Cunning Action — type: dash / disengage / hide', 'dash');
@@ -1812,15 +1812,15 @@ export async function playView(main, saveRef) {
     }
 
     document.querySelectorAll('[data-equip-slot]').forEach(b => b.addEventListener('click', async () => {
-      const slot = b.dataset.equipSlot;
-      const itemId = b.dataset.equipItem;
+      const slot = /** @type {HTMLElement} */ (b).dataset.equipSlot;
+      const itemId = /** @type {HTMLElement} */ (b).dataset.equipItem;
       sfx.play('equip');
       await act({ type: 'equip', slot, itemId });
       toast(`Equipped ${itemId}!`);
     }));
 
     document.querySelectorAll('[data-unequip-slot]').forEach(b => b.addEventListener('click', async () => {
-      const slot = b.dataset.unequipSlot;
+      const slot = /** @type {HTMLElement} */ (b).dataset.unequipSlot;
       sfx.play('equip');
       await act({ type: 'unequip', slot });
       toast(`Unequipped ${slot}!`);
@@ -1844,7 +1844,7 @@ export async function playView(main, saveRef) {
         <div class="action-grid">${[...free, ...spells].map(s => `<button class="btn small" data-cast="${s.id}">${s.name}${free.some(f => f.id === s.id) ? ' ✨' : ''}</button>`).join('')}</div>` : ''}
       </div>`;
     menu.querySelectorAll('[data-cast]').forEach(b => b.addEventListener('click', () => {
-      const spell = appState.rules.spells.find(s => s.id === b.dataset.cast);
+      const spell = appState.rules.spells.find(s => s.id === /** @type {HTMLButtonElement} */ (b).dataset.cast);
       if (['self', 'flavor'].includes(spell.target)) act({ type: 'cast', spellId: spell.id });
       else if (!selectedTarget) toast('Target a monster or object first (or yourself for buffs via "self").');
       else act({ type: 'cast', spellId: spell.id, targetId: spell.target === 'ally' ? 'player' : selectedTarget.id });
@@ -1856,7 +1856,7 @@ export async function playView(main, saveRef) {
     const el = document.getElementById('logEntries');
     el.innerHTML = game.log.map(l => `<div class="log-entry ${esc(l.kind)}">${esc(l.text)}</div>`).join('');
     el.scrollTop = el.scrollHeight;
-    const input = document.getElementById('chatInput');
+    const input = /** @type {HTMLInputElement} */ (document.getElementById('chatInput'));
     input.placeholder = activeNpc ? `Speak to ${activeNpc.name}…` : 'Describe an action — "search the room", "listen at the door", "hide in the shadows"…';
   }
 

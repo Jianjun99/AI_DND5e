@@ -16,11 +16,17 @@ function assert(condition, message) {
 }
 
 function test(name, fn) {
+  const before = failed;
   try {
     fn();
     console.log(`  ✔ PASS: ${name}`);
   } catch (err) {
-    // Handled in assert
+    // assert() already reported and counted its own failure; anything else would otherwise
+    // vanish silently, so surface it as a failure too
+    if (failed === before) {
+      console.error(`  ❌ FAILED: ${name} — ${err && (err.stack || err.message)}`);
+      failed++;
+    }
   }
 }
 
@@ -102,14 +108,14 @@ test('Fighter character generation with Dwarf Toughness and Defense fighting sty
     weaponOption: 'sword_board'
   });
 
-  assert(char.scores.str === 17, `Expected STR 17, got ${char.scores.str}`);
-  assert(char.scores.con === 15, `Expected CON 15 (mod +2), got ${char.scores.con}`);
+  assert(char.abilities.str === 17, `Expected STR 17, got ${char.abilities.str}`);
+  assert(char.abilities.con === 15, `Expected CON 15 (mod +2), got ${char.abilities.con}`);
   // d10 (10) + CON mod (2) + Dwarf Toughness (1) = 13 HP
   assert(char.hpMax === 13, `Expected HP 13, got ${char.hpMax}`);
   // Chain mail (16) + Shield (2) + Defense Fighting Style (1) = 19 AC
   assert(char.acBase === 19, `Expected AC 19, got ${char.acBase}`);
   // Passive perception = 10 + WIS mod (1) + Prof (2) = 13
-  assert(char.passivePerception === 13, `Expected Passive Perception 13, got ${char.passivePerception}`);
+  assert(engine.passivePerception(char) === 13, `Expected Passive Perception 13, got ${engine.passivePerception(char)}`);
   assert(char.speedFt === 30, `Expected Dwarf Speed 30, got ${char.speedFt}`);
 });
 
@@ -128,10 +134,10 @@ test('Wizard character generation with INT spellcasting and spellbook', () => {
     weaponOption: 'staff'
   });
 
-  assert(char.scores.int === 17, `Expected INT 17, got ${char.scores.int}`);
+  assert(char.abilities.int === 17, `Expected INT 17, got ${char.abilities.int}`);
   assert(char.hpMax === 7, `Expected HP 7 (d6 + 1 CON), got ${char.hpMax}`);
   assert(char.acBase === 12, `Expected unarmored AC 12 (10 + 2 DEX), got ${char.acBase}`);
-  assert(char.spellSlots && char.spellSlots[1] === 2, 'Wizard should have 2 lvl 1 spell slots');
+  assert(char.slots && char.slots[1] === 2, 'Wizard should have 2 lvl 1 spell slots');
 });
 
 // Level-up readiness — the one rule the HUD badge and the level-up endpoint must share

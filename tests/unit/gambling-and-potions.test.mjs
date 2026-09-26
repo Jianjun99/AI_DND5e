@@ -199,7 +199,7 @@ test('The poisoned brew brings real disadvantage', () => {
   const { state, char, p } = stateFor(makeChar());
   potions.POTION_EFFECTS.find(e => e.id === 'poison').apply({ engine, state, char, p, events: [], roll: (e) => engine.rollExpr(e) });
   assert(p.conditions.includes('poisoned'), 'Poisoned condition applied');
-  const mods = engine.attackMods(state, p, { id: 'x', kind: 'monster', conditions: [], buffs: [], x: 9, y: 9, hp: 10, hpMax: 10 }, { name: 'swing', ranged: false, dmgType: 'slashing' }, []);
+  const mods = engine.attackMods(state, p, { id: 'x', kind: 'monster', conditions: [], buffs: [], x: 9, y: 9, hp: 10, hpMax: 10 }, { name: 'swing', ranged: false, damageType: 'slashing' }, []);
   assert(mods.dis === true, 'A poisoned attacker rolls with disadvantage');
   assert((p.buffs || []).some(b => b.condId === 'poisoned' && b.rounds === 10), 'Poison runs 10 rounds and expires through the buff ticker');
 });

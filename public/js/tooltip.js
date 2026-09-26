@@ -449,6 +449,8 @@ export function hideTooltip() {
 /**
  * Universal initializer: binds mouseover/mousemove/mouseleave events
  * to any element with [data-item-tooltip="itemId"] within container.
+ * @param {Document|HTMLElement} [container]
+ * @param {object} [rulesCatalog] item catalogue used to resolve plain item ids
  */
 export function initTooltips(container = document, rulesCatalog = {}) {
   ensureTooltipElement();
@@ -458,16 +460,17 @@ export function initTooltips(container = document, rulesCatalog = {}) {
   if (!window.__dndTooltipTouchBound) {
     window.__dndTooltipTouchBound = true;
     document.addEventListener('touchstart', (ev) => {
-      const target = ev.target && ev.target.closest ? ev.target.closest('[data-item-tooltip]') : null;
+      const el = /** @type {Element | null} */ (ev.target);
+      const target = el && el.closest ? el.closest('[data-item-tooltip]') : null;
       if (!target) { hideTooltip(); return; }
       const payload = target.getAttribute('data-item-tooltip');
       if (!payload) return;
       const touch = ev.touches && ev.touches[0];
       const point = touch || { clientX: 0, clientY: 0 };
       if (payload.trim().startsWith('{')) {
-        try { showTooltip(point, JSON.parse(payload), container.__rules || {}); } catch { /* id lookup below */ }
+        try { showTooltip(point, JSON.parse(payload), rulesCatalog); } catch { /* id lookup below */ }
       } else {
-        showTooltip(point, payload, container.__rules || {});
+        showTooltip(point, payload, rulesCatalog);
       }
       clearTimeout(window.__dndTooltipTimer);
       window.__dndTooltipTimer = setTimeout(hideTooltip, 4000);

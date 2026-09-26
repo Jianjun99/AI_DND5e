@@ -55,7 +55,7 @@ export async function creatorView(main) {
       if (err) return toast(err);
       step++; render();
     });
-    const save = document.getElementById('saveBtn');
+    const save = /** @type {HTMLButtonElement} */ (document.getElementById('saveBtn'));
     if (save) save.addEventListener('click', async () => {
       const err = validate(6);
       if (err) return toast(err);
@@ -121,7 +121,7 @@ export async function creatorView(main) {
         <p class="small muted">You'll delve into <b>The Sunless Crypt</b> alone — though a certain scout at camp may join you, if you ask nicely.</p>
       </div>`;
     document.getElementById('nameInput').addEventListener('input', e => {
-      draft.name = e.target.value;
+      draft.name = /** @type {HTMLInputElement} */ (e.target).value;
       document.querySelector('.preview-panel h3').textContent = draft.name.trim() || 'Your Hero';
     });
   }
@@ -230,7 +230,7 @@ export async function creatorView(main) {
         </div></div>` : ''}
     `;
     const styleSel = document.getElementById('styleSel');
-    if (styleSel) styleSel.addEventListener('change', e => { draft.fightingStyle = e.target.value || null; });
+    if (styleSel) styleSel.addEventListener('change', e => { draft.fightingStyle = /** @type {HTMLSelectElement} */ (e.target).value || null; });
     container.querySelectorAll('[data-invoc]').forEach(cb => cb.addEventListener('change', () => {
       if (cb.checked) { if (draft.invocations.length < 2) draft.invocations.push(cb.dataset.invoc); else cb.checked = false; }
       else draft.invocations = draft.invocations.filter(x => x !== cb.dataset.invoc);
@@ -290,9 +290,9 @@ export async function creatorView(main) {
         <div class="field"><label>${rules.feats[bg.feat].name}: pick ${rules.feats[bg.feat].extraSkillPicks} extra skills</label>
           <select id="extraSkills" multiple size="6">${Object.keys(SKILL_MAP).map(s => `<option value="${s}" ${draft.extraSkills.includes(s) ? 'selected' : ''}>${skillName(s)}</option>`).join('')}</select></div>` : ''}
       </div>`;
-    document.getElementById('plus2').addEventListener('change', e => { draft.bgPlus2 = e.target.value || null; if (draft.bgPlus1 === draft.bgPlus2) draft.bgPlus1 = null; renderBgOptions(container); refreshPreview(); });
-    document.getElementById('plus1').addEventListener('change', e => { draft.bgPlus1 = e.target.value || null; refreshPreview(); });
-    const es = document.getElementById('extraSkills');
+    document.getElementById('plus2').addEventListener('change', e => { draft.bgPlus2 = /** @type {HTMLSelectElement} */ (e.target).value || null; if (draft.bgPlus1 === draft.bgPlus2) draft.bgPlus1 = null; renderBgOptions(container); refreshPreview(); });
+    document.getElementById('plus1').addEventListener('change', e => { draft.bgPlus1 = /** @type {HTMLSelectElement} */ (e.target).value || null; refreshPreview(); });
+    const es = /** @type {HTMLSelectElement} */ (document.getElementById('extraSkills'));
     if (es) es.addEventListener('change', () => { draft.extraSkills = [...es.selectedOptions].map(o => o.value).slice(0, 2); });
   }
 
@@ -333,7 +333,7 @@ export async function creatorView(main) {
       refreshPreview();
     };
     document.getElementById('method').addEventListener('change', e => {
-      draft.method = e.target.value;
+      draft.method = /** @type {HTMLSelectElement} */ (e.target).value;
       if (draft.method === 'array') draft.baseScores = { str: 15, dex: 14, con: 13, int: 12, wis: 10, cha: 8 };
       if (draft.method === 'buy') draft.baseScores = { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 };
       if (draft.method === 'roll') { draft.baseScores = roll4d6(); }
@@ -373,7 +373,7 @@ export async function creatorView(main) {
       const r = [1, 2, 3, 4].map(() => 1 + Math.floor(Math.random() * 6)).sort((a, b) => b - a);
       return r[0] + r[1] + r[2];
     }).sort((a, b) => b - a);
-    const out = {}; ABILS.forEach((k, i) => out[k] = rolls[i]);
+    const out = /** @type {{ str: number, dex: number, con: number, int: number, wis: number, cha: number }} */ ({}); ABILS.forEach((k, i) => out[k] = rolls[i]);
     return out;
   }
   function pointCost() {

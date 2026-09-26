@@ -344,7 +344,7 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
     if (char.fightingStyle === 'dueling' && !w.props.includes('two_handed') && !w.props.includes('light')) dmgMod += 2;
     if (w.magic) { bonus += w.magic; dmgMod += w.magic; }
     return {
-      weaponId: w.id, name: w.name, bonus, dmgDice: w.damage, dmgMod, dmgType: w.damageType,
+      weaponId: w.id, name: w.name, bonus, dmgDice: w.damage, dmgMod, damageType: w.damageType,
       ranged, range: w.range || 5, props: w.props,
       heavy: w.props.includes('heavy'), light: w.props.includes('light'),
       twoHanded: w.props.includes('two_handed'), finesse, versatile: w.versatile || null,
@@ -354,7 +354,7 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
   const unarmedAb = abilities.str >= abilities.dex ? abilities.str : abilities.dex;
   char.attacks.push({
     weaponId: 'unarmed', name: 'Unarmed Strike', bonus: char.profBonus + mod(unarmedAb),
-    dmgDice: cls.id === 'monk' ? (level >= 10 ? '1d10' : level >= 5 ? '1d8' : '1d6') : '1', dmgMod: mod(unarmedAb), dmgType: 'bludgeoning',
+    dmgDice: cls.id === 'monk' ? (level >= 10 ? '1d10' : level >= 5 ? '1d8' : '1d6') : '1', dmgMod: mod(unarmedAb), damageType: 'bludgeoning',
     ranged: false, range: 5, props: [], heavy: false, light: false, twoHanded: false, finesse: false
   });
   // the wielded weapon leads the list — the client offers attacks[0] / the first melee entry by default
@@ -881,21 +881,21 @@ function currentAc(state, ent) {
 function charHasArmor(char) { return char.inventory.some(i => byId(ARMORS, i.itemId)); }
 
 // ---------------------------------------------------------------- damage ----
-function applyDamage(state, target, amount, dmgType, events, opts = {}) {
+function applyDamage(state, target, amount, damageType, events, opts = {}) {
   if (!target || target.alive === false || amount <= 0) return 0;
   let dmg = amount;
   if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
   if (target.kind === 'player') state.stats.dmgTaken += amount;
   const resList = target.kind === 'player' ? (state.character.resistances || []) : (target.resistances || []);
-  if (target.kind === 'player' && hasBuff(target, 'rage') && ['bludgeoning', 'piercing', 'slashing'].includes(dmgType)) dmg = Math.floor(dmg / 2);
+  if (target.kind === 'player' && hasBuff(target, 'rage') && ['bludgeoning', 'piercing', 'slashing'].includes(damageType)) dmg = Math.floor(dmg / 2);
   // Stone-skinned champions resist weapons — but magic weapons and spells cut straight through
   const resistsPhysicalOnly = !!(target.affix && target.affix.nonmagicalPhysical);
-  if (resList.includes(dmgType) && !(resistsPhysicalOnly && opts.magical && ['bludgeoning', 'piercing', 'slashing'].includes(dmgType))) {
+  if (resList.includes(damageType) && !(resistsPhysicalOnly && opts.magical && ['bludgeoning', 'piercing', 'slashing'].includes(damageType))) {
     const before = dmg;
     dmg = Math.floor(dmg / 2);
-    if (before > 1) addLog(state, 'mech', `${target.name} resists the ${dmgType} damage (${before} → ${dmg}).`);
+    if (before > 1) addLog(state, 'mech', `${target.name} resists the ${damageType} damage (${before} → ${dmg}).`);
   }
-  if ((target.vulnerabilities || []).includes(dmgType)) dmg *= 2;
+  if ((target.vulnerabilities || []).includes(damageType)) dmg *= 2;
   if (target.tempHp) {
     const absorbed = Math.min(target.tempHp, dmg);
     target.tempHp -= absorbed; dmg -= absorbed;
@@ -1018,8 +1018,8 @@ function attackMods(state, attacker, target, atk, events) {
     if (inRange && (out.adv || allyNear)) out.dmgDice.push({ dice: Math.ceil(char.level / 2) + 'd6', type: 'sneak', oncePerTurn: 'sneak' });
   }
   const hexed = getBuff(target, 'hexed') || getBuff(target, 'marked');
-  if (hexed && !atk.spell) out.dmgDice.push({ dice: hexed.extraDamage, type: hexed.damageType === 'weapon' ? atk.dmgType : hexed.damageType });
-  if (hasBuff(p, 'rage') && !atk.ranged && ['slashing', 'piercing', 'bludgeoning'].includes(atk.dmgType)) out.bonusFlat += 2;
+  if (hexed && !atk.spell) out.dmgDice.push({ dice: hexed.extraDamage, type: hexed.damageType === 'weapon' ? atk.damageType : hexed.damageType });
+  if (hasBuff(p, 'rage') && !atk.ranged && ['slashing', 'piercing', 'bludgeoning'].includes(atk.damageType)) out.bonusFlat += 2;
   if (hasBuff(p, 'divine_favor') && !atk.spell) out.dmgDice.push({ dice: '1d4', type: 'radiant' });
   if (hasBuff(p, 'smite_charge') && !atk.spell) {
     removeBuff(p, 'smite_charge');
@@ -1225,10 +1225,10 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
     dmgTotal += r.total;
     bonusTxts.push(`+${r.total} ${atk.bonusDamage.type}`);
   }
-  const text = `${p.name} strikes ${target.name} with ${atk.name}${crit ? ' — CRITICAL HIT!' : ''}: ${dmg.total}${bonusTxts.length ? ' ' + bonusTxts.join(' ') : ''} = ${dmgTotal} ${atk.dmgType} damage.`;
+  const text = `${p.name} strikes ${target.name} with ${atk.name}${crit ? ' — CRITICAL HIT!' : ''}: ${dmg.total}${bonusTxts.length ? ' ' + bonusTxts.join(' ') : ''} = ${dmgTotal} ${atk.damageType} damage.`;
   events.push({ type: 'attack', narrate: true, text, data: { dmg: dmgTotal, crit, target: target.name, targetId: target.id, targetX: target.x, targetY: target.y } });
   addLog(state, 'mech', text);
-  const dealt = applyDamage(state, target, dmgTotal, atk.dmgType, events, { magical: !!atk.magic || !!atk.spell });
+  const dealt = applyDamage(state, target, dmgTotal, atk.damageType, events, { magical: !!atk.magic || !!atk.spell });
   addLog(state, 'mech', `${target.name} takes ${dealt} damage (${target.hp}/${target.hpMax} HP${target.alive === false ? ', slain' : ''}).`);
   if (atk.vampiricHeal && dealt > 0) {
     healEntity(state, p, atk.vampiricHeal, events, `${atk.name} (vampiric)`);
@@ -1375,7 +1375,7 @@ function castSpell(state, spellId, targetId, events, opts = {}) {
     events.push(ev); return true;
   }
   if (sp.attack) {
-    const fakeAtk = { name: sp.name, ranged: sp.attack === 'ranged', spell: true, dmgType: sp.damage.type, dmgDice: sp.damage.dice, range: sp.range, bonus: spAtk };
+    const fakeAtk = { name: sp.name, ranged: sp.attack === 'ranged', spell: true, damageType: sp.damage.type, dmgDice: sp.damage.dice, range: sp.range, bonus: spAtk };
     const mods = attackMods(state, p, target, fakeAtk, events);
     const roll = d20({ adv: mods.adv && !mods.dis, dis: mods.dis && !mods.adv, reroll1: char.rerollNat1 });
     let atkExtra = 0;

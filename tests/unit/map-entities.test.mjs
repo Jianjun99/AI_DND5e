@@ -21,11 +21,17 @@ function assert(condition, message) {
 }
 
 function test(name, fn) {
+  const before = failed;
   try {
     fn();
     console.log(`  ✔ PASS: ${name}`);
   } catch (err) {
-    // Handled in assert
+    // assert() already reported and counted its own failure; anything else would otherwise
+    // vanish silently, so surface it as a failure too
+    if (failed === before) {
+      console.error(`  ❌ FAILED: ${name} — ${err && (err.stack || err.message)}`);
+      failed++;
+    }
   }
 }
 
