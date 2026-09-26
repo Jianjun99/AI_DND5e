@@ -56,7 +56,7 @@ function dropEmptyInstance(char, entry) {
 }
 
 function consumeActionEconomy(state, kind) {
-  if (state.mode !== 'combat') return;
+  if (state.mode !== 'combat') return undefined;
   if (kind === 'action') {
     if (state.combat.actionUsed) return 'Action already used this turn.';
     state.combat.actionUsed = true;
@@ -329,7 +329,7 @@ router.post('/:id/action', async (req, res) => {
           const stairsObj = state.objects.find(o => o.id === action.objectId && o.type === 'stairs' && o.to && o.to.mapId === '__endless_next__');
           if (stairsObj) {
             const nextDepth = (state.endlessDepth || 1) + 1;
-            const nextMap = endless.generateFloor(nextDepth);
+            const nextMap = endless.generateFloor(nextDepth, nextDepth <= 3 ? 'crypt' : nextDepth <= 7 ? 'vault' : 'hills');
             contentMod.injectMap(nextMap);
             state.endlessDepth = nextDepth;
             stairsObj.to.mapId = nextMap.id;
@@ -417,7 +417,6 @@ router.post('/:id/action', async (req, res) => {
           if (action.kind === 'long') {
             engine.longRest(state, events);
             // write a journal entry after a successful long rest (fallback text if the LLM is off)
-            const pRest = engine.playerEntity(state);
             if (state.mode !== 'combat' && events.every(e => e.type !== 'error')) {
               state.journal = state.journal || [];
               const entry = await dm.writeRecap(state);
@@ -514,7 +513,7 @@ router.post('/:id/action', async (req, res) => {
             events.push({ type: 'info', text: `You already have work: ${state.quests.active.shortText}. Finish that first.` });
             break;
           }
-          const quest = engine.rollSideQuest(state, events);
+          const quest = engine.rollSideQuest(state);
           if (!quest) { events.push({ type: 'info', text: 'No one at camp has work to offer tonight.' }); break; }
           const llmText = await dm.questText(state, quest);
           if (llmText) quest.text = llmText;
@@ -646,7 +645,6 @@ function respawnAtCamp(state, events) {
 function handleClassAction(state, action, events) {
   const p = engine.playerEntity(state);
   const char = state.character;
-  const cls = engine.byId(engine.CLASSES, char.className);
   const id = action.id;
   const inCombat = state.mode === 'combat';
   const spendUse = (key) => {

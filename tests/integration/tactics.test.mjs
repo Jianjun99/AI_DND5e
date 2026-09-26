@@ -56,7 +56,7 @@ test('Disengage prevents opportunity attacks', () => {
 
 test('Flanking: ally opposite target grants advantage', () => {
   const state = makeState();
-  const ev = [];
+  const _ev = [];
   const p = engine.playerEntity(state);
   // add ally east of target
   state.entities.push({
@@ -91,7 +91,7 @@ test('Shove: contest pushes target back 1 tile on success', () => {
   state.map.rows[behind.y] = state.map.rows[behind.y].substring(0, behind.x) + '.' + state.map.rows[behind.y].substring(behind.x + 1);
   engine.startCombat(state, [gob.id], ev);
   const evs = [];
-  const result = engine.shoveTarget(state, gob.id, evs);
+  const _result = engine.shoveTarget(state, gob.id, evs);
   const shoved = gob.x === behind.x && gob.y === behind.y;
   const failEv = evs.filter(e => e.type === 'shove_fail');
   if (!shoved && !failEv.length) throw new Error('no shove outcome');

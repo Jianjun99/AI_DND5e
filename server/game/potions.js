@@ -195,6 +195,7 @@ const POTION_EFFECTS = [
   }
 ];
 
+/** @type {Record<string, typeof POTION_EFFECTS[number][]>} */
 const EFFECTS_BY_KIND = POTION_EFFECTS.reduce((acc, e) => {
   (acc[e.kind] = acc[e.kind] || []).push(e);
   return acc;
@@ -252,7 +253,7 @@ function rollMysteryPotion(tier = 'standard', rng = Math.random, forcedKind = nu
 //   skill: { total, dc, success }   (from an identification, optional)
 // }
 function drinkMysteryPotion(bottle, ctx) {
-  const { engine, state, char, p, events } = ctx;
+  const { events } = ctx;
   const tier = POTION_TIERS[bottle.tier] || POTION_TIERS.standard;
   const effectDef = POTION_EFFECTS.find(e => e.id === (bottle.effect && bottle.effect.id));
   if (!effectDef) {

@@ -72,7 +72,6 @@ game action (attack, search, listen, hide, pick a lock, drink a potion, pray at 
 they should use the game buttons or phrase it that way — without listing commands like a manual.`;
 }
 
-const SYSTEM_DM = getDmSystem('classic');
 
 const SYSTEM_NPC = (npcDef, npcName) => `You are role-playing ${npcName}, an NPC in the D&D dungeon "The Sunless Crypt".
 Character: ${npcDef.persona}
@@ -83,12 +82,6 @@ Rules you must obey:
 - You may be evasive, lie, bargain, or refuse — but never reveal facts that are not in "Things you know".
 - If the player says something irrelevant, respond in character with confusion, deflection, or humor.`;
 
-const SYSTEM_FREEFORM = `You are the Dungeon Master's narrative voice for a D&D dungeon crawl in "The Sunless Crypt".
-The player attempts something freeform that the game engine did NOT map to a mechanic (no dice were rolled, nothing changed).
-Narrate their attempt in 1-3 sentences, second person: describe them trying and the ambiguity of the dark answering back.
-DO NOT invent any mechanical outcome: no damage, no items found, no combat starting, no movement. If the attempt clearly maps to a
-game action (attack, search, listen, hide, pick a lock, drink a potion, pray at the altar, rest, talk), gently note in-character that
-they should use the game buttons or phrase it that way — without listing commands like a manual.`;
 
 function recentHistory(state, n = 6) {
   return state.log.slice(-n).map(l => l.text).join(' | ').slice(-900);

@@ -8,7 +8,10 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "smoke": "node scripts/smoke-test.mjs",
-    "test": "node scripts/test-all.mjs"
+    "test": "node scripts/test-all.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "lint:fix": "eslint . --fix"
   },
   "engines": {
     "node": ">=20"
@@ -17,6 +20,9 @@
     "express": "^4.21.2"
   },
   "devDependencies": {
-    "three": "0.186.0"
+    "@types/node": "^26.6.3",
+    "eslint": "^9.39.5",
+    "three": "0.186.0",
+    "typescript": "^5.9.3"
   }
 }

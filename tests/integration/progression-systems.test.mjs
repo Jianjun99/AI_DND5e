@@ -37,7 +37,7 @@ test('Champion subclass scores critical hits on natural 19 and natural 20', () =
   char.subclass = 'champion';
   
   // Set up test state
-  const state = engine.startGame(char, { difficulty: 'normal', mapId: 'crypt' });
+  const _state = engine.startGame(char, { difficulty: 'normal', mapId: 'crypt' });
   
   // Verify champion critical threshold logic
   const critThreshold = (char.subclass === 'champion') ? 19 : 20;

@@ -63,7 +63,7 @@ function createCombatState() {
 // 1. Melee Reach & Distance Validation
 test('Melee attacks require adjacent target (1 tile reach)', () => {
   const { state } = createCombatState();
-  const p = engine.playerEntity(state);
+  const _p = engine.playerEntity(state);
 
   // Distant monster 3 tiles away at (7,4)
   const distant = {

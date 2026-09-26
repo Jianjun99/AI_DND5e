@@ -1,6 +1,6 @@
 // creator.js — multi-step character builder (D&D 2024)
 import { api } from '../api.js';
-import { esc, toast, state as appState, navigate } from '../app.js';
+import { esc, toast, state as appState } from '../app.js';
 
 const ABILS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 const ABIL_NAMES = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
@@ -179,7 +179,6 @@ export async function creatorView(main) {
 
   // ---------------- step 3: class ----------------
   function stepClass(body) {
-    const cls = rules.classes.find(c => c.id === draft.className);
     body.innerHTML = `<h2>Choose your class</h2><div class="grid cols3">
       ${rules.classes.map(c => `
         <div class="card selectable ${draft.className === c.id ? 'selected' : ''}" data-class="${c.id}">
@@ -299,7 +298,6 @@ export async function creatorView(main) {
 
   // ---------------- step 5: abilities ----------------
   function stepAbilities(body) {
-    const ARR = [15, 14, 13, 12, 10, 8];
     const used = Object.values(draft.baseScores);
     body.innerHTML = `
       <div class="card">

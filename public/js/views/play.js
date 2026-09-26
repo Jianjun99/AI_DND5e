@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { esc, toast, state as appState, charObjective, campaignObjective } from '../app.js';
 import { createMapRenderer } from '../map.js';
 import { createMap3D } from '../map3d.js';
-import { settingsView, openSettingsModal } from './settings.js';
+import { openSettingsModal } from './settings.js';
 import { showDice, rollAnimated } from '../dice.js';
 import { sfx } from '../sfx.js';
 import { tts } from '../tts.js';
@@ -17,7 +17,6 @@ let game = null;
 let selectedTarget = null;
 let activeNpc = null;
 let appearanceShown = null;
-let portraitShown = null;
 let summaryShown = false;
 let questObjectiveFolded = false;
 let busy = false;
@@ -91,7 +90,7 @@ export async function playView(main, saveRef) {
   } else {
     sfx.startAmbient(mapTheme);
   }
-  selectedTarget = null; activeNpc = null; appearanceShown = null; portraitShown = null;
+  selectedTarget = null; activeNpc = null; appearanceShown = null;
 
   main.innerHTML = `
     <div class="play-layout">
@@ -567,15 +566,12 @@ export async function playView(main, saveRef) {
   async function fetchPortrait(ent) {
     const key = ent.kind === 'monster' ? ent.monsterId : ent.npcId;
     game.portraits = game.portraits || {};
-    if (game.portraits[key]) { portraitShown = game.portraits[key]; update(); return; }
+    if (game.portraits[key]) { update(); return; }
     try {
       const res = await api.gameAction(game.id, { type: 'portrait', targetId: ent.id });
       game = res.state;
       if (res.portrait && res.portrait.url) {
         game.portraits[key] = res.portrait;
-        if (selectedTarget && (selectedTarget.monsterId === key || selectedTarget.npcId === key)) {
-          portraitShown = res.portrait;
-        }
         update();
       }
     } catch { /* portraits are optional flavor */ }
@@ -937,7 +933,6 @@ export async function playView(main, saveRef) {
       if (selectedTarget && !game.entities.some(e => e.id === selectedTarget.id && e.alive !== false)) {
         selectedTarget = null;
         appearanceShown = null;
-        portraitShown = null;
       }
       update();
       return res;
@@ -1699,7 +1694,6 @@ export async function playView(main, saveRef) {
     const cls = appState.rules.classes.find(c => c.id === char.className);
     const uses = char.uses || {};
     const btns = [];
-    const dis = myTurn ? '' : 'disabled';
     (cls.features || []).filter(f => f.button && f.level <= char.level).forEach(f => {
       let label = f.name;
       let disabled = !myTurn;

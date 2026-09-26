@@ -180,7 +180,7 @@ const MAP_NODES = [
   },
   {
     id: 'roost',
-    name: "The Sun Dragon\'s Roost",
+    name: "The Sun Dragon's Roost",
     region: 'The Volcanic Peaks',
     type: 'dungeon',
     mapId: 'roost',

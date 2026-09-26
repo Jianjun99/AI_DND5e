@@ -291,7 +291,7 @@ test('Prize tokens grant real, delve-scoped power', () => {
 // ---------------------------------------------------------------- lifecycle ----
 test('Gambled prizes ride into the delve and die with it', () => {
   const char = makeChar();
-  char.pendingDelveItems = [potions.makeToken('luck'), potions.makeToken('swordless' && 'bane')];
+  char.pendingDelveItems = [potions.makeToken('luck'), potions.makeToken('bane')];
   char.inventory.push({ itemId: 'potion_healing', qty: 2, delveOnly: true });   // leftover from an old delve
 
   const state = engine.startGame(char, { mapId: 'crypt', carryItems: char.pendingDelveItems });

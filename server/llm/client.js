@@ -28,7 +28,7 @@ async function chatOnce(url, model, messages, cfg) {
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       const err = new Error(`LLM HTTP ${res.status}: ${body.slice(0, 200)}`);
-      err.status = res.status;
+      /** @type {any} */ (err).status = res.status;
       throw err;
     }
     const data = await res.json();
@@ -71,6 +71,7 @@ async function testConnection(cfg) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
+    /** @type {Record<string, string>} */
     const headers = {};
     if (cfg.apiKey) headers['Authorization'] = 'Bearer ' + cfg.apiKey;
     const res = await fetch(base + '/models', { headers, signal: controller.signal });

@@ -22,7 +22,6 @@ export async function loadRules() {
 export function charObjective(game) {
   if (game.flags.victory) return '🏆 Victory! The delve is complete — legendary.';
   if (game.mode === 'over') return '💀 You have fallen. Recover at camp to try again — the dungeon resets its guardians.';
-  const camp = (game.map.victory && game.map.victory.campfire) || game.map.victoryTile;
   if (game.map.victory && game.map.victory.type === 'slay_boss') {
     const bossAlive = game.entities.some(e => e.boss && e.alive && !e.fled);
     if (!bossAlive) return '🏆 The guardian is slain! Return to the campfire to claim the vault.';

@@ -150,7 +150,7 @@ test('Creates custom 3D miniatures for all monsters and expansion beasts', () =>
 test('Idle respiration subtly animates body vertical height', () => {
   const model = createCharacterModel({ kind: 'player', name: 'Hero', className: 'fighter' });
   const rig = model.userData.rig;
-  const initialY = rig.bodyGroup.position.y;
+  const _initialY = rig.bodyGroup.position.y;
 
   updateModelAnimation(model, 1000, 0.016);
   assert(rig.isWalking === false, 'Character should be idle');

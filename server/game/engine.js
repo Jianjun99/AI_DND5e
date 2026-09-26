@@ -248,7 +248,7 @@ function buildCharacter(draft) {
     invocations: draft.invocations || [],
     choices: { species: draft.speciesChoices || {}, bgPlus2: draft.bgPlus2, bgPlus1: draft.bgPlus1 },
     inventory, gold: 50, spellcasting: sc, equipped,
-    hpMax: 0, uses: {}, pools: {}, freeSpellUses: 0, hdUsed: 0
+    hpMax: 0, /** @type {Record<string, number>} */ uses: {}, /** @type {Record<string, number>} */ pools: {}, freeSpellUses: 0, hdUsed: 0
   };
   applyClassAndSpecies(char, cls, sp, 1);
   return char;
@@ -372,7 +372,8 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
     char.slotsRefresh = cls.spellcasting.slots === 'pact' ? 'short' : 'long';
   } else { char.slotsMax = {}; char.slots = {}; }
 
-  const uses = char.uses = char.uses || {};
+  /** @type {Record<string, number>} */
+  const uses = (char.uses = char.uses || {});
   (cls.features || []).filter(f => f.level <= level).forEach(f => {
     if (f.uses === '2/short') uses[f.id] = uses[f.id] !== undefined ? uses[f.id] : 2;
     if (f.uses === '1/short') uses[f.id] = uses[f.id] !== undefined ? uses[f.id] : 1;
@@ -409,9 +410,6 @@ function passivePerception(char) { return 10 + skillMod(char, 'perception'); }
 // ------------------------------------------------------------- map utils ----
 function getMap(mapId) { return content.getMap(mapId); }
 // victory campfire, tolerant of old saves that predate the victory object
-function campfireOf(state) {
-  return (state.map.victory && state.map.victory.campfire) || state.map.victoryTile || null;
-}
 function tileChar(map, x, y) {
   if (y < 0 || y >= map.height || x < 0 || x >= map.width) return '#';
   return map.rows[y][x];
@@ -832,6 +830,7 @@ function beginPlayerTurn(state, events = []) {
   const c = state.combat, p = playerEntity(state);
   c.actionUsed = false; c.bonusUsed = false;
   state.flags.used_sneak = false;
+  state.flags.used_divine_smite = false;   // Improved Divine Smite is once per turn
   state.flags.savage_used = false;
   c.movementLeft = currentSpeed(state, p);
   removeBuff(p, 'shield'); // Shield lasts until the start of your next turn
@@ -1027,6 +1026,10 @@ function attackMods(state, attacker, target, atk, events) {
     out.dmgDice.push({ dice: '2d8', type: 'radiant' });
     events.push({ type: 'smite', narrate: false, text: 'Divine Smite erupts — radiant power floods your weapon!' });
   }
+  // Improved Divine Smite (paladin L11+): once per turn, melee weapon strikes deal +1d8 radiant
+  if (char.className === 'paladin' && char.level >= 11 && !atk.spell && !atk.ranged && !state.flags.used_divine_smite) {
+    out.dmgDice.push({ dice: '1d8', type: 'radiant', oncePerTurn: 'divine_smite' });
+  }
   return out;
 }
 
@@ -1042,8 +1045,6 @@ function monsterAttack(state, attacker, target, atk, events) {
       mods.dmgDice.push({ dice: '1d8', type: 'superiority' });
       events.push({ type: 'note', narrate: false, text: 'Commander\u2019s Strike! +1d8 damage.' });
     }
-    // Improved Divine Smite (paladin L11+)
-    if (char.className === 'paladin' && char.level >= 11 && !atk.spell) mods.dmgDice.push({ dice: '1d8', type: 'radiant' });
     // Oath of Devotion's Sacred Weapon
     if (hasBuff(attacker, 'sacred_weapon') && !atk.spell) {
       mods.bonusFlat += 1;
@@ -1058,6 +1059,7 @@ function monsterAttack(state, attacker, target, atk, events) {
   const opts = { adv: mods.adv && !mods.dis, dis: mods.dis && !mods.adv };
   const roll = d20(opts);
   let atkExtra = 0, extraTxt = '';
+  let extraAffixTxt = '';
   if (isPlayer) {
     const bless = getBuff(target, 'blessed');
     if (bless) { const b = die(4); atkExtra += b; extraTxt += ` +${b} bless`; }
@@ -1075,10 +1077,21 @@ function monsterAttack(state, attacker, target, atk, events) {
   }
   const crit = roll.natural === 20;
   const rolled = damageRoll(atk.damage, { crit });
+  // player attackers route through attackMods too — consume the damage riders it computed
+  // (they used to be pushed but silently dropped, so Commander's Strike et al did nothing)
+  if (isPlayer) {
+    mods.dmgDice.forEach(b => {
+      if (b.oncePerTurn && state.flags['used_' + b.oncePerTurn]) return;
+      const r = rollExpr(b.dice);
+      rolled.total += r.total;
+      extraAffixTxt += ` +${r.total} ${b.type}`;
+      if (b.oncePerTurn) state.flags['used_' + b.oncePerTurn] = true;
+    });
+    rolled.total += mods.bonusFlat;
+  }
   // difficulty scales only monster damage, never the ally's
   const dmgMult = attacker.kind === 'monster' ? DIFFICULTY[state.difficulty || 'normal'].dmgMult : 1;
   const enrageFlat = attacker.enraged ? 2 : 0;
-  let extraAffixTxt = '';
   if (attacker.affix && attacker.affix.bonusDamage) {
     const extra = rollExpr(attacker.affix.bonusDamage.dice).total;
     rolled.total += extra;
@@ -1554,7 +1567,6 @@ function triggerTrap(state, trap, events) {
     success = reroll.natural + saveMod >= (trap.dc || 13);
     addLog(state, 'mech', 'Indomitable! ' + p.name + ' rerolls the save: d20 ' + reroll.natural + '+' + saveMod + '.');
   }
-  const damageMult = evasion ? (success ? 0 : 0.5) : 1;
   const text = `A ${trap.name}! ${p.name} ${String(trap.save || 'dex').toUpperCase()} save: ${saveRoll.natural}+${saveMod} vs DC ${trap.dc} — ${success ? 'they dodge aside!' : 'they are hit!'}${evasion ? ' (Evasion)' : ''}`;
   events.push({ type: 'trap', narrate: true, text }); addLog(state, 'mech', text);
   if (!success) {

@@ -125,7 +125,6 @@ try {
   await send('Runtime.enable');
   await send('Page.enable');
 
-  const evaluate = async (expr) => (await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })).result.value;
   // poll instead of sleeping: a cold browser renders the overworld noticeably later than a warm one
   const waitForExpr = async (expr, label, timeoutMs = 15000) => {
     const deadline = Date.now() + timeoutMs;

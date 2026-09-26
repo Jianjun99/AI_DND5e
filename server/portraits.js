@@ -33,7 +33,6 @@ function describeCreature(state, ent) {
 }
 
 function buildPrompt(state, ent) {
-  const key = creatureKey(state, ent);
   const appearance = describeCreature(state, ent);
   const style = 'Dark fantasy oil painting portrait, head and shoulders, moody dungeon torchlight, painterly brushwork, muted palette, no text, no border';
   return `${ent.name} — ${appearance || 'an inhabitant of ' + state.mapName}. ${style}`;

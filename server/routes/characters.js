@@ -79,22 +79,8 @@ router.post('/:id/equip', (req, res) => {
     char.equipped[slot] = itemId;
   }
 
-  const dexMod = Math.floor(((char.abilities?.dex || 10) - 10) / 2);
   const armorId = char.equipped.armor;
   const offHandId = char.equipped.offHand;
-  let baseAc = 10 + dexMod;
-
-  if (armorId) {
-    const arm = (engine.ARMORS || []).find(a => a.id === armorId);
-    if (arm) {
-      if (arm.type === 'light') baseAc = 11 + dexMod;
-      else if (arm.type === 'medium') baseAc = 13 + Math.min(2, dexMod);
-      else if (arm.type === 'heavy') baseAc = arm.ac ? parseInt(arm.ac) : 16;
-    }
-  }
-  if (offHandId === 'shield') baseAc += 2;
-  if (char.equipped.cloak === 'cloak_protection') baseAc += 1;
-  if (char.equipped.ring1 === 'ring_protection') baseAc += 1;
   // keep the equipped armor/shield first in inventory so the engine AC calc
   // (first-armor-find) agrees with the paperdoll, then recompute via the engine
   char.inventory = char.inventory || [];

@@ -567,7 +567,6 @@ function renderArmory() {
   const equippedRefs = Object.values(activeChar.equipped || {});
   const forgeable = charInventory.filter(i => isForgeableItem(i));
   const worn = forgeable.filter(i => equippedRefs.includes(i.uniqueId));
-  const spare = forgeable.filter(i => !equippedRefs.includes(i.uniqueId));
 
   return `
     <div class="district-header">
@@ -825,7 +824,7 @@ function renderHallOfHeroes() {
     `;
   }
 
-  const { bestiary = [], trophies = [], champions = [], stats = {}, bestiaryProgress = null, campaign = null } = hallData;
+  const { bestiary = [], trophies = [], champions = [], bestiaryProgress = null, campaign = null } = hallData;
   const crFilter = hallFilter.cr || 'all';
   const sortBy = hallFilter.sort || 'cr';
   const shown = bestiary

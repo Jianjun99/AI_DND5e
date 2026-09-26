@@ -17,28 +17,6 @@ function hash(x, y) {
   return ((h ^ (h >> 16)) >>> 0) / 4294967295;
 }
 
-function emojiTexture(emoji) {
-  const c = document.createElement('canvas');
-  c.width = c.height = 64;
-  const g = c.getContext('2d');
-  g.font = '44px serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillText(emoji, 32, 34);
-  return new THREE.CanvasTexture(c);
-}
-
-function labelTexture(text, color = '#e8dcc0') {
-  const c = document.createElement('canvas');
-  c.width = 128; c.height = 16;
-  const g = c.getContext('2d');
-  g.font = '12px sans-serif';
-  g.textAlign = 'center';
-  g.fillStyle = color;
-  g.fillText(String(text).slice(0, 18), 64, 12);
-  return new THREE.CanvasTexture(c);
-}
-
 function makeFlagstoneTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 128;

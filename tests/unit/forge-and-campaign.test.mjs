@@ -127,7 +127,8 @@ test('A forged item replaces the old one in place, keeping its quantity', () => 
 
 test('Forging an equipped weapon changes the actual attack profile', () => {
   const char = makeChar();
-  const item = affixes.rollMagicItem('magic', { category: 'weapon' });
+  // a blazing (non-keen) magic weapon: no flat bonus to start, so the upgrade is measurable
+  const item = affixes.buildAffixItem(affixes.baseById('longsword'), affixes.affixById('blazing', 'weapon'), 'magic');
   char.inventory.push(item);
   char.equipped = char.equipped || {};
   char.equipped.mainHand = item.uniqueId;
@@ -170,6 +171,11 @@ test('Kills are catalogued per species and per elite affix', () => {
   const state = engine.startGame(char, { mapId: 'crypt' });
   const monsters = state.entities.filter(e => e.kind === 'monster');
   const target = monsters[0];
+  // the map generator rolls elites at random — clear any before forcing the affix under test
+  target.isElite = false;
+  delete target.affix;
+  target.resistances = [];
+  target.vulnerabilities = [];
   affixes.applyMonsterAffix(target, 'venomous');
   const key = target.monsterId;
   target.hp = 1;

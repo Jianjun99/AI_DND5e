@@ -14,7 +14,6 @@ export function createCharacterModel(ent, track = (o) => o) {
   root.add(bodyGroup);
 
   const kind = ent.kind || 'monster';
-  const role = ent.role || '';
   const monsterId = ent.monsterId || '';
   const isBoss = !!(ent.boss || ent.isBoss || ent.role === 'boss');
 

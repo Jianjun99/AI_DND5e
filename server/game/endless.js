@@ -53,7 +53,7 @@ function pickMonstersForDepth(pool, depth, count) {
   return out;
 }
 
-function generateFloor(depth) {
+function generateFloor(depth, theme) {
   const pool = buildMonsterPool();
   const roomCount = 6 + die(3);
   const rooms = generateRooms(roomCount);
@@ -116,7 +116,7 @@ function generateFloor(depth) {
     desc: 'A carved chamber in the endless dark. Depth ' + depth + '.'
   }));
 
-  const floorTheme = depth <= 3 ? 'crypt' : depth <= 7 ? 'vault' : 'hills';
+  const floorTheme = theme || (depth <= 3 ? 'crypt' : depth <= 7 ? 'vault' : 'hills');
   const names = ['The Shallow Depths', 'The Deep Halls', 'The Abyssal Tiers', 'The Root of the World'];
   const nameIdx = Math.min(names.length - 1, Math.floor(depth / 3));
 
