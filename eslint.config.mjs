@@ -35,7 +35,7 @@ export default [
     }
   },
   {
-    files: ['scripts/**/*.mjs', 'tests/**/*.mjs', '*.mjs'],
+    files: ['scripts/**/*.mjs', 'tests/**/*.mjs', 'mcp/**/*.mjs', '*.mjs'],
     languageOptions: {
       globals: { ...globals.node, WebSocket: 'readonly', fetch: 'readonly', document: 'readonly', window: 'readonly' },
       sourceType: 'module'

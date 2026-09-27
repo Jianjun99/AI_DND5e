@@ -12,7 +12,7 @@
 3. **服务端是唯一事实来源**——客户端禁止复制引擎的数据表（重复的 XP 表造成过一次发布 bug）。
 4. **含模板字符串的文件禁用 bash heredoc / `node -e` 包反引号**——用 Edit 工具直接改，
    或用 Write 写 .cjs 补丁文件（单引号字符串 + join）。这是本项目最大的 AI 踩坑来源。
-5. **每次改完跑完整验证**：`npm run verify`（自动起服务跑 eslint + tsc + 13 套件 + 冒烟），
+5. **每次改完跑完整验证**：`npm run verify`（自动起服务跑 eslint + tsc + 14 套件 + 冒烟），
    全绿才算完成。改了战斗/掉落/赌桌/魔药等数值表，还必跑 `node scripts/balance-sim.mjs`
    并在总结里报告胜率变化。
 6. **测试不依赖 RNG 具体值**（注入 rng / 穷举 / 宽松区间）；e2e 不断言走路中途的坐标
@@ -21,7 +21,7 @@
 
 ## 完整验证命令
 
-**一条命令**（自动起服务 → eslint → tsc → 13 套件 → 冒烟 → 收尾杀进程，端口自动挑空闲的）：
+**一条命令**（自动起服务 → eslint → tsc → 14 套件 → 冒烟 → 收尾杀进程，端口自动挑空闲的）：
 
 ```bash
 npm run verify
@@ -34,12 +34,26 @@ export PATH="/c/Program Files/nodejs:$PATH"   # git bash 找 node
 PORT=3100 node server/index.js &              # 先起服务——套件连这个端口
 npx eslint .
 npx tsc --noEmit
-PORT=3100 node scripts/test-all.mjs           # 13 套件（含 3 个 headless CDP e2e）
+PORT=3100 node scripts/test-all.mjs           # 14 套件（含 3 个 headless CDP e2e）
 PORT=3100 node scripts/smoke-test.mjs
 ```
 
 - e2e 需要 Edge/Chrome 与空闲 CDP 端口（9224/9225）；Windows 下浏览器是分离进程树，
   残留进程按 `--user-data-dir` 档案目录名用 PowerShell `Stop-Process` 杀，别只 kill pid。
+
+## MCP 接入（可选）
+
+仓库自带零依赖 MCP server（stdio），把验证与规则查询暴露给任何 MCP 客户端：
+
+```bash
+node mcp/server.mjs
+```
+
+工具：`run_verify`（完整验证）/ `run_balance_sim`（bot 胜率模拟）/
+`query_rules`（查引擎数据表：species/classes/feats/weapons/armor/gear/spells/monsters/…）/
+`recent_failures`（最近一次 verify 的失败行，来自 data/last-verify.log）。
+客户端配置：command=`node`，args=`["mcp/server.mjs"]`，cwd=仓库根。
+边界：只读 + 跑既有脚本，**没有**任何写存档/改状态的工具。
 - 客户端改动必须在真实浏览器里看过（CDP 截图 / DOM dump）——引擎与集成测试抓不到渲染/模板 bug。
 
 ## 硬约束速记（完整版见 ARCHITECTURE.md §7）

@@ -12,6 +12,7 @@
 //         PORT=3200 npm run verify   (force a specific port)
 
 import { spawn, spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,19 +23,24 @@ const WIN = process.platform === 'win32';
 
 const step = (name) => console.log(`\n=== verify: ${name} ===`);
 
-/** Run a command, inherit stdio, resolve with its exit code.
- *  shell is required for npm/npx on Windows (they are .cmd shims), but MUST stay
- *  off for direct node spawns — shell splits `C:\Program Files\...node.exe` on the space. */
+/** Run a command, tee its output to our console while capturing it for
+ *  data/last-verify.log. shell is required for npm/npx on Windows (they are
+ *  .cmd shims), but MUST stay off for direct node spawns — shell splits
+ *  `C:\Program Files\...node.exe` on the space. */
 function run(cmd, args, { env = {}, shell = false } = {}) {
   return new Promise((resolve) => {
     const proc = spawn(cmd, args, {
       cwd: ROOT,
-      stdio: 'inherit',
+      stdio: ['inherit', 'pipe', 'pipe'],
       shell,
       env: { ...process.env, ...env }
     });
-    proc.on('close', (code) => resolve(code ?? 1));
-    proc.on('error', () => resolve(1));
+    let captured = '';
+    const tee = (d) => { captured += d; process.stdout.write(d); };
+    proc.stdout.on('data', tee);
+    proc.stderr.on('data', tee);
+    proc.on('close', (code) => resolve({ code: code ?? 1, output: captured }));
+    proc.on('error', () => resolve({ code: 1, output: captured }));
   });
 }
 
@@ -91,24 +97,29 @@ try {
   if (!healthy) throw new Error(`server never became healthy on ${BASE}`);
   console.log(`server healthy at ${BASE}`);
 
-  step('test-all (13 suites, incl. 3 headless-browser e2e)');
+  step('test-all (14 suites, incl. 3 headless-browser e2e)');
   results.push(['test-all', await run(process.execPath, ['scripts/test-all.mjs'], { env: { PORT: String(port) } })]);
 
   step('smoke test');
   results.push(['smoke', await run(process.execPath, ['scripts/smoke-test.mjs'], { env: { PORT: String(port) } })]);
 } catch (err) {
   console.error(`\nverify aborted: ${err.message}`);
-  results.push(['boot', 1]);
+  results.push(['boot', { code: 1, output: String(err.message) }]);
 } finally {
   killTree(server);
+  // persist the full transcript for the MCP recent_failures tool (data/ is gitignored)
+  try {
+    const log = results.map(([name, r]) => `=== ${name} (exit ${r.code}) ===\n${r.output}`).join('\n\n');
+    fs.writeFileSync(path.join(ROOT, 'data', 'last-verify.log'), `verify run ${new Date().toISOString()} — port ${port}\n\n${log}\n`);
+  } catch { /* data/ missing in fresh checkouts — non-fatal */ }
 }
 
 console.log('\n=== verify summary ===');
 let failed = 0;
-for (const [name, code] of results) {
-  const ok = code === 0;
+for (const [name, r] of results) {
+  const ok = r.code === 0;
   if (!ok) failed++;
-  console.log(`  ${ok ? '✔' : '✘'} ${name}${ok ? '' : ` (exit ${code})`}`);
+  console.log(`  ${ok ? '✔' : '✘'} ${name}${ok ? '' : ` (exit ${r.code})`}`);
 }
 if (results.length < 4) {
   console.log('  ✘ (not all four steps ran — see the abort message above)');
