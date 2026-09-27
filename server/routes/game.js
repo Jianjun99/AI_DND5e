@@ -107,12 +107,27 @@ router.post('/start', async (req, res) => {
       if (curse) curse.apply({ engine, state, events });
     });
   }
-  if (carryItems.length || pendingCurses.length) {
+  // road-encounter boons bought on the way here (shrine pray / offering)
+  const roadBoons = (char.pendingRoadBoons || []).slice();
+  const roadPlayer = state.entities.find(e => e.kind === 'player');
+  roadBoons.forEach(boon => {
+    if (boon === 'shrine_temp_hp' && roadPlayer) {
+      roadPlayer.tempHp = (roadPlayer.tempHp || 0) + 5;
+      events.push({ type: 'boon', narrate: true, text: '路途神殿的余温仍在——+5 临时生命伴随你进入地牢。' });
+    }
+    if (boon === 'shrine_blessed' && roadPlayer) {
+      roadPlayer.buffs = roadPlayer.buffs || [];
+      roadPlayer.buffs.push({ id: 'blessed', rounds: 480 });
+      events.push({ type: 'boon', narrate: true, text: '黎明母亲的祝福落在你眉间——本次冒险中攻击检定获得 +1d4。' });
+    }
+  });
+  if (carryItems.length || pendingCurses.length || roadBoons.length) {
     const chars = store.getCharacters();
     const idx = chars.findIndex(c => c.id === char.id);
     if (idx >= 0) {
       chars[idx].pendingDelveItems = [];
       chars[idx].pendingCurses = [];
+      chars[idx].pendingRoadBoons = [];
       store.saveCharacters(chars);
     }
   }

@@ -22,6 +22,7 @@ export const api = {
   equipCharacter: (id, slot, itemId) => req('POST', `/api/characters/${id}/equip`, { slot, itemId }),
   levelUpOptions: (id) => req('GET', `/api/characters/${id}/level-up-options`),
   levelUpCharacter: (id, choices) => req('POST', `/api/characters/${id}/level-up`, choices),
+  roadEncounter: (id, outcome) => req('POST', `/api/characters/${id}/road-encounter`, { outcome }),
 
   listSaves: () => req('GET', '/api/game'),
   startGame: (characterId, bringAlly, difficulty, mapId) => req('POST', '/api/game/start', { characterId, bringAlly, difficulty, mapId }),

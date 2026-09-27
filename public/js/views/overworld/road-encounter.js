@@ -171,9 +171,11 @@ export function showRoadEncounterModal(char, mapId, embarkCallback) {
           if (total >= 11) {
             char.gold = (char.gold || 0) + 25;
             char.xp = (char.xp || 0) + 50;
+            api.roadEncounter(char.id, 'ambush_win').catch(() => {});
             render(`<b style="color:var(--green)">Victory! (Roll ${roll}+${fightMod} = ${total} vs DC 11)</b><br>You strike down their leader and send the survivors running into the dark trees. You loot <b>+25 GP</b> from their pouches and earn <b>+50 XP</b>!`);
           } else {
             char.hp = Math.max(1, (char.hp || char.hpMax) - 3);
+            api.roadEncounter(char.id, 'ambush_wound').catch(() => {});
             render(`<b style="color:var(--red)">Staggered! (Roll ${roll}+${fightMod} = ${total} vs DC 11)</b><br>The goblins shoot a volley as they scatter! You take a stinging arrow graze (<b>-3 HP</b>, current HP: ${char.hp}/${char.hpMax}) before driving them off.`);
           }
           wireContinue();
@@ -183,6 +185,7 @@ export function showRoadEncounterModal(char, mapId, embarkCallback) {
           if ((char.gold || 0) < 10) return;
           resolved = true;
           char.gold -= 10;
+          api.roadEncounter(char.id, 'bribe').catch(() => {});
           render(`<b style="color:var(--gold)">Coins Scattered! (-10 GP)</b><br>The goblins eagerly scramble in the mud for the glittering coins, squabbling amongst themselves as you slip safely past.`);
           wireContinue();
         });
@@ -195,6 +198,7 @@ export function showRoadEncounterModal(char, mapId, embarkCallback) {
             render(`<b style="color:var(--green)">Unseen! (Roll ${roll}+${stealthMod} = ${total} vs DC 12)</b><br>You slide through the tall ferns like a phantom. The goblins stare down an empty road while you slip quietly into the dungeon entrance!`);
           } else {
             char.hp = Math.max(1, (char.hp || char.hpMax) - 2);
+            api.roadEncounter(char.id, 'sneak_wound').catch(() => {});
             render(`<b style="color:var(--red)">Spotted! (Roll ${roll}+${stealthMod} = ${total} vs DC 12)</b><br>A twig snaps loudly! A goblin shouts and looses an arrow that clips your shoulder (<b>-2 HP</b>, current HP: ${char.hp}/${char.hpMax}) as you dash for cover.`);
           }
           wireContinue();
@@ -254,6 +258,7 @@ export function showRoadEncounterModal(char, mapId, embarkCallback) {
         document.getElementById('optPray').addEventListener('click', () => {
           resolved = true;
           char.tempHp = (char.tempHp || 0) + 5;
+          api.roadEncounter(char.id, 'shrine_pray').catch(() => {});
           render(`<b style="color:var(--blue)">Dawnmother's Vitality!</b><br>A soothing solar warmth fills your chest. You feel invigorated and ready for battle. (<b>+5 Temp HP</b> added!)`);
           wireContinue();
         });
@@ -263,6 +268,7 @@ export function showRoadEncounterModal(char, mapId, embarkCallback) {
           resolved = true;
           char.gold -= 5;
           char.blessed = true;
+          api.roadEncounter(char.id, 'shrine_offer').catch(() => {});
           render(`<b style="color:var(--gold)">Divine Blessing Bestowed! (-5 GP)</b><br>The silver and gold coins gleam in the sacred bowl. A radiant aura settles upon your brow (<b>Heroic Inspiration</b> granted for the delve ahead!).`);
           wireContinue();
         });

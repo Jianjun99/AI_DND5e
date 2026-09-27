@@ -63,6 +63,37 @@ router.put('/:id', (req, res) => {
   res.json(char);
 });
 
+// Road-encounter outcomes (wandering peddler / goblin ambush / wayside shrine).
+// The client rolls the flavor check and shows the prose; the server applies the
+// fixed outcome so the gold / XP / wounds actually persist. Delve-scoped boons
+// ride along as pendingRoadBoons and are applied by POST /api/game/start.
+const ROAD_ENCOUNTER_OUTCOMES = {
+  ambush_win: (char) => { char.gold = (char.gold || 0) + 25; char.xp = (char.xp || 0) + 50; },
+  ambush_wound: (char) => { char.hp = Math.max(1, (char.hp || char.hpMax) - 3); },
+  bribe: (char) => { char.gold = Math.max(0, (char.gold || 0) - 10); },
+  sneak_wound: (char) => { char.hp = Math.max(1, (char.hp || char.hpMax) - 2); },
+  shrine_pray: (char) => {
+    char.pendingRoadBoons = char.pendingRoadBoons || [];
+    char.pendingRoadBoons.push('shrine_temp_hp');
+  },
+  shrine_offer: (char) => {
+    char.gold = Math.max(0, (char.gold || 0) - 5);
+    char.pendingRoadBoons = char.pendingRoadBoons || [];
+    char.pendingRoadBoons.push('shrine_blessed');
+  }
+};
+
+router.post('/:id/road-encounter', (req, res) => {
+  const chars = store.getCharacters();
+  const char = chars.find(c => c.id === req.params.id);
+  if (!char) return res.status(404).json({ error: 'Character not found' });
+  const apply = ROAD_ENCOUNTER_OUTCOMES[req.body && req.body.outcome];
+  if (!apply) return res.status(400).json({ error: 'Unknown road-encounter outcome' });
+  apply(char);
+  store.saveCharacters(chars);
+  res.json({ ok: true, gold: char.gold, hp: char.hp, xp: char.xp, pendingRoadBoons: char.pendingRoadBoons || [] });
+});
+
 router.post('/:id/equip', (req, res) => {
   const chars = store.getCharacters();
   const char = chars.find(c => c.id === req.params.id);

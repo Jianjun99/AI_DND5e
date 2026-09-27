@@ -59,11 +59,21 @@ async function waitHealthy() {
   if (char.acBase !== 19) throw new Error(`Expected AC 19 (chain mail 16 + shield 2 + Defense style 1), got ${char.acBase}`);
   console.log(`✔ character created: ${char.name} — ${char.hpMax} HP, ${char.acBase} AC`);
 
+  // road-encounter outcomes persist to the roster and ride into the delve as boons
+  const roadGoldBefore = (await req('GET', `/api/characters/${char.id}`)).gold;
+  const offered = await req('POST', `/api/characters/${char.id}/road-encounter`, { outcome: 'shrine_offer' });
+  await req('POST', `/api/characters/${char.id}/road-encounter`, { outcome: 'shrine_pray' });
+  if (offered.gold !== roadGoldBefore - 5 || !(offered.pendingRoadBoons || []).includes('shrine_blessed')) {
+    throw new Error('Road-encounter outcome did not persist to the roster');
+  }
+
   const game = await req('POST', '/api/game/start', { characterId: char.id, bringAlly: false });
   const sid = game.state.id;
   const player = game.state.entities.find(e => e.kind === 'player');
   if (player.x !== 4 || player.y !== 4) throw new Error(`Expected start (4,4), got (${player.x},${player.y})`);
-  console.log(`✔ delve started: ${sid}`);
+  if (player.tempHp !== 5) throw new Error(`Expected shrine temp HP 5 at delve start, got ${player.tempHp}`);
+  if (!(player.buffs || []).some(b => b.id === 'blessed')) throw new Error('Shrine blessing buff missing at delve start');
+  console.log(`✔ delve started: ${sid} (road-encounter boons applied: +5 temp HP, blessed)`);
 
   // Marla's shop: player starts within 3 tiles of her stall
   const goldBefore = game.state.character.gold;
