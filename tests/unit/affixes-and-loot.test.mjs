@@ -180,7 +180,8 @@ test('Venomous champion poisons its victim with disadvantage on attacks', () => 
   let poisoned = false;
   let timedBuff = false;
   for (let i = 0; i < 12 && !poisoned; i++) {
-    p.hp = p.hpMax;   // death wipes buffs, so the victim must survive the loop
+    p.hpMax = 999; p.hp = 999;   // unkillable victim: a killing blow wipes buffs while the
+                                 // condition lingers, which made this test flaky in CI
     const ev = [];
     engine.monsterAttack(state, mon, p, alwaysHits, ev);
     if (p.conditions.includes('poisoned')) {
