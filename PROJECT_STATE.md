@@ -14,15 +14,24 @@
 
 | 优先级 | 任务 | 说明 |
 |---|---|---|
+| 高 | 修复：路上遭遇的奖励/惩罚从不落库 | `showRoadEncounterModal` 只改内存里的 char（伏击 +25gp/+50xp 或扣血、神殿祝福、贿赂等），但 embark 调 `api.startGame(characterId, …)` 只传 id——服务器重读自己的持久化角色，**遭遇结算全部丢失**（v1.5.0 起就存在，路上遇到的东西白遇）。修法需设计：开局前先把遭遇结果持久化，或让 startGame 接受角色快照 |
 | 高 | 保持 ARCHITECTURE.md 同步 | 每个版本更新后刷新它；它是 AI 协作的核心上下文 |
-| 中 | 缩减 play.js（1886 行）与 overworld.js（1733 行） | 拆成 view 渲染 / 事件绑定 / 面板三块；以 entity-visibility.js「纯函数模块 + 单元测试」为模板；闭包耦合少于引擎，可以安全做 |
-| 低 | 回收类型修复时标记的可疑点 | creator.js 背景特长的额外技能硬编码 `slice(0,2)`（应读 feat 的 `extraSkillPicks`）+ 一处双空串死三元；play.js difficulty 单选读取无兜底（模板恒有 checked，当前不可达）、`personaQuickSelect` / `data-useitem` / `data-equip-slot` / `data-unequip-slot` 疑似无创建点的死代码；overworld.js 路遇弹窗 `continueDelveBtn` 未判空 |
 | 中 | companion 个性化 | Bram/Valeria/Aldous 已有 AI 队友逻辑，加忠诚度 + DM 吐槽成本低 |
 | 低 | PWA / 离线缓存 | 游戏已经是无构建 vanilla JS，加 service worker 即可离线 |
 | 低 | 更多 ASI 特长 | 已有 5 个（Tough/Alert/Lucky/Healer/Savage Attacker），加更多提升 build 多样性 |
 | 不做 | 引擎物理拆分 | 循环依赖太深（combat ↔ world ↔ interaction ↔ progression），拆了反而更难；等 JSDoc 类型全覆盖后再评估 |
 | 不做 | React/Vue/打包器 | 无构建 + 离线是核心设计；ES modules 原生够用 |
 | 不做 | AI 生成场景插图 | Google key 的图片配额不稳定；头像已覆盖视觉识别 |
+
+## play.js / overworld.js 拆分（v1.9.1 之后进行，未发布）
+- play.js **1843 → 1326 行**，overworld.js **1739 → 540 行**。新模块（无构建 ES modules，工厂 + ctx 显式依赖，live 状态走 getter）：
+  - `public/js/views/play/panels.js`——商店/日志/检定弹窗/结算面板，`createPanels(ctx)`
+  - `public/js/views/play/ribbon.js`——战术先攻条，`renderInitiativeRibbon(game, onSelectTarget)`
+  - `public/js/views/play/delve-inventory.js`——背包装备弹窗，`createDelveInventory(ctx)`
+  - `public/js/views/overworld/districts.js`——六城区渲染器 + 事件 + 赌桌状态，`createDistricts(ctx)`（gamble 五个状态变量已 grep 验证仅拆出集使用，整体移入；`hallFilter` 由 attachHeaderEvents 写、renderHallOfHeroes 读，留在 overworld.js 按引用传递）
+  - `public/js/views/overworld/road-encounter.js`——路上遭遇弹窗，直接导出 `showRoadEncounterModal`（无工厂，只用自身参数 + imports）
+- **有意保留在 play.js 的**：renderSide / combatHud / wireSide 侧栏子系统——wireSide 的升级处理器直接写 `game.character` / 重赋 `game`，与核心状态是控制器级耦合，抽出 = 搬运 12 个依赖而非消除。未来要拆，先给 game 状态做显式 setter 层。
+- 顺手修的可疑点：creator.js 额外技能上限改读 feat 的 `extraSkillPicks` + 死三元删除；play.js difficulty 单选读取加 `|| 'normal'` 兜底；play.js 删除三块死代码（`personaQuickSelect`、`data-useitem`、`data-equip-slot`/`data-unequip-slot`——真实功能走 `data-delve-inv-*`，改属性名时的遗留）；overworld.js 路遇弹窗按钮判空。
 
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）

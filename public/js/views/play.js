@@ -4,7 +4,10 @@ import { esc, toast, state as appState, charObjective, campaignObjective } from 
 import { createMapRenderer } from '../map.js';
 import { createMap3D } from '../map3d.js';
 import { openSettingsModal } from './settings.js';
-import { showDice, rollAnimated } from '../dice.js';
+import { createPanels } from './play/panels.js';
+import { createDelveInventory } from './play/delve-inventory.js';
+import { renderInitiativeRibbon } from './play/ribbon.js';
+import { showDice } from '../dice.js';
 import { sfx } from '../sfx.js';
 import { tts } from '../tts.js';
 import { initTooltips } from '../tooltip.js';
@@ -72,7 +75,7 @@ export async function playView(main, saveRef) {
       </div>`;
     document.getElementById('beginBtn').addEventListener('click', async () => {
       const mapId = (/** @type {HTMLInputElement} */ (document.querySelector('input[name="mapPick"]:checked') || {})).value || 'crypt';
-      const difficulty = /** @type {HTMLInputElement} */ (document.querySelector('input[name="difficulty"]:checked')).value;
+      const difficulty = (/** @type {HTMLInputElement} */ (document.querySelector('input[name="difficulty"]:checked') || {})).value || 'normal';
       const companionChoice = (/** @type {HTMLInputElement} */ (document.querySelector('input[name="companionPick"]:checked') || {})).value || 'bram';
       const bringAlly = companionChoice === 'none' ? false : companionChoice;
       try {
@@ -512,7 +515,7 @@ export async function playView(main, saveRef) {
       e.preventDefault();
       const existing = document.getElementById('delveInventoryModal');
       if (existing) existing.remove();
-      else openDelveInventoryModal();
+      else delveInv.openDelveInventoryModal();
     }
     if ((e.key === 'f' || e.key === 'F') && activeView === '3d') {
       e.preventDefault();
@@ -578,176 +581,18 @@ export async function playView(main, saveRef) {
   }
 
   // Marla's shop
-  function openShop(merchantName = 'Marla the Peddler', merchantId = 'marla') {
-    let modal = document.getElementById('shopModal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.className = 'modal-back';
-      modal.id = 'shopModal';
-      document.body.appendChild(modal);
-    }
-    const items = appState.rules.shop || [];
-    const render = () => {
-      modal.innerHTML = `
-        <div class="modal">
-          <h2>🧺 ${esc(merchantName)}</h2>
-          <p class="muted small">"Potions, tools, and luck, dear — I sell the first two."</p>
-          <p class="small">Your gold: <b style="color:var(--gold)">${game.character.gold} gp</b></p>
-          ${items.map(i => `
-            <div class="stat-line" data-item-tooltip="${i.id}" style="cursor:help;"><span>${i.name} <span class="muted small">— ${esc(i.desc)}</span></span>
-              <span><button class="btn small" data-buy="${i.id}" ${game.character.gold >= i.price ? '' : 'disabled'}>${i.price} gp</button></span></div>`).join('')}
-          <div style="margin-top:12px; display:flex; gap:8px; justify-content:center;">
-            <button class="btn small" id="talkMarla">💬 Talk to the trader</button>
-            <button class="btn small" id="closeShop">Leave</button>
-          </div>
-        </div>`;
-      initTooltips(modal, appState.rules);
-      modal.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', async () => {
-        await act({ type: 'buy', itemId: /** @type {HTMLButtonElement} */ (b).dataset.buy });
-        render();
-      }));
-      document.getElementById('closeShop').addEventListener('click', () => modal.remove());
-      document.getElementById('talkMarla').addEventListener('click', () => {
-        activeNpc = { id: merchantId, name: merchantName };
-        modal.remove();
-        update();
-        document.getElementById('chatInput')?.focus();
-      });
-    };
-    render();
-  }
-
-  // The adventurer's journal (LLM-written recaps)
-  function openJournal() {
-    const entries = game.journal || [];
-    let modal = document.getElementById('journalModal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.className = 'modal-back';
-      modal.id = 'journalModal';
-      document.body.appendChild(modal);
-    }
-    modal.innerHTML = `
-      <div class="modal" style="text-align:left; max-height:80vh; overflow-y:auto;">
-        <h2>📖 Adventurer's Journal</h2>
-        ${entries.length ? entries.map(e2 => `
-          <div class="card" style="margin:10px 0; background:var(--bg2);">
-            <p class="small muted" style="margin-bottom:6px;">${new Date(e2.ts).toLocaleString()}</p>
-            <p style="font-family:var(--font-serif); font-size:14.5px;">${esc(e2.text)}</p>
-          </div>`).join('')
-        : '<p class="muted" style="margin:14px 0;">Your journal is empty. Write an entry at the campfire — every long rest adds one.</p>'}
-        ${(game.quests?.completed || []).length ? `
-          <h3 style="margin-top:14px;">📜 Completed side quests</h3>
-          ${game.quests.completed.map(q => `<div class="stat-line"><span>${esc(q.shortText)}</span><span>+${q.reward.gold} gp · +${q.reward.xp} XP</span></div>`).join('')}` : ''}
-        <div style="text-align:center; margin-top:12px;">
-          <button class="btn small" id="closeJournal">Close</button>
-        </div>
-      </div>`;
-    document.getElementById('closeJournal').addEventListener('click', () => modal.remove());
-  }
-
-  function openSkillCheckModal(obj) {
-    let modal = document.getElementById('skillCheckModal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.className = 'modal-back';
-      modal.id = 'skillCheckModal';
-      document.body.appendChild(modal);
-    }
-    const char = game.character;
-    const isTrap = obj.type === 'trap';
-    const strMod = Math.floor(((char.abilities?.str || 10) - 10) / 2);
-    const dexMod = Math.floor(((char.abilities?.dex || 10) - 10) / 2);
-    const profBonus = Math.floor(((char.level || 1) - 1) / 4) + 2;
-    const hasTools = (char.inventory || []).some(i => i.itemId === 'thieves_tools' || i.itemId === 'tool_thieves');
-    const hasSleight = (char.skills || []).includes('sleight_of_hand');
-    const hasAthletics = (char.skills || []).includes('athletics');
-
-    const pickMod = dexMod + ((hasTools || hasSleight) ? profBonus : 0);
-    const forceMod = strMod + (hasAthletics ? profBonus : 0);
-    const disarmMod = dexMod + ((hasTools || hasSleight) ? profBonus : 0);
-
-    const pickDc = obj.pickDc || 12;
-    const forceDc = obj.forceDc || 14;
-    const trapDc = obj.dc || 12;
-
-    const render = () => {
-      if (isTrap) {
-        modal.innerHTML = `
-          <div class="modal" style="max-width:440px;">
-            <h2>⚠️ ${esc(obj.name || 'Concealed Trap')}</h2>
-            <p class="small muted">A mechanical hazard is revealed before you. You can attempt to disable its triggers, but tripping it will detonate the mechanism.</p>
-            <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:8px; padding:12px; margin:12px 0;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <span><b>Disarm Mechanism</b></span>
-                <span class="badge" style="color:var(--accent);">DC ${trapDc}</span>
-              </div>
-              <p class="small muted" style="margin:0 0 10px 0;">Sleight of Hand: DEX (${dexMod >= 0 ? '+'+dexMod : dexMod})${hasTools ? ' + ' + profBonus + ' Tools' : hasSleight ? ' + ' + profBonus + ' Prof' : ''} = <b>${disarmMod >= 0 ? '+'+disarmMod : disarmMod}</b></p>
-              <button class="btn primary" id="btnDisarm" style="width:100%;">🎲 Roll d20 Disarm Check</button>
-            </div>
-            <div style="text-align:center; margin-top:8px;">
-              <button class="btn small" id="closeSkillModal">Step Away</button>
-            </div>
-          </div>`;
-      } else {
-        modal.innerHTML = `
-          <div class="modal" style="max-width:460px;">
-            <h2>🔒 ${esc(obj.name || 'Locked Chest')}</h2>
-            <p class="small muted">The iron hinges and lock hold firm against casual inspection. Choose an approach to crack the lock.</p>
-            <div style="display:flex; flex-direction:column; gap:10px; margin:14px 0;">
-              <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:8px; padding:12px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <span>🗝️ <b>Pick Tumbler Lock</b></span>
-                  <span class="badge" style="color:var(--accent);">DC ${pickDc}</span>
-                </div>
-                <p class="small muted" style="margin:0 0 10px 0;">Sleight of Hand: DEX (${dexMod >= 0 ? '+'+dexMod : dexMod})${hasTools ? ' + ' + profBonus + ' Tools' : hasSleight ? ' + ' + profBonus + ' Prof' : ''} = <b>${pickMod >= 0 ? '+'+pickMod : pickMod}</b></p>
-                <button class="btn" id="btnPick" style="width:100%;">🎲 Pick Lock (Roll d20 + ${pickMod})</button>
-              </div>
-
-              <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:8px; padding:12px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <span>🔨 <b>Pry / Shatter Lock</b></span>
-                  <span class="badge" style="color:var(--accent);">DC ${forceDc}</span>
-                </div>
-                <p class="small muted" style="margin:0 0 10px 0;">Athletics / Force: STR (${strMod >= 0 ? '+'+strMod : strMod})${hasAthletics ? ' + ' + profBonus + ' Prof' : ''} = <b>${forceMod >= 0 ? '+'+forceMod : forceMod}</b></p>
-                <button class="btn" id="btnForce" style="width:100%;">🔨 Force Open (Roll d20 + ${forceMod})</button>
-              </div>
-            </div>
-            <div style="text-align:center; margin-top:8px;">
-              <button class="btn small" id="closeSkillModal">Leave Chest</button>
-            </div>
-          </div>`;
-      }
-
-      document.getElementById('closeSkillModal').addEventListener('click', () => modal.remove());
-
-      if (isTrap) {
-        document.getElementById('btnDisarm').addEventListener('click', async () => {
-          /** @type {HTMLButtonElement} */ (document.getElementById('btnDisarm')).disabled = true;
-          const nat = await rollAnimated(20, 'Disarm Trap');
-          const total = nat + disarmMod;
-          modal.remove();
-          await act({ type: 'skillCheckObject', objectId: obj.id, rollTotal: total });
-        });
-      } else {
-        document.getElementById('btnPick').addEventListener('click', async () => {
-          /** @type {HTMLButtonElement} */ (document.getElementById('btnPick')).disabled = true;
-          const nat = await rollAnimated(20, 'Pick Lock');
-          const total = nat + pickMod;
-          modal.remove();
-          await act({ type: 'skillCheckObject', objectId: obj.id, method: 'pick', rollTotal: total });
-        });
-        document.getElementById('btnForce').addEventListener('click', async () => {
-          /** @type {HTMLButtonElement} */ (document.getElementById('btnForce')).disabled = true;
-          const nat = await rollAnimated(20, 'Force Lock');
-          const total = nat + forceMod;
-          modal.remove();
-          await act({ type: 'skillCheckObject', objectId: obj.id, method: 'force', rollTotal: total });
-        });
-      }
-    };
-    render();
-  }
+// Shop / journal / skill-check / summary panels live in play/panels.js —
+  // they read live state through getGame and dispatch through act.
+  const panels = createPanels({
+    getGame: () => game,
+    act,
+    onShopTalk: (merchantId, merchantName) => {
+      activeNpc = { id: merchantId, name: merchantName };
+      update();
+      document.getElementById('chatInput')?.focus();
+    },
+    onSummaryRespawn: () => { summaryShown = false; act({ type: 'respawn' }); }
+  });
 
   const SFX_MAP = {
     attack: 'attack', attack_in: 'attack', spell_hit: 'spell', cast_flavor: 'spell', save: 'dice',
@@ -777,65 +622,11 @@ export async function playView(main, saveRef) {
   }
 
   function updateInitiativeRibbon() {
-    const container = document.getElementById('initiativeRibbonContainer');
-    if (!container) return;
-    if (game.mode !== 'combat' || !game.combat || !game.combat.order || !game.combat.order.length) {
-      container.style.display = 'none';
-      return;
-    }
-    container.style.display = 'block';
-    const c = game.combat;
-    const cardsHtml = c.order.map((o, idx) => {
-      const isPlayer = o.id === 'player';
-      const ent = isPlayer ? game.entities.find(e => e.kind === 'player') : game.entities.find(e => e.id === o.id);
-      const hp = ent ? (ent.hp ?? 1) : 1;
-      const hpMax = ent ? (ent.hpMax ?? 1) : 1;
-      const pct = Math.max(0, Math.min(100, Math.round((hp / hpMax) * 100)));
-      const isDead = ent && ent.alive === false;
-      const isActive = idx === c.turnIdx;
-      const fillClass = pct < 25 ? 'danger' : pct < 50 ? 'warn' : '';
-      const avatar = isPlayer ? '🧙' : (ent?.icon || (isDead ? '💀' : '👾'));
-      const elite = !isPlayer && ent && ent.isElite;
-      const eliteTag = elite
-        ? `<span class="elite-monster-label" style="--elite-color:${esc((ent.affix && ent.affix.color) || '#f59e0b')}" title="${esc((ent.affix && ent.affix.desc) || 'Elite Champion')}">★ ${esc((ent.affix && ent.affix.name) || '')}</span>`
-        : '';
-      return `
-        <div class="initiative-card ${isActive ? 'active' : ''} ${isDead ? 'dead' : ''} ${elite ? 'elite' : ''}" data-target-id="${o.id}" title="${esc(o.name)} (${hp}/${hpMax} HP, AC ${ent?.ac || 10}, Init ${o.total})${elite ? ' — ' + esc((ent.affix && ent.affix.desc) || 'Elite Champion') : ''}">
-          <div class="init-avatar-token">${isDead ? '💀' : avatar}</div>
-          <div class="init-info-col">
-            <div class="init-name-row">
-              <span class="init-combatant-name">${esc(o.name.split(' ')[0])}</span>
-              ${eliteTag}
-              <span class="init-score-badge">${o.total}</span>
-            </div>
-            <div class="init-hp-track">
-              <div class="init-hp-fill ${fillClass}" style="width:${pct}%;"></div>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    container.innerHTML = `
-      <div class="initiative-ribbon">
-        <div class="initiative-round-tag">⚔ Rnd ${c.round}</div>
-        ${cardsHtml}
-      </div>
-    `;
-
-    container.querySelectorAll('.initiative-card:not(.dead)').forEach(card => {
-      /** @type {HTMLElement} */ (card).onclick = () => {
-        const targetId = /** @type {HTMLElement} */ (card).dataset.targetId;
-        if (targetId && targetId !== 'player') {
-          const ent = game.entities.find(e => e.id === targetId);
-          if (ent && ent.alive !== false) {
-            selectedTarget = ent;
-            appearanceShown = (game.appearances || {})[ent.monsterId] || null;
-            update();
-            sfx.play('dice');
-          }
-        }
-      };
+    renderInitiativeRibbon(game, (ent) => {
+      selectedTarget = ent;
+      appearanceShown = (game.appearances || {})[ent.monsterId] || null;
+      update();
+      sfx.play('dice');
     });
   }
 
@@ -954,7 +745,7 @@ export async function playView(main, saveRef) {
     }
     if (ent && (ent.kind === 'npc')) {
       if (['marla', 'perra'].includes(ent.npcId) && Math.abs(player().x - x) + Math.abs(player().y - y) <= 3) {
-        openShop(ent.npcId === 'perra' ? 'Perra the Pack Trader' : 'Marla the Peddler');
+        panels.openShop(ent.npcId === 'perra' ? 'Perra the Pack Trader' : 'Marla the Peddler');
         return;
       }
       act({ type: 'freeform', text: 'talk to ' + ent.name });
@@ -973,11 +764,11 @@ export async function playView(main, saveRef) {
         }
       }
       if (dist <= 1 && obj.type === 'trap' && obj.revealed && !obj.triggered && !obj.disarmed) {
-        openSkillCheckModal(obj);
+        panels.openSkillCheckModal(obj);
         return;
       }
       if (dist <= 1 && obj.type === 'chest' && !obj.looted && obj.locked && !obj.unlocked) {
-        openSkillCheckModal(obj);
+        panels.openSkillCheckModal(obj);
         return;
       }
       if (dist <= 1 && ['door', 'chest', 'stairs', 'barrel', 'font', 'lever', 'spores'].includes(obj.type)) { act({ type: 'interact', objectId: obj.id }); return; }
@@ -993,12 +784,12 @@ export async function playView(main, saveRef) {
     updateInitiativeRibbon();
     const invModal = document.getElementById('delveInventoryModal');
     if (invModal) {
-      renderDelveInventoryModal(invModal);
+      delveInv.renderDelveInventoryModal(invModal);
     }
     if ((game.mode === 'victory' || game.mode === 'over' || game.mode === 'retreat') && !summaryShown) {
       summaryShown = true;
       sfx.play((game.mode === 'victory' || game.mode === 'retreat') ? 'victory' : 'death');
-      openSummary();
+      panels.openSummary();
     }
     renderLog();
     const hint = document.getElementById('mapHint');
@@ -1014,345 +805,19 @@ export async function playView(main, saveRef) {
   const dmSettingsBtn = document.getElementById('dmSettingsBtn');
   if (dmSettingsBtn) dmSettingsBtn.addEventListener('click', () => openSettingsModal());
 
-  const pSelect = /** @type {HTMLSelectElement} */ (document.getElementById('personaQuickSelect'));
-  if (pSelect) {
-    pSelect.value = game.dmPersona || (appState.settings && appState.settings.llm && appState.settings.llm.persona) || 'classic';
-    pSelect.addEventListener('change', async () => {
-      game.dmPersona = pSelect.value;
-      try {
-        const s = await api.getSettings();
-        if (s && s.settings && s.settings.llm) {
-          s.settings.llm.persona = pSelect.value;
-          await api.saveSettings(s.settings);
-        }
-        toast(`DM Persona switched to ${pSelect.options[pSelect.selectedIndex].text}`);
-      } catch (e) {
-        toast(`DM Persona set to ${pSelect.options[pSelect.selectedIndex].text}`);
-      }
-    });
-  }
-
   // while delving, if there is a data-nav="settings" link, wire it to the modal
   const settingsLink = document.querySelector('[data-nav="settings"]');
   const onSettingsNav = (e) => { e.preventDefault(); e.stopPropagation(); openSettingsModal(); };
   if (settingsLink) settingsLink.addEventListener('click', onSettingsNav, true);
 
-  function openSummary() {
-    const st = game.stats || { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
-    const won = game.mode === 'victory';
-    const retreated = game.mode === 'retreat';
-    let modal = document.getElementById('summaryModal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.className = 'modal-back';
-      modal.id = 'summaryModal';
-      document.body.appendChild(modal);
-    }
-    const dismiss = () => {
-      if (modal && modal.parentNode) modal.parentNode.removeChild(modal);
-    };
-
-    modal.innerHTML = `
-      <div class="modal" style="position:relative; max-width:520px;">
-        <button class="btn small" id="closeSummaryX" style="position:absolute; top:12px; right:12px; min-width:32px; padding:4px 8px; font-weight:bold; cursor:pointer;" title="Close summary">✕</button>
-        <h2>${won ? '🏆 Delve Complete!' : (retreated ? '🏃 Retreated to Safety' : '💀 The Delve Ends… for now')}</h2>
-        <p class="muted small">${esc(game.character.name)} · ${esc(game.mapName)} · level ${game.character.level}</p>
-        <div class="stat-line"><span>⚔ Monsters slain</span><span>${st.kills || 0}</span></div>
-        <div class="stat-line"><span>🗡 Damage dealt</span><span>${st.dmgDealt || 0}</span></div>
-        <div class="stat-line"><span>🩸 Damage taken</span><span>${st.dmgTaken || 0}</span></div>
-        <div class="stat-line"><span>💰 Gold banked</span><span>${game.character.gold || 0} gp (+${st.goldFound || 0} found)</span></div>
-        <div class="stat-line"><span>⏱ Combat rounds</span><span>${st.rounds || 0}</span></div>
-        <div class="stat-line"><span>📜 Side quests done</span><span>${(game.quests && game.quests.completed || []).length}</span></div>
-        <div style="margin-top:16px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-          ${(won || retreated)
-            ? `<a class="btn primary sumNavBtn" href="#/overworld?char=${game.characterId}&return=${won ? 'victory' : 'retreat'}">🏰 Return to Oakhaven</a>
-               <a class="btn sumNavBtn" href="#/overworld?char=${game.characterId}">🗺️ Region Map</a>
-               <button class="btn" id="closeSummaryBtn">🔍 Review Delve</button>
-               <a class="btn sumNavBtn" href="#/">Home</a>`
-            : `<button class="btn primary" id="sumRespawn">🌅 Recover at camp</button>
-               <a class="btn sumNavBtn" href="#/overworld?char=${game.characterId}">🏰 Retreat to Town</a>
-               <button class="btn" id="closeSummaryBtn">🔍 Review Delve</button>
-               <a class="btn sumNavBtn" href="#/">Home</a>`}
-        </div>
-      </div>`;
-
-    // Automatically commit delve loot and progression back to persistent character
-    if (game.characterId && game.id) {
-      api.citySyncDelve({ charId: game.characterId, delveStateId: game.id }).catch(() => {});
-    }
-
-    modal.querySelectorAll('.sumNavBtn').forEach(btn => btn.addEventListener('click', dismiss));
-    const closeX = document.getElementById('closeSummaryX');
-    if (closeX) closeX.addEventListener('click', dismiss);
-    const closeBtn = document.getElementById('closeSummaryBtn');
-    if (closeBtn) closeBtn.addEventListener('click', dismiss);
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) dismiss();
-    });
-
-    const rr = document.getElementById('sumRespawn');
-    if (rr) rr.addEventListener('click', () => { dismiss(); summaryShown = false; act({ type: 'respawn' }); });
-  }
-
-  function openDelveInventoryModal() {
-    let modal = document.getElementById('delveInventoryModal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.className = 'modal-back';
-      modal.id = 'delveInventoryModal';
-      document.body.appendChild(modal);
-    }
-    renderDelveInventoryModal(modal);
-  }
-
-  function renderDelveInventoryModal(modal) {
-    if (!modal) modal = document.getElementById('delveInventoryModal');
-    if (!modal) return;
-    const char = game.character;
-    const eq = char.equipped || {};
-    const rules = appState.rules;
-
-    const getItemName = (id) => {
-      if (!id || id === 'none') return null;
-      const own = (char.inventory || []).find(i => i.uniqueId === id);
-      if (own && own.name) return own.name;
-      const w = rules.weapons.find(x => x.id === id);
-      const a = rules.armor.find(x => x.id === id);
-      const g = rules.gear.find(x => x.id === id);
-      return (w || a || g)?.name || id;
-    };
-
-    const getItemDesc = (id) => {
-      if (!id || id === 'none') return '';
-      const own = (char.inventory || []).find(i => i.uniqueId === id);
-      if (own && own.desc) return own.desc;
-      const w = rules.weapons.find(x => x.id === id);
-      if (w) return `${w.damage} ${w.damageType || ''}`;
-      const a = rules.armor.find(x => x.id === id);
-      if (a) return `AC ${a.ac}`;
-      const g = rules.gear.find(x => x.id === id);
-      if (g) return g.desc || (g.acBonus ? `+${g.acBonus} AC` : '');
-      return '';
-    };
-
-    const tooltipPayload = (id) => {
-      const own = (char.inventory || []).find(i => i.uniqueId === id);
-      if (own && own.rarity) return esc(JSON.stringify({ ...own, ...(rules.weapons.find(x => x.id === own.itemId) || {}) }));
-      return id;
-    };
-
-    const slots = [
-      { key: 'armor', label: '🦺 Armor', item: eq.armor, emptyText: 'Unarmored' },
-      { key: 'mainHand', label: '🗡️ Main Hand', item: eq.mainHand, emptyText: 'Unarmed' },
-      { key: 'offHand', label: '🛡️ Off-Hand', item: eq.offHand, emptyText: 'Empty' },
-      { key: 'cloak', label: '🧥 Cloak', item: eq.cloak, emptyText: 'None' },
-      { key: 'ring1', label: '💍 Ring', item: eq.ring1, emptyText: 'None' },
-    ];
-
-    modal.innerHTML = `
-      <div class="modal delve-inventory-modal" style="position:relative; max-width:680px; width:94%; max-height:86vh; display:flex; flex-direction:column; text-align:left; padding:20px 24px;">
-        <button class="btn small" id="closeDelveInvX" style="position:absolute; top:14px; right:14px; min-width:32px; padding:4px 8px; font-weight:bold; cursor:pointer;" title="Close">✕</button>
-        <h2 style="margin:0 0 4px; display:flex; align-items:center; gap:8px;">
-          🎒 Backpack & Equipment
-        </h2>
-        <div class="muted small" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-          <span>${esc(char.name)} · Level ${char.level} · AC ${acNow()} · Speed ${speedNow()} ft</span>
-          <span style="color:var(--gold); font-weight:600;">💰 ${char.gold || 0} gp</span>
-        </div>
-
-        <div style="font-size:12px; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">
-          ⚔️ Equipped Loadout
-        </div>
-        <div class="delve-inv-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(115px, 1fr)); gap:8px; margin-bottom:14px;">
-          ${slots.map(s => {
-            const hasItem = Boolean(s.item && s.item !== 'none');
-            return `
-              <div class="delve-inv-slot ${hasItem ? 'occupied' : ''}" style="background:var(--bg2); border:1px solid ${hasItem ? 'var(--gold-dim)' : 'var(--border)'}; border-radius:6px; padding:6px 8px; min-height:64px; display:flex; flex-direction:column; justify-content:space-between;" ${hasItem ? `data-item-tooltip="${tooltipPayload(s.item)}" style="cursor:help;"` : ''}>
-                <div>
-                  <div style="font-size:10px; text-transform:uppercase; color:var(--muted); font-weight:600;">${s.label}</div>
-                  <div style="font-size:12px; font-weight:600; color:${hasItem ? 'var(--gold)' : 'var(--muted)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                    ${hasItem ? esc(getItemName(s.item)) : s.emptyText}
-                  </div>
-                  ${hasItem && getItemDesc(s.item) ? `<div style="font-size:10px; color:var(--muted);">${esc(getItemDesc(s.item))}</div>` : ''}
-                </div>
-                ${hasItem ? `
-                  <button class="btn small" data-delve-inv-unequip="${s.key}" style="padding:1px 5px; font-size:10px; align-self:flex-start; margin-top:4px;">Doff / Stow</button>
-                ` : ''}
-              </div>
-            `;
-          }).join('')}
-        </div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <div style="font-size:12px; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px;">
-            📦 Backpack Inventory (${(char.inventory || []).length} items)
-          </div>
-          <span class="muted small">Click an item or button to use / equip</span>
-        </div>
-
-        <div class="delve-inv-scroll-list" style="flex:1; overflow-y:auto; border:1px solid var(--border); border-radius:6px; background:var(--bg); padding:6px 10px; max-height:280px;">
-          ${(char.inventory || []).length === 0 ? `
-            <div class="muted small" style="padding:16px; text-align:center;">Backpack is empty.</div>
-          ` : (char.inventory || []).map(i => {
-            const def = (rules.weapons || []).find(w => w.id === i.itemId)
-              || (rules.armor || []).find(w => w.id === i.itemId)
-              || (rules.gear || []).find(w => w.id === i.itemId);
-            const entry = { ...(def || {}), ...i }; // rolled affix gear keeps its own name, rarity and modifiers
-            const usable = def && (def.type === 'potion' || def.type === 'scroll');
-            const isWeapon = (rules.weapons || []).some(w => w.id === i.itemId);
-            const isArmor = (rules.armor || []).some(a => a.id === i.itemId && a.type !== 'shield');
-            const isShield = i.itemId === 'shield' || (def && def.type === 'shield') || i.type === 'shield';
-            const isCloak = i.itemId.includes('cloak');
-            const isRing = i.itemId.includes('ring');
-            const ref = i.uniqueId || i.itemId; // rolled items are addressed by unique id
-            const worn = (slot) => eq[slot] === ref || eq[slot] === i.itemId;
-
-            let actionHtml = '';
-            if (isWeapon) {
-              if (worn('mainHand')) {
-                actionHtml = `<span class="chip" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; margin:0;">Wielded</span>`;
-              } else {
-                actionHtml = `<button class="btn small" data-delve-inv-equip="mainHand" data-item="${ref}">Wield</button>`;
-              }
-            } else if (isArmor) {
-              if (worn('armor')) {
-                actionHtml = `<span class="chip" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; margin:0;">Worn</span>`;
-              } else {
-                actionHtml = `<button class="btn small" data-delve-inv-equip="armor" data-item="${ref}">Wear</button>`;
-              }
-            } else if (isShield) {
-              if (worn('offHand')) {
-                actionHtml = `<span class="chip" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; margin:0;">Shielded</span>`;
-              } else {
-                actionHtml = `<button class="btn small" data-delve-inv-equip="offHand" data-item="${ref}">Hold</button>`;
-              }
-            } else if (isCloak) {
-              if (worn('cloak')) {
-                actionHtml = `<span class="chip" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; margin:0;">Donned</span>`;
-              } else {
-                actionHtml = `<button class="btn small" data-delve-inv-equip="cloak" data-item="${ref}">Don</button>`;
-              }
-            } else if (isRing) {
-              if (worn('ring1')) {
-                actionHtml = `<span class="chip" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; margin:0;">Attuned</span>`;
-              } else {
-                actionHtml = `<button class="btn small" data-delve-inv-equip="ring1" data-item="${ref}">Attune</button>`;
-              }
-            }
-
-            const meta = i.rarity ? null : def;
-            const detail = i.desc || (meta && (meta.damage || meta.ac || meta.desc)
-              ? (meta.damage ? `${meta.damage} ${meta.damageType || ''}` : (meta.ac ? `AC ${meta.ac}` : meta.desc))
-              : '');
-
-            // experimental brews: hidden until identified or drunk
-            if (i.kind === 'mystery_potion') {
-              const kindTag = i.identified
-                ? (i.effect.kind === 'good' ? '🔵 有益' : i.effect.kind === 'bad' ? '🟣 有害' : '🟠 复杂')
-                : '❓ 未鉴定';
-              const row = i.identified
-                ? `${i.effect.name} — ${i.effect.desc}`
-                : (i.clues || []).join(' · ');
-              return `
-                <div class="stat-line item-row potion-row ${i.identified ? 'rarity-' + (i.effect.kind === 'good' ? 'magic' : i.effect.kind === 'bad' ? 'rare' : 'legendary') : 'potion-unknown'}"
-                     data-item-tooltip='${esc(JSON.stringify({ ...entry, rarity: i.identified ? (i.effect.kind === 'good' ? 'magic' : i.effect.kind === 'bad' ? 'rare' : 'legendary') : 'common' }))}' style="cursor:help; padding:6px 2px; align-items:center;">
-                  <div style="min-width:0; flex:1; padding-right:8px;">
-                    <span class="item-affix-tag ${i.identified ? 'rarity-magic-tag' : 'rarity-common-tag'}">${kindTag}</span>
-                    <span style="font-weight:600;">${esc(i.name)}</span>
-                    <span class="muted small" style="margin-left:6px;">(${esc(row)})</span>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                    <button class="btn small primary" data-delve-inv-use="${ref}">${i.identified ? '饮下' : '盲饮'}</button>
-                    <span class="muted small" style="min-width:26px; text-align:right;">×${i.qty}</span>
-                  </div>
-                </div>
-              `;
-            }
-
-            // delve-only prize tokens won at the tavern
-            if (i.kind === 'delve_token') {
-              return `
-                <div class="stat-line item-row rarity-legendary" data-item-tooltip='${esc(JSON.stringify(entry))}' style="cursor:help; padding:6px 2px; align-items:center;">
-                  <div style="min-width:0; flex:1; padding-right:8px;">
-                    <span class="item-affix-tag rarity-legendary-tag">⏳ 仅本场地牢</span>
-                    <span style="font-weight:600;">${esc(i.name)}</span>
-                    <span class="muted small" style="margin-left:6px;">(${esc(i.desc || '')})</span>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                    <button class="btn small primary" data-delve-inv-use="${ref}">使用</button>
-                    <span class="muted small" style="min-width:26px; text-align:right;">×${i.qty}</span>
-                  </div>
-                </div>
-              `;
-            }
-
-            return `
-              <div class="stat-line item-row ${i.rarity ? 'rarity-' + i.rarity : ''}" data-item-tooltip='${i.rarity ? esc(JSON.stringify(entry)) : i.itemId}' style="cursor:help; padding:6px 2px; align-items:center;">
-                <div style="min-width:0; flex:1; padding-right:8px;">
-                  ${i.rarity ? `<span class="item-affix-tag rarity-${i.rarity}-tag">${i.rarity === 'legendary' ? '🟠 传奇' : i.rarity === 'rare' ? '🟣 稀有' : '🔵 魔法'}</span>` : ''}
-                  <span style="font-weight:600;">${esc(i.name || (def ? def.name : i.itemId))}</span>
-                  ${detail ? `<span class="muted small" style="margin-left:6px;">(${esc(detail)})</span>` : ''}
-                </div>
-                <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                  ${usable && i.qty > 0 ? `<button class="btn small primary" data-delve-inv-use="${i.itemId}">Use</button>` : ''}
-                  ${actionHtml}
-                  <span class="muted small" style="min-width:26px; text-align:right;">×${i.qty}</span>
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-
-        <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center;">
-          <a href="#/sheet/${game.characterId}" target="_blank" class="btn small" title="Open full character sheet in new tab">📜 Full Character Sheet ↗</a>
-          <button class="btn primary" id="closeDelveInvDone">Done</button>
-        </div>
-      </div>
-    `;
-
-    initTooltips(modal, rules);
-
-    const dismiss = () => {
-      if (modal && modal.parentNode) modal.parentNode.removeChild(modal);
-    };
-
-    const closeX = modal.querySelector('#closeDelveInvX');
-    if (closeX) closeX.addEventListener('click', dismiss);
-    const closeDone = modal.querySelector('#closeDelveInvDone');
-    if (closeDone) closeDone.addEventListener('click', dismiss);
-    modal.onclick = (e) => {
-      if (e.target === modal) dismiss();
-    };
-
-    modal.querySelectorAll('[data-delve-inv-equip]').forEach(b => b.addEventListener('click', async () => {
-      const slot = b.dataset.delveInvEquip;
-      const itemId = b.dataset.item;
-      sfx.play('equip');
-      await act({ type: 'equip', slot, itemId });
-      toast(`Equipped ${itemId}!`);
-    }));
-
-    modal.querySelectorAll('[data-delve-inv-unequip]').forEach(b => b.addEventListener('click', async () => {
-      const slot = b.dataset.delveInvUnequip;
-      sfx.play('equip');
-      await act({ type: 'unequip', slot });
-      toast(`Unequipped ${slot}!`);
-    }));
-
-    modal.querySelectorAll('[data-delve-inv-use]').forEach(b => b.addEventListener('click', async () => {
-      const itemId = b.dataset.delveInvUse;
-      const def = (rules.gear || []).find(g => g.id === itemId);
-      if (def && def.type === 'scroll' && def.spell) {
-        const sp = (rules.spells || []).find(x => x.id === def.spell);
-        if (sp && ['enemy', 'burst'].includes(sp.target) && !selectedTarget) {
-          return toast('Target a creature first on the map.');
-        }
-        await act({ type: 'useItem', itemId, targetId: selectedTarget ? selectedTarget.id : 'player' });
-      } else {
-        await act({ type: 'useItem', itemId });
-      }
-    }));
-  }
+// Backpack & equipment modal lives in play/delve-inventory.js
+  const delveInv = createDelveInventory({
+    getGame: () => game,
+    act,
+    acNow,
+    speedNow,
+    getSelectedTarget: () => selectedTarget
+  });
 
   function renderSide() {
     const char = game.character;
@@ -1716,16 +1181,6 @@ export async function playView(main, saveRef) {
       useQuickSlot(idx);
     }));
 
-    document.querySelectorAll('[data-useitem]').forEach(b => b.addEventListener('click', () => {
-      const itemId = /** @type {HTMLElement} */ (b).dataset.useitem;
-      const def = appState.rules.gear.find(g => g.id === itemId);
-      if (def && def.type === 'scroll' && def.spell) {
-        const sp = appState.rules.spells.find(x => x.id === def.spell);
-        if (sp && ['enemy', 'burst'].includes(sp.target) && !selectedTarget) return toast('Target a creature first.');
-        act({ type: 'useItem', itemId, targetId: selectedTarget ? selectedTarget.id : 'player' });
-      } else act({ type: 'useItem', itemId });
-    }));
-
     document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
       const a = /** @type {HTMLButtonElement} */ (b).dataset.act;
       if (a === 'rest') act({ type: 'rest', kind: 'short' });
@@ -1738,11 +1193,11 @@ export async function playView(main, saveRef) {
       }
       if (a === 'search') act({ type: 'freeform', text: 'search the area carefully' });
       if (a === 'respawn') act({ type: 'respawn' });
-      if (a === 'journal') openJournal();
+      if (a === 'journal') panels.openJournal();
       if (a === 'recap') act({ type: 'recap' });
       if (a === 'askwork') act({ type: 'quest' });
       if (a === 'retreat') {
-        if (game.mode === 'retreat' || game.mode === 'victory') openSummary();
+        if (game.mode === 'retreat' || game.mode === 'victory') panels.openSummary();
         else act({ type: 'retreat' });
       }
       if (a === 'dodge') act({ type: 'dodge' });
@@ -1800,7 +1255,7 @@ export async function playView(main, saveRef) {
 
     const btnOpenInv = document.getElementById('btnOpenDelveInventory');
     if (btnOpenInv) {
-      btnOpenInv.addEventListener('click', () => openDelveInventoryModal());
+      btnOpenInv.addEventListener('click', () => delveInv.openDelveInventoryModal());
     }
 
     const toggleQuestFold = document.getElementById('toggleQuestFoldBtn');
@@ -1810,21 +1265,6 @@ export async function playView(main, saveRef) {
         renderSide();
       });
     }
-
-    document.querySelectorAll('[data-equip-slot]').forEach(b => b.addEventListener('click', async () => {
-      const slot = /** @type {HTMLElement} */ (b).dataset.equipSlot;
-      const itemId = /** @type {HTMLElement} */ (b).dataset.equipItem;
-      sfx.play('equip');
-      await act({ type: 'equip', slot, itemId });
-      toast(`Equipped ${itemId}!`);
-    }));
-
-    document.querySelectorAll('[data-unequip-slot]').forEach(b => b.addEventListener('click', async () => {
-      const slot = /** @type {HTMLElement} */ (b).dataset.unequipSlot;
-      sfx.play('equip');
-      await act({ type: 'unequip', slot });
-      toast(`Unequipped ${slot}!`);
-    }));
   }
 
   function renderCastMenu() {

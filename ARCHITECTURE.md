@@ -110,8 +110,13 @@ text can't contradict the world.
 | File | What it does |
 |---|---|
 | `public/js/app.js` | Hash router + shared helpers (`esc`, `toast`, `loadRules`) |
-| `public/js/views/play.js` | The delve screen: map render, action dispatch, combat HUD, backpack, guidance |
-| `public/js/views/overworld.js` | Region map, town hub (tavern / armory / apothecary / guildhall / hall), gambling, forge |
+| `public/js/views/play.js` | The delve screen entry: map render, action dispatch, combat HUD, side panel (`renderSide`/`combatHud`/`wireSide` stay here by design — the level-up handler reassigns `game` itself) |
+| `public/js/views/play/panels.js` | Delve panels extracted from play.js: shop / journal / skill-check / end-of-delve summary (`createPanels(ctx)`) |
+| `public/js/views/play/ribbon.js` | The tactical initiative ribbon (`renderInitiativeRibbon(game, onSelectTarget)`) |
+| `public/js/views/play/delve-inventory.js` | The in-delve backpack & equipment modal (`createDelveInventory(ctx)`) |
+| `public/js/views/overworld.js` | Region map + town hub entry: routing, header/map events, district switch |
+| `public/js/views/overworld/districts.js` | The six district renderers + their events + gambling state (`createDistricts(ctx)`) |
+| `public/js/views/overworld/road-encounter.js` | The road-encounter modal (`showRoadEncounterModal`) |
 | `public/js/views/campaign.js` | The four-act main story panel + epilogue |
 | `public/js/views/levelup.js` | Interactive level-up wizard (HP / subclass / ASI / spells) |
 | `public/js/map3d.js` | Three.js 2.5D diorama (camera, walking miniatures, exit beacon) |

@@ -293,12 +293,11 @@ export async function creatorView(main) {
     document.getElementById('plus2').addEventListener('change', e => { draft.bgPlus2 = /** @type {HTMLSelectElement} */ (e.target).value || null; if (draft.bgPlus1 === draft.bgPlus2) draft.bgPlus1 = null; renderBgOptions(container); refreshPreview(); });
     document.getElementById('plus1').addEventListener('change', e => { draft.bgPlus1 = /** @type {HTMLSelectElement} */ (e.target).value || null; refreshPreview(); });
     const es = /** @type {HTMLSelectElement} */ (document.getElementById('extraSkills'));
-    if (es) es.addEventListener('change', () => { draft.extraSkills = [...es.selectedOptions].map(o => o.value).slice(0, 2); });
+    if (es) es.addEventListener('change', () => { draft.extraSkills = [...es.selectedOptions].map(o => o.value).slice(0, rules.feats[bg.feat].extraSkillPicks || 2); });
   }
 
   // ---------------- step 5: abilities ----------------
   function stepAbilities(body) {
-    const used = Object.values(draft.baseScores);
     body.innerHTML = `
       <div class="card">
         <h2>Ability Scores</h2>
@@ -317,9 +316,8 @@ export async function creatorView(main) {
           <div class="ability-box">
             <div class="abbr">${k.toUpperCase()}</div>
             <select data-assign="${k}">${[15, 14, 13, 12, 11, 10, 9, 8].map(v => {
-              const taken = used.filter(x => x === v).length;
               const mine = draft.baseScores[k] === v;
-              return `<option value="${v}" ${mine ? 'selected' : ''} ${!mine && taken >= used.filter(x => x === draft.baseScores[k]).length && draft.method !== 'buy' ? '' : ''}>${v}</option>`;
+              return `<option value="${v}" ${mine ? 'selected' : ''}>${v}</option>`;
             }).join('')}</select>
             <div class="mod">${fmt(mod(draft.baseScores[k] + bgBonus(k)))}</div>
           </div>`).join('')}
