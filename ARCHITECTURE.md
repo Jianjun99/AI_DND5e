@@ -243,7 +243,7 @@ settlement (`sync-delve` filters them out).
 | `npx eslint .` | Duplicate declarations (the campfireOf bug), unused variables that used to be live wiring, undefined identifiers (the `char` crash) |
 | `npx tsc --noEmit` | Type mismatches via JSDoc + checkJs (missing fields, wrong argument counts, `undefined` reads). server/ **and all of public/js** are covered — the include list is a glob, so new files are checked automatically. The vendored Three.js import is mapped by `paths` to the permissive stub `public/js/vendor-three.d.ts`; shared window/document expandos live in `public/js/globals.d.ts` |
 | `node scripts/smoke-test.mjs` | End-to-end API chain: health → character → delve → shop → gamble → brew → forge → campaign → movement → combat → content packs |
-| `node scripts/test-all.mjs` | 14 suites: rules engine, miniatures, affixes & loot, board & camera, gambling & brews, forge & campaign, movement, combat, tactics, progression, and three headless-browser e2e suites (3D rendering, turn economy, device adaptation) |
+| `node scripts/test-all.mjs` | 15 suites: rules engine, miniatures, affixes & loot, board & camera, gambling & brews, forge & campaign, movement, combat, tactics, progression, and three headless-browser e2e suites (3D rendering, turn economy, device adaptation) |
 
 **Both `eslint` and `tsc` must pass with zero errors.** If you add a file with `// @ts-nocheck`,
 that is a deliberate opt-out — remove it as soon as the file is ready.
@@ -298,10 +298,10 @@ server/
 shared/               D&D 2024 rules + maps as JSON
 content/              shipped content packs (drowned-vault, howling-hills, sunlit-vale-expansion)
 public/               SPA frontend (views, renderers, sfx, tts, tooltip system)
-tests/                14 suites: unit (rules, miniatures, affixes, board, gambling, forge) +
+tests/                15 suites: unit (rules, miniatures, affixes, board, gambling, forge) +
                       integration (movement, combat, tactics, progression) +
                       e2e (3D rendering, turn economy, device adaptation)
-scripts/              smoke-test (CI) · test-all (14 suites) · balance-sim · verify (one command)
+scripts/              smoke-test (CI) · test-all (15 suites) · balance-sim · verify (one command)
 mcp/server.mjs        zero-dependency MCP server (stdio): run_verify / run_balance_sim /
                       query_rules / recent_failures — read-only by design
 ```

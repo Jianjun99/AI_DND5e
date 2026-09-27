@@ -27,14 +27,47 @@ function writeJson(file, value) {
   fs.renameSync(tmp, file);
 }
 
+// ---- save schema versioning ----
+// Writes stamp saveVersion; reads run the migration chain so older saves come
+// out in the current shape. Migrations only ADD fields — never drop or rewrite
+// player data, and a failed migration leaves the object usable rather than
+// unreadable. Version 2 = the first versioned shape (2026-09, v1.9.3); version
+// 1 means "pre-versioning legacy save".
+const SAVE_VERSION = 2;
+const MIGRATIONS = {
+  // 1 -> 2: nothing to transform yet — stamping the version is the migration.
+  // Future shape changes add their step here and bump SAVE_VERSION.
+  1: (obj) => obj
+};
+
+function migrateSave(obj, kind) {
+  if (!obj || typeof obj !== 'object') return obj;
+  let version = obj.saveVersion || 1;
+  if (version > SAVE_VERSION) return obj; // written by a newer build — leave untouched
+  while (version < SAVE_VERSION) {
+    const step = MIGRATIONS[version];
+    if (!step) { console.error(`store: no migration from saveVersion ${version} (${kind})`); break; }
+    try { step(obj); } catch (e) { console.error(`store: migration ${version} failed (${kind}): ${e.message}`); break; }
+    version++;
+  }
+  obj.saveVersion = SAVE_VERSION;
+  return obj;
+}
+
 // ---- characters ----
 const CHAR_FILE = path.join(DATA_DIR, 'characters.json');
-function getCharacters() { return readJson(CHAR_FILE, []); }
-function saveCharacters(list) { writeJson(CHAR_FILE, list); }
+function getCharacters() {
+  const list = readJson(CHAR_FILE, []);
+  return Array.isArray(list) ? list.map((c) => migrateSave(c, 'character')) : [];
+}
+function saveCharacters(list) {
+  (list || []).forEach((c) => { c.saveVersion = SAVE_VERSION; });
+  writeJson(CHAR_FILE, list);
+}
 
 // ---- game saves ----
-function getSave(id) { return readJson(path.join(SAVES_DIR, id + '.json'), null); }
-function saveGame(state) { writeJson(path.join(SAVES_DIR, state.id + '.json'), state); }
+function getSave(id) { return migrateSave(readJson(path.join(SAVES_DIR, id + '.json'), null), 'delve'); }
+function saveGame(state) { state.saveVersion = SAVE_VERSION; writeJson(path.join(SAVES_DIR, state.id + '.json'), state); }
 function deleteSave(id) { try { fs.unlinkSync(path.join(SAVES_DIR, id + '.json')); } catch {} }
 function listSaves() {
   try {
@@ -81,6 +114,7 @@ function saveSettings(next) {
 
 module.exports = {
   DATA_DIR,
+  SAVE_VERSION, migrateSave,
   getCharacters, saveCharacters,
   getSave, saveGame, deleteSave, listSaves,
   getSettings, saveSettings,

@@ -1,5 +1,8 @@
 # Task: 存档 schema 版本号 + 迁移钩子
 
+> ✅ **已实现**（v1.9.3 批次）：`server/store.js` 的 `SAVE_VERSION`/`migrateSave` +
+> `tests/unit/store-versioning.test.mjs`。本文件保留作为「迁移步骤怎么写」的参考。
+
 > 技术债。改存档形状的改动已经发生过多次（road boons、companionLoyalty、essence、
 > pendingDelveItems…），目前全靠宽容读取混过去；将来一次破坏性改动就会踩坑。
 

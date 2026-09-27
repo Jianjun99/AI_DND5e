@@ -20,7 +20,6 @@
 | 高 | 保持 ARCHITECTURE.md 同步 | 每个版本更新后刷新它；它是 AI 协作的核心上下文 |
 | 低 | [PWA / 离线缓存](tasks/pwa-offline-cache.md) | 游戏已经是无构建 vanilla JS，加 service worker 即可离线 |
 | 低 | [更多 ASI 特长](tasks/more-asi-feats.md) | 已有 5 个（Tough/Alert/Lucky/Healer/Savage Attacker），加更多提升 build 多样性 |
-| 低 | [存档 schema 版本号](tasks/save-schema-version.md) | 存档形状已多次演进，靠宽容读取硬扛；加 saveVersion + 迁移钩子铺路 |
 | 低 | [CDP e2e 闪红排查](tasks/cdp-flaky-investigation.md) | verify 三跑一闪红复跑即绿；找到根因或至少让失败自带诊断 |
 | 不做 | 引擎物理拆分 | 循环依赖太深（combat ↔ world ↔ interaction ↔ progression），拆了反而更难；等 JSDoc 类型全覆盖后再评估 |
 | 不做 | React/Vue/打包器 | 无构建 + 离线是核心设计；ES modules 原生够用 |
@@ -66,13 +65,26 @@
   殿堂页在主线进度卡下方渲染 🕯️ 深渊远征榜。progression 套件新增生成器测试
   （分支条件断言，RNG 安全）+ 殿堂断言。
 
+## MCP server + 存档版本化（未发布）
+- **MCP server**（`mcp/server.mjs`，零依赖手写 stdio JSON-RPC）：四个只读工具——
+  `run_verify`（完整验证）/ `run_balance_sim`（bot 胜率）/ `query_rules`
+  （查引擎数据表，无 id 返回 id 列表）/ `recent_failures`（读 data/last-verify.log 的失败行）。
+  `npm run mcp` 启动；客户端配置与边界（只读 + 跑既有脚本，无写档工具）见 AGENTS.md。
+  第 14 套件 `tests/unit/mcp-server.test.mjs` 走完整协议握手。
+- **verify 落盘**：`scripts/verify.mjs` 把全部步骤输出 tee 到 `data/last-verify.log`
+  （recent_failures 的数据源）。
+- **存档版本化**：`store.js` 写入打 `saveVersion`（当前 2），读取走 `migrateSave`
+  迁移链（只增不删、失败降级可用、未来版本原样放行）；第 15 套件
+  `tests/unit/store-versioning.test.mjs` 用临时 DATA_DIR 做真实读写测试。
+  **测试套件总数现为 15**（文档里的 13/14 已全部同步）。
+
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
 - Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.2,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
-- 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 14 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（14 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
+- 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 15 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（15 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
 - 架构文档：`ARCHITECTURE.md`（Mermaid 图）；模组指南：`MODDING.md`
 
 ## 当前版本：v1.9.2（已发布：视图模块拆分 + 路遇落库修复 + 队友忠诚度）
@@ -161,7 +173,7 @@
 
 ## 测试体系
 - `node scripts/smoke-test.mjs`：端到端基础链路健康度探针（CI 每次推送必跑，自动侦测 3000/3100 端口）
-- `node scripts/test-all.mjs` / `npm test`：全套 14 大测试套件，包含 D&D 2024 规则单元测试、
+- `node scripts/test-all.mjs` / `npm test`：全套 15 大测试套件，包含 D&D 2024 规则单元测试、
   3D 手办步态测试（含火龙/蜘蛛/史莱姆/火元素/活动铠甲）、精英词缀与战利品稀有度单元测试、
   地图棋盘可见性与镜头数学单元测试、移动/寻路/视野集成测试、战斗/动作集成测试、
   战术对抗（借机攻击/夹击/推撞）、角色升级（1-12 级与 6 环法术位）/地牢装备换装/楼层下潜/拓展地图集成测试、
