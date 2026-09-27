@@ -1,6 +1,6 @@
 # Task: PWA / 离线缓存
 
-> 对应 PROJECT_STATE 待办「低 | PWA / 离线缓存」。一个冷启动 AI 拿着本文件应当能独立完成。
+> ✅ **已实现**（v1.9.4 批次）：runtime 缓存策略比本规格更保守——HTML/JS/CSS network-first（本地改动即时生效），vendor/icons cache-first，/api 永不缓存。图标是 node zlib 生成的占位 PNG。
 
 ## 背景
 
