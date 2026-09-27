@@ -51,7 +51,7 @@
   加一行队友状态（alive/downed + 心情，允许 DM 给 TA 一句台词）。战斗集成测试 3 条
   （种子 / 倒下扣分 / 长休回涨）。
 
-## 深渊楼层变异 + 远征榜（未发布）
+## 深渊楼层变异 + 远征榜（v1.9.3 已发布）
 - `endless.js`：从第 2 层起每层掷一个**楼层变异**（纯数据旋钮）：`champions 精英横行`
   （map def 带 `eliteChance: 0.4`，引擎 `generateMapState` 读它替代默认 18%——非精英怪在
   hydrate 时套 `applyMonsterAffix`，视觉/战斗全走既有精英系统）、`swarm 群涌暗潮`
@@ -65,7 +65,7 @@
   殿堂页在主线进度卡下方渲染 🕯️ 深渊远征榜。progression 套件新增生成器测试
   （分支条件断言，RNG 安全）+ 殿堂断言。
 
-## MCP server + 存档版本化（未发布）
+## MCP server + 存档版本化（v1.9.3 已发布）
 - **MCP server**（`mcp/server.mjs`，零依赖手写 stdio JSON-RPC）：四个只读工具——
   `run_verify`（完整验证）/ `run_balance_sim`（bot 胜率）/ `query_rules`
   （查引擎数据表，无 id 返回 id 列表）/ `recent_failures`（读 data/last-verify.log 的失败行）。
@@ -81,13 +81,13 @@
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
-- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.2,…}`（多架构 amd64+arm64）
+- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.3,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
 - 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 15 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（15 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
 - 架构文档：`ARCHITECTURE.md`（Mermaid 图）；模组指南：`MODDING.md`
 
-## 当前版本：v1.9.2（已发布：视图模块拆分 + 路遇落库修复 + 队友忠诚度）
+## 当前版本：v1.9.3（已发布：深渊楼层变异与远征榜 + MCP server + 存档版本化）
 
 ## v1.9.1 发布内容（原「进行中」段落，转正）
 - **AI 协作入口**：根目录新增 `AGENTS.md`（地面规则正本 + 验证命令 + 硬约束速记 + 文档地图），
@@ -261,4 +261,5 @@ v1.0.0 首发 → v1.2.0 连通地牢+模组+任务 → v1.3.0 UI 修复 → v1.
 → v1.8.0 精英词缀怪物 + 战利品稀有度/词缀系统 + 视角解绑与平滑跟随 + 尸体移除修复 + 升级徽章一致性修复 + 酒馆赌桌 + 实验性魔药
 → v1.9.0 锻造台（余烬精华/重铸/升阶）+ 图鉴精英变体与首杀奖励 + 四幕主线战役与 AI 结局 + arm64 多架构镜像 + 手机/平板全站适配
 → v1.9.1 AI 协作基建（AGENTS.md/CLAUDE.md 入口）+ dmgType→damageType 统一 + tsc 全仓覆盖（含 public/js）+ 活动铠甲 3D 渲染崩溃修复 + 4 个测试套件假绿修复
-→ v1.9.2 视图模块拆分（play/panels·ribbon·delve-inventory，overworld/districts·road-encounter）+ 路遇落库修复 + 队友忠诚度（持久化心情 + 吐槽 + DM 台词）（当前）
+→ v1.9.2 视图模块拆分（play/panels·ribbon·delve-inventory，overworld/districts·road-encounter）+ 路遇落库修复 + 队友忠诚度（持久化心情 + 吐槽 + DM 台词）
+→ v1.9.3 深渊楼层变异（精英横行/群涌暗潮/鎏金之层）+ 队友深层台词 + 殿堂深渊远征榜 + 仓库自带 MCP server（四只读工具）+ 存档 schema 版本化（当前）
