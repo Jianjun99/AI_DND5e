@@ -81,12 +81,26 @@ console.log(`  Delve created: ${delveId}`);
 
 // 2. Launch Headless Browser
 const targetUrl = `${BASE_URL}/#/play/${delveId}`;
+// Kill any stale browser from a crashed previous run holding OUR profile dir —
+// historically the main source of instant CDP failures (tasks/cdp-flaky-investigation.md).
+const PROFILE_MARKER = path.join(os.tmpdir(), 'ai-dnd-e2e-9225');
+function killStaleBrowser() {
+  try {
+    if (process.platform === 'win32') {
+      spawnSync('powershell', ['-NoProfile', '-Command',
+        `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*${PROFILE_MARKER}*${path.sep}' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`],
+        { stdio: 'ignore' });
+    }
+  } catch {}
+}
+killStaleBrowser();
+
 const browserProc = spawn(browserBin, [
   '--headless=new',
   `--remote-debugging-port=${CDP_PORT}`,
   // private profile: isolates the run from any browser the user has open and keeps the
   // spawned pid the real browser process so cleanup can kill the whole tree
-  `--user-data-dir=${path.join(os.tmpdir(), 'ai-dnd-e2e-9225')}`,
+  `--user-data-dir=${PROFILE_MARKER}`,
   '--disable-gpu',
   '--no-sandbox',
   '--disable-dev-shm-usage',
@@ -106,7 +120,9 @@ async function waitForCDP() {
     } catch {}
     await new Promise(r => setTimeout(r, 200));
   }
-  throw new Error('CDP target timed out');
+  killStaleBrowser();
+  throw new Error('CDP target timed out after 60 attempts (CDP port 9225, profile ai-dnd-e2e-9225). ' +
+      'Stale processes holding the profile were force-cleaned — re-run once; if it fails again, check Task Manager for orphaned browser processes.');
 }
 
 const pageTarget = await waitForCDP();

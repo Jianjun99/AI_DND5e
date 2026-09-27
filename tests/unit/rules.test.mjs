@@ -140,9 +140,28 @@ test('Wizard character generation with INT spellcasting and spellbook', () => {
   assert(char.slots && char.slots[1] === 2, 'Wizard should have 2 lvl 1 spell slots');
 });
 
+// New ASI feats (v1.9.3): Observant / Speedy — both recompute-safe
+test('Observant boosts passive Perception and Speedy adds speed without stacking', () => {
+  const char = engine.buildCharacter({
+    name: 'Feat Tester', species: 'human', className: 'fighter', background: 'soldier',
+    baseScores: { str: 15, dex: 14, con: 14, int: 10, wis: 12, cha: 8 },
+    bgPlus2: 'str', bgPlus1: 'con', skills: ['athletics', 'perception'],
+    fightingStyle: 'defense', armorOption: 'chain_mail', weaponOption: 'sword_board'
+  });
+  const cls = engine.CLASSES.find((c) => c.id === 'fighter');
+  const baseSpeed = char.speedFt;
+  const basePp = engine.passivePerception(char);
+  char.unlockedFeats = ['observant', 'speedy'];
+  engine.applyClassAndSpecies(char, cls, null, char.level, true);
+  assert(char.speedFt === baseSpeed + 10, `Speedy grants +10 speed (got ${char.speedFt}, base ${baseSpeed})`);
+  assert(engine.passivePerception(char) === basePp + 5,
+    `Observant grants +5 passive perception (got ${engine.passivePerception(char)}, base ${basePp})`);
+  engine.applyClassAndSpecies(char, cls, null, char.level, true);
+  assert(char.speedFt === baseSpeed + 10, 'Speedy must not stack across recomputes');
+});
+
 // Level-up readiness — the one rule the HUD badge and the level-up endpoint must share
-test('levelUpInfo gates on the engine XP table at every boundary', () => {
-  const at = (level, xp) => engine.levelUpInfo({ level, xp });
+test('levelUpInfo gates on the engine XP table at every boundary', () => {  const at = (level, xp) => engine.levelUpInfo({ level, xp });
 
   const below = at(2, 899);
   assert(below.nextLevel === 3 && below.xpNeeded === 900 && below.canLevelUp === false,

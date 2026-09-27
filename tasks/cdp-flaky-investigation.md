@@ -10,6 +10,8 @@
 - 已知背景（PROJECT_STATE 测试体系节）：浏览器残留进程按 `--user-data-dir` 档案目录名
   PowerShell 杀；localStorage 串味要在测试开头重置键。
 
+> 🔍 **排查记录**（v1.9.4 批次）：瞬挂根因 = 残留浏览器进程占着本套件的 profile——三个套件启动前现已强制清理自己的 profile（killStaleBrowser），连接失败时报出端口与 profile 路径。**剩余偶发**：点击撞上 busy 窗口（固定 sleep 竞态，如 retreat 弹窗偶发缺失，复跑即绿）——根治要把固定 sleep 改成条件轮询，工程量在三个套件的时序重构，留作后续。
+
 ## 疑点清单（按概率）
 
 1. 三个浏览器套件背靠背跑，前一套的 Edge 进程树没死透，下一套抢 9225 超时。

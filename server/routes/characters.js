@@ -187,7 +187,11 @@ const FEAT_CHOICES = [
   { id: 'healer', name: 'Healer', desc: "Use a Healer's Kit as an action to restore 1d4 + 2 + level HP to an ally or yourself.", icon: '🩹' },
   { id: 'savage_attacker', name: 'Savage Attacker', desc: 'Once per turn, reroll weapon damage dice and use either total.', icon: '⚔️' },
   { id: 'tavern_brawler', name: 'Tavern Brawler', desc: 'Unarmed strikes deal 1d4 damage; shove opponents as a bonus action.', icon: '🍺' },
-  { id: 'skilled', name: 'Skilled', desc: 'Gain proficiency in 2 additional skills of your choice.', icon: '📖' }
+  { id: 'skilled', name: 'Skilled', desc: 'Gain proficiency in 2 additional skills of your choice.', icon: '📖' },
+  { id: 'observant', name: 'Observant', desc: 'Passive Perception +5. You notice what others miss.', icon: '👁️' },
+  { id: 'speedy', name: 'Speedy', desc: 'Your speed increases by 10 feet.', icon: '💨' },
+  { id: 'chef', name: 'Chef', desc: 'Short rests come with a hot meal: proficiency bonus temp HP for you and your ally.', icon: '🍳' },
+  { id: 'musician', name: 'Musician', desc: 'Campfire tunes after a long rest bless the party (+1d4 on attack rolls).', icon: '🎵' }
 ];
 
 router.get('/:id/level-up-options', (req, res) => {

@@ -78,6 +78,15 @@
   `tests/unit/store-versioning.test.mjs` 用临时 DATA_DIR 做真实读写测试。
   **测试套件总数现为 15**（文档里的 13/14 已全部同步）。
 
+## PWA + 新特长 + CDP 诊断（未发布）
+- **PWA**：public/sw.js（HTML/JS/CSS network-first、vendor/icons cache-first、/api 永不缓存——
+  本地改代码刷新即见，断网有壳）+ manifest + 占位图标（node zlib 生成 PNG）+ index.html 注册。
+- **新 ASI 特长 4 个**：Observant（被动察觉 +5，passivePerception 纯计算）、Speedy
+  （速度 +10，applyClassAndSpecies 全新赋值故重算安全）、Chef（短休全队 prof 临时 HP）、
+  Musician（长休全队 blessed buff）。升级向导选项来自 API 的 FEAT_CHOICES，加行即生效。
+- **CDP 瞬挂根因修掉**：三个 e2e 套件启动前强制清理自己的 profile 残留进程（killStaleBrowser），
+  连接失败报出端口与 profile。剩余偶发（点击撞 busy）已记录在任务文件，根治需条件轮询重构。
+
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）

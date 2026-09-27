@@ -311,7 +311,7 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
   if (char.fightingStyle === 'defense') ac += 1;
   char.acBase = ac;
 
-  char.speedFt = eff.speed || sp.speed || 30;
+  char.speedFt = (eff.speed || sp.speed || 30) + (((char.unlockedFeats || []).includes('speedy')) ? 10 : 0);
   if (cls.id === 'monk' && level >= 2) char.speedFt += 10;
   if (cls.id === 'ranger' && level >= 6) char.speedFt += 10; // Roving
   char.darkvision = eff.darkvision || 0;
@@ -405,7 +405,10 @@ function skillMod(char, skill) {
   if (char.skills.includes(skill)) { m += char.profBonus; if (char.expertise.includes(skill)) m += char.profBonus; }
   return m;
 }
-function passivePerception(char) { return 10 + skillMod(char, 'perception'); }
+function passivePerception(char) {
+  const observant = ((char.unlockedFeats || []).includes('observant') || char.feat === 'observant') ? 5 : 0;
+  return 10 + skillMod(char, 'perception') + observant;
+}
 
 // ------------------------------------------------------------- map utils ----
 function getMap(mapId) { return content.getMap(mapId); }
@@ -2204,6 +2207,13 @@ function shortRest(state, events) {
     addLog(state, 'mech', `Arcane Recovery: ${back} level-1 spell slot(s) restored.`);
   }
   p.tempHp = 0;
+  // Chef: a short break comes with a hot meal — proficiency-bonus temp HP for the party
+  if ((char.unlockedFeats || []).includes('chef')) {
+    const meal = char.profBonus || 2;
+    p.tempHp = meal;
+    const dinnerAlly = state.entities.find(e => e.kind === 'ally' && e.alive);
+    if (dinnerAlly) dinnerAlly.tempHp = Math.max(dinnerAlly.tempHp || 0, meal);
+  }
   const ev = { type: 'rest', narrate: true, text: `You take a short rest${spent ? `, spending ${spent} Hit Die${spent > 1 ? 's' : ''}` : ' (you were already unhurt)'}. You are at ${p.hp}/${p.hpMax} HP, and your short-rest abilities recover.` };
   events.push(ev); addLog(state, 'system', ev.text);
 }
@@ -2232,7 +2242,14 @@ function longRest(state, events) {
   removeBuff(p, 'altar_blessed');
   const ally = state.entities.find(e => e.kind === 'ally' && e.alive);
   adjustLoyalty(state, 3, events, ally);
-  const ev = { type: 'rest', narrate: true, text: `You sleep by the campfire in watches. Dawn light finally bleeds through the crypt door — fully restored (${p.hpMax} HP), spells and abilities replenished.${ally ? ` ${ally.name} takes the second watch — companion morale rises.` : ''}` };
+  // Musician: campfire tunes grant the party a blessing for the delve ahead
+  const musician = (char.unlockedFeats || []).includes('musician');
+  if (musician) {
+    [p, ally].forEach((t) => {
+      if (t) { t.buffs = t.buffs || []; t.buffs.push({ id: 'blessed', rounds: 480 }); }
+    });
+  }
+  const ev = { type: 'rest', narrate: true, text: `You sleep by the campfire in watches. Dawn light finally bleeds through the crypt door — fully restored (${p.hpMax} HP), spells and abilities replenished.${ally ? ` ${ally.name} takes the second watch — companion morale rises.` : ''}${musician ? ' A campfire tune lends everyone a blessing (+1d4 on attacks).' : ''}` };
   events.push(ev); addLog(state, 'system', ev.text);
 }
 

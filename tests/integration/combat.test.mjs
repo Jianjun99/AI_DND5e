@@ -194,5 +194,24 @@ test('A campfire long rest raises living-ally loyalty and mentions the shared wa
     'Rest event text mentions the companion sharing the watch');
 });
 
+test('Chef cooks temp HP on short rest; Musician blesses the party on long rest', () => {
+  const state = makeLoyaltyState(50);
+  const char = state.character;
+  char.unlockedFeats = ['chef', 'musician'];
+  const p = engine.playerEntity(state);
+  const ally = state.entities.find((e) => e.kind === 'ally');
+  const prof = char.profBonus || 2;
+
+  engine.shortRest(state, []);
+  assert(p.tempHp === prof, `Chef grants prof-bonus temp HP to the hero (got ${p.tempHp})`);
+  assert((ally.tempHp || 0) >= prof, 'Chef feeds the living ally too');
+
+  const camp = state.objects.find((o) => o.id === 'campfire');
+  p.x = camp.x; p.y = camp.y;
+  engine.longRest(state, []);
+  assert((p.buffs || []).some((b) => b.id === 'blessed'), 'Musician blessing lands on the hero');
+  assert((ally.buffs || []).some((b) => b.id === 'blessed'), 'Musician blessing lands on the ally');
+});
+
 console.log(`\nCombat Integration Tests Summary: ${passed} passed, ${failed} failed.`);
 if (failed > 0) process.exit(1);

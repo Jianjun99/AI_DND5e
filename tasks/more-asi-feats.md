@@ -1,6 +1,6 @@
 # Task: 更多 ASI 特长（feats）
 
-> 对应 PROJECT_STATE 待办「低 | 更多 ASI 特长」。表格驱动的低风险内容任务。
+> ✅ **部分实现**（v1.9.4 批次）：Observant / Speedy / Chef / Musician 四个已落地（安全钩子位 + 测试）；Crusher / Slasher / Piercer 需要挂 playerAttack 命中流，留作后续。
 
 ## 背景
 

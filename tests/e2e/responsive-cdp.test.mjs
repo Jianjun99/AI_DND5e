@@ -65,10 +65,24 @@ const hero = char.character || char;
 const delve = await apiReq('POST', '/api/game/start', { characterId: hero.id, bringAlly: false });
 const delveId = delve.state.id;
 
+// Kill any stale browser from a crashed previous run holding OUR profile dir —
+// historically the main source of instant CDP failures (tasks/cdp-flaky-investigation.md).
+const PROFILE_MARKER = path.join(os.tmpdir(), 'ai-dnd-e2e-9226');
+function killStaleBrowser() {
+  try {
+    if (process.platform === 'win32') {
+      spawnSync('powershell', ['-NoProfile', '-Command',
+        `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*${PROFILE_MARKER}*${path.sep}' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`],
+        { stdio: 'ignore' });
+    }
+  } catch {}
+}
+killStaleBrowser();
+
 const browserProc = spawn(browserBin, [
   '--headless=new',
   `--remote-debugging-port=${CDP_PORT}`,
-  `--user-data-dir=${path.join(os.tmpdir(), 'ai-dnd-e2e-9226')}`,
+  `--user-data-dir=${PROFILE_MARKER}`,
   '--disable-gpu',
   '--no-sandbox',
   '--disable-dev-shm-usage',
@@ -103,7 +117,11 @@ try {
     } catch {}
     if (!wsUrl) await wait(300);
   }
-  if (!wsUrl) throw new Error('CDP target timed out');
+  if (!wsUrl)   if (!wsUrl) {
+    killStaleBrowser();
+    throw new Error('CDP target timed out after 60 attempts (CDP port 9226, profile ai-dnd-e2e-9226). ' +
+      'Stale processes holding the profile were force-cleaned — re-run once; if it fails again, check Task Manager for orphaned browser processes.');
+  }
 
   ws = new WebSocket(wsUrl);
   let msgId = 1;
