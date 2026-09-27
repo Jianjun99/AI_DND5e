@@ -74,7 +74,7 @@
 - **verify 落盘**：`scripts/verify.mjs` 把全部步骤输出 tee 到 `data/last-verify.log`
   （recent_failures 的数据源）。
 - **存档版本化**：`store.js` 写入打 `saveVersion`（当前 2），读取走 `migrateSave`
-  迁移链（只增不删、失败降级可用、未来版本原样放行）；第 15 套件
+  迁移链（只增不删、失败降级可用、未来版本原样放行）；第 16 套件
   `tests/unit/store-versioning.test.mjs` 用临时 DATA_DIR 做真实读写测试。
   **测试套件总数现为 15**（文档里的 13/14 已全部同步）。
 
@@ -87,13 +87,23 @@
 - **CDP 瞬挂根因修掉**：三个 e2e 套件启动前强制清理自己的 profile 残留进程（killStaleBrowser），
   连接失败报出端口与 profile。剩余偶发（点击撞 busy）已记录在任务文件，根治需条件轮询重构。
 
+## 回放机器人（未发布）
+- `scripts/replay-bot.mjs`（`npm run replay`）：headless bot 走 REST 打完整冒险，每 tick 校验
+  **游戏级不变量**（玩家 HP 边界/实体有限性/边界内/ID 唯一/金币经验合法/背包条目/回合数上限/
+  事件流类型健全），卡死检测 60 动作无进度（进度 = 位置/击杀/门/宝箱状态）。
+  自动起服（BASE_URL/PORT 可指向 Docker 容器），跑完自动 sync-delve 并清理 bot 角色/存档。
+  策略会学玩家真实流程：上锁宝箱走 skillCheckObject（客户端骰子契约），拿圣物后回家触发胜利。
+- 第 16 套件（REPLAY_QUICK=1 两局快跑进 test-all；test-all 现支持 per-suite env）。
+- **首跑即战果**：抓出 NPC 无 hp 字段（校准不变量）、bot 对着开着的门/上锁宝箱空转（策略修掉）——
+  上锁宝箱的 pick/force 是客户端骰子，属设计而非 bug。
+
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
 - Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.3,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
-- 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 15 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（15 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
+- 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 16 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（16 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
 - 架构文档：`ARCHITECTURE.md`（Mermaid 图）；模组指南：`MODDING.md`
 
 ## 当前版本：v1.9.3（已发布：深渊楼层变异与远征榜 + MCP server + 存档版本化）
@@ -182,7 +192,7 @@
 
 ## 测试体系
 - `node scripts/smoke-test.mjs`：端到端基础链路健康度探针（CI 每次推送必跑，自动侦测 3000/3100 端口）
-- `node scripts/test-all.mjs` / `npm test`：全套 15 大测试套件，包含 D&D 2024 规则单元测试、
+- `node scripts/test-all.mjs` / `npm test`：全套 16 大测试套件，包含 D&D 2024 规则单元测试、
   3D 手办步态测试（含火龙/蜘蛛/史莱姆/火元素/活动铠甲）、精英词缀与战利品稀有度单元测试、
   地图棋盘可见性与镜头数学单元测试、移动/寻路/视野集成测试、战斗/动作集成测试、
   战术对抗（借机攻击/夹击/推撞）、角色升级（1-12 级与 6 环法术位）/地牢装备换装/楼层下潜/拓展地图集成测试、

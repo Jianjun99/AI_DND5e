@@ -6,7 +6,7 @@
 ## 0. 前提
 
 - **必须用户明确说发版才发**（AGENTS.md 地面规则 1）。不要主动发版。
-- 完整验证全绿：`npm run verify`（自动起服务 → eslint → tsc → 15 套件 → 冒烟 → 收尾）。
+- 完整验证全绿：`npm run verify`（自动起服务 → eslint → tsc → 16 套件 → 冒烟 → 收尾）。
 - 工作区干净（`git status`），待发内容已全部 commit。
 
 ## 1. 版本号：只改 `package.json`

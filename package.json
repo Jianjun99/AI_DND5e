@@ -10,6 +10,7 @@
     "smoke": "node scripts/smoke-test.mjs",
     "test": "node scripts/test-all.mjs",
     "verify": "node scripts/verify.mjs",
+    "replay": "node scripts/replay-bot.mjs",
     "mcp": "node mcp/server.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

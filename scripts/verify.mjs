@@ -97,7 +97,7 @@ try {
   if (!healthy) throw new Error(`server never became healthy on ${BASE}`);
   console.log(`server healthy at ${BASE}`);
 
-  step('test-all (15 suites, incl. 3 headless-browser e2e)');
+  step('test-all (16 suites, incl. 3 headless-browser e2e)');
   results.push(['test-all', await run(process.execPath, ['scripts/test-all.mjs'], { env: { PORT: String(port) } })]);
 
   step('smoke test');
