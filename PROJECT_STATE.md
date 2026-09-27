@@ -12,11 +12,16 @@
 
 ## 📋 待办清单（优先级排序）
 
+> 每个待办项若有详细规格，在 `tasks/<name>.md`——冷启动 AI 领任务直接读规格文件
+> （目标 / 动哪些文件 / 验收标准 / 验证命令）。开新任务时照这个格式补规格。
+
 | 优先级 | 任务 | 说明 |
 |---|---|---|
 | 高 | 保持 ARCHITECTURE.md 同步 | 每个版本更新后刷新它；它是 AI 协作的核心上下文 |
-| 低 | PWA / 离线缓存 | 游戏已经是无构建 vanilla JS，加 service worker 即可离线 |
-| 低 | 更多 ASI 特长 | 已有 5 个（Tough/Alert/Lucky/Healer/Savage Attacker），加更多提升 build 多样性 |
+| 低 | [PWA / 离线缓存](tasks/pwa-offline-cache.md) | 游戏已经是无构建 vanilla JS，加 service worker 即可离线 |
+| 低 | [更多 ASI 特长](tasks/more-asi-feats.md) | 已有 5 个（Tough/Alert/Lucky/Healer/Savage Attacker），加更多提升 build 多样性 |
+| 低 | [存档 schema 版本号](tasks/save-schema-version.md) | 存档形状已多次演进，靠宽容读取硬扛；加 saveVersion + 迁移钩子铺路 |
+| 低 | [CDP e2e 闪红排查](tasks/cdp-flaky-investigation.md) | verify 三跑一闪红复跑即绿；找到根因或至少让失败自带诊断 |
 | 不做 | 引擎物理拆分 | 循环依赖太深（combat ↔ world ↔ interaction ↔ progression），拆了反而更难；等 JSDoc 类型全覆盖后再评估 |
 | 不做 | React/Vue/打包器 | 无构建 + 离线是核心设计；ES modules 原生够用 |
 | 不做 | AI 生成场景插图 | Google key 的图片配额不稳定；头像已覆盖视觉识别 |

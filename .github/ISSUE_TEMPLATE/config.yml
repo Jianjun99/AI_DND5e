@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: AI 协作指南
+    url: https://github.com/Jianjun99/AI_DND5e/blob/main/AGENTS.md
+    about: 提交前先读地面规则与验证命令

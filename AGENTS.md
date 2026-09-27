@@ -1,8 +1,8 @@
 # AGENTS.md — AI 协作入口
 
 本文件是 AI 编码工具（ZCode / Claude Code / Cursor / Codex…）的默认加载入口。
-项目状态与待办见 `PROJECT_STATE.md`，架构手册见 `ARCHITECTURE.md`，模组格式见 `MODDING.md`，
-发版流程见 `docs/RELEASE.md`。
+项目状态与待办见 `PROJECT_STATE.md`（有详细规格的待办在 `tasks/`），架构手册见
+`ARCHITECTURE.md`，模组格式见 `MODDING.md`，发版流程见 `docs/RELEASE.md`。
 
 ## 地面规则（每次会话必须遵守）
 
