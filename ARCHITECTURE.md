@@ -298,6 +298,7 @@ server/
 shared/               D&D 2024 rules + maps as JSON
 content/              shipped content packs (drowned-vault, howling-hills, sunlit-vale-expansion)
 public/               SPA frontend (views, renderers, sfx, tts, tooltip system)
+                      (+ PWA shell: sw.js — HTML/JS network-first, vendor cache-first, /api never cached)
 tests/                15 suites: unit (rules, miniatures, affixes, board, gambling, forge) +
                       integration (movement, combat, tactics, progression) +
                       e2e (3D rendering, turn economy, device adaptation)
