@@ -1,7 +1,8 @@
 # AGENTS.md — AI 协作入口
 
 本文件是 AI 编码工具（ZCode / Claude Code / Cursor / Codex…）的默认加载入口。
-项目状态与待办见 `PROJECT_STATE.md`，架构手册见 `ARCHITECTURE.md`，模组格式见 `MODDING.md`。
+项目状态与待办见 `PROJECT_STATE.md`，架构手册见 `ARCHITECTURE.md`，模组格式见 `MODDING.md`，
+发版流程见 `docs/RELEASE.md`。
 
 ## 地面规则（每次会话必须遵守）
 
@@ -11,16 +12,26 @@
 3. **服务端是唯一事实来源**——客户端禁止复制引擎的数据表（重复的 XP 表造成过一次发布 bug）。
 4. **含模板字符串的文件禁用 bash heredoc / `node -e` 包反引号**——用 Edit 工具直接改，
    或用 Write 写 .cjs 补丁文件（单引号字符串 + join）。这是本项目最大的 AI 踩坑来源。
-5. **每次改完跑完整验证**（命令见下节），13 套件必须全绿才算完成。
+5. **每次改完跑完整验证**：`npm run verify`（自动起服务跑 eslint + tsc + 13 套件 + 冒烟），
+   全绿才算完成。改了战斗/掉落/赌桌/魔药等数值表，还必跑 `node scripts/balance-sim.mjs`
+   并在总结里报告胜率变化。
 6. **测试不依赖 RNG 具体值**（注入 rng / 穷举 / 宽松区间）；e2e 不断言走路中途的坐标
    （rAF 帧率不稳），断言最终收敛状态。自定义 test runner 必须计数并打印失败——
    禁止 catch 后静默吞掉（四个套件曾因此假绿，藏了两个真 bug）。
 
 ## 完整验证命令
 
+**一条命令**（自动起服务 → eslint → tsc → 13 套件 → 冒烟 → 收尾杀进程，端口自动挑空闲的）：
+
 ```bash
-export PATH="/c/Program Files/nodejs:$PATH"   # git bash 找到 node
-PORT=3100 node server/index.js &              # 先起服务——套件连这个端口，不起会 ECONNREFUSED
+npm run verify
+```
+
+手动等价流程（调试单个环节时用；直接跑套件不起服务会 ECONNREFUSED，那不是代码 bug）：
+
+```bash
+export PATH="/c/Program Files/nodejs:$PATH"   # git bash 找 node
+PORT=3100 node server/index.js &              # 先起服务——套件连这个端口
 npx eslint .
 npx tsc --noEmit
 PORT=3100 node scripts/test-all.mjs           # 13 套件（含 3 个 headless CDP e2e）

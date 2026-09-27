@@ -53,7 +53,7 @@
 - Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.2,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
-- 测试：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（13 套件）；平衡模拟：`scripts/balance-sim.mjs`
+- 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 13 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（13 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
 - 架构文档：`ARCHITECTURE.md`（Mermaid 图）；模组指南：`MODDING.md`
 
 ## 当前版本：v1.9.2（已发布：视图模块拆分 + 路遇落库修复 + 队友忠诚度）
@@ -137,8 +137,8 @@
   → 所有测试用 `BASE_URL=http://localhost:3101` 直连容器（冒烟 + 两套 e2e 均可）。镜像里没有 tests/，
   想在容器里跑 node 测试要先 `docker cp tests ai-dnd-review:/app/tests`（容器是 Node 20，宿主是 Node 24）。
   Git Bash 下 `docker exec … ls /app/…` 会被路径转换破坏，需加 `MSYS_NO_PATHCONV=1`
-- GitHub release 创建：bash 层 `git credential fill` 取 token → 传 GH_TOKEN 环境变量 →
-  node 脚本 POST /releases（execSync 里跑不了 bash 管道）
+- GitHub release 创建：完整流程已正式化为 **`docs/RELEASE.md`**（token 在 bash 层取后传
+  GH_TOKEN、notes 写成 .cjs 脚本、tag 剥 v、双架构 manifest 验证）——发版照它走。
 
 ## 测试体系
 - `node scripts/smoke-test.mjs`：端到端基础链路健康度探针（CI 每次推送必跑，自动侦测 3000/3100 端口）

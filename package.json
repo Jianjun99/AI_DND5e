@@ -9,6 +9,7 @@
     "dev": "node --watch server/index.js",
     "smoke": "node scripts/smoke-test.mjs",
     "test": "node scripts/test-all.mjs",
+    "verify": "node scripts/verify.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "lint:fix": "eslint . --fix"
