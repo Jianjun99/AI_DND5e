@@ -848,7 +848,9 @@ export async function playView(main, saveRef) {
             const allyEnt = (game.entities || []).find(e => e.kind === 'ally');
             if (!allyEnt) return '';
             const status = allyEnt.alive ? `${allyEnt.hp}/${allyEnt.hpMax} HP` : 'Downed';
-            return `<span class="chip blue" title="${esc(allyEnt.name)} (${status})">${allyEnt.icon || '🏹'} ${esc(allyEnt.name.split(' ')[0])} (${allyEnt.hp} HP)</span>`;
+            const loy = allyEnt.loyalty == null ? 50 : allyEnt.loyalty;
+            const mood = loy >= 80 ? '😊' : loy >= 30 ? '😐' : '😠';
+            return `<span class="chip blue" title="${esc(allyEnt.name)} (${status}) · 忠诚度 ${loy}/100">${mood} ${esc(allyEnt.name.split(' ')[0])} (${allyEnt.hp} HP)</span>`;
           })()}
           ${subDef ? `<span class="chip">⚔ ${esc(subDef.name)}</span>` : ''}
           <span style="flex:1"></span>

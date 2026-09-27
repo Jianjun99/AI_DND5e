@@ -614,7 +614,8 @@ function startGame(character, options = {}) {
       hp: a.hp + lvlBonusHp, hpMax: a.hp + lvlBonusHp, ac: a.ac, speedFt: a.speed, abilities: a.abilities,
       attacks: scaledAttacks, spells: a.spells || [],
       spellSlots: (a.spells && a.spells.length) ? 1 + Math.floor(heroLvl / 3) : 0,
-      darkvision: a.darkvision, conditions: [], buffs: [], alive: true
+      darkvision: a.darkvision, conditions: [], buffs: [], alive: true,
+      loyalty: (p.companionLoyalty && p.companionLoyalty[a.id] != null) ? p.companionLoyalty[a.id] : 50
     });
     state.flags.ally = true;
     state.flags.allyId = a.id;
@@ -935,6 +936,11 @@ function applyDamage(state, target, amount, damageType, events, opts = {}) {
     }
     target.hp = 0; target.alive = false;
     if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
+    if (target.kind === 'ally') {
+      const ev = { type: 'companion', narrate: true, text: `${target.name} crashes to the ground! "This… wasn't the plan…"` };
+      events.push(ev); addLog(state, 'mech', ev.text);
+      adjustLoyalty(state, -10, events, target);
+    }
     if (target.kind === 'monster') {
       state.stats.kills++;
       if (state.character) {
@@ -1904,6 +1910,7 @@ function checkVictory(state, events) {
   if (!won) return;
   state.mode = 'victory'; state.flags.victory = true;
   awardXp(state, 100, events);
+  state.entities.filter(e => e.kind === 'ally' && e.alive).forEach(a => adjustLoyalty(state, 5, events, a));
   const ev = { type: 'victory', narrate: true, text: `VICTORY! ${p.name} escapes ${state.mapName} into daylight${v.type === 'slay_boss' ? ', leaving a broken guardian behind' : ', the prize in hand'}. The delve is complete! (+100 XP)` };
   events.push(ev); addLog(state, 'system', ev.text);
 }
@@ -2223,8 +2230,41 @@ function longRest(state, events) {
   state.entities.forEach(e => { e.buffs = []; });
   state.flags.altarBlessed = false;
   removeBuff(p, 'altar_blessed');
-  const ev = { type: 'rest', narrate: true, text: `You sleep by the campfire in watches. Dawn light finally bleeds through the crypt door — fully restored (${p.hpMax} HP), spells and abilities replenished.` };
+  const ally = state.entities.find(e => e.kind === 'ally' && e.alive);
+  adjustLoyalty(state, 3, events, ally);
+  const ev = { type: 'rest', narrate: true, text: `You sleep by the campfire in watches. Dawn light finally bleeds through the crypt door — fully restored (${p.hpMax} HP), spells and abilities replenished.${ally ? ` ${ally.name} takes the second watch — companion morale rises.` : ''}` };
   events.push(ev); addLog(state, 'system', ev.text);
+}
+
+// ------------------------------------------------------------- companions ----
+// Companion morale, persisted per ally on the roster (char.companionLoyalty),
+// 0-100 with a spawn default of 50. Drops when the ally goes down (-10), rises on
+// a victorious delve (+5) and a shared campfire night (+3). Crossing a mood
+// threshold surfaces a canned quip the DM may voice.
+const LOYALTY_QUIPS = {
+  high: [
+    (name) => `${name} grins and loosens a blade: "Wherever you're going, I've got your back."`,
+    (name) => `${name} hums an old marching tune — visibly in good spirits today.`
+  ],
+  low: [
+    (name) => `${name} mutters: "I've bled more for you than this job pays… just saying."`,
+    (name) => `${name} keeps glancing at the way out. Morale is slipping.`
+  ]
+};
+
+function adjustLoyalty(state, delta, events, entity) {
+  const ally = entity || state.entities.find(e => e.kind === 'ally' && e.alive);
+  if (!ally) return null;
+  const before = ally.loyalty == null ? 50 : ally.loyalty;
+  const after = Math.max(0, Math.min(100, before + delta));
+  ally.loyalty = after;
+  if (events && ((before < 80 && after >= 80) || (before > 30 && after <= 30))) {
+    const bank = after >= 80 ? LOYALTY_QUIPS.high : LOYALTY_QUIPS.low;
+    const line = bank[Math.floor(Math.random() * bank.length)](ally.name);
+    const ev = { type: 'companion', narrate: true, text: line };
+    events.push(ev); addLog(state, 'dm_canned', line);
+  }
+  return after;
 }
 
 // ---------------------------------------------------------------- checks & interaction ----

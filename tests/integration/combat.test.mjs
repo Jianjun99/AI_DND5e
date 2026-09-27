@@ -150,5 +150,49 @@ test('Dropping to 0 HP knocks player unconscious with death saves', () => {
   assert(p.deathSaves.succ === 0 && p.deathSaves.fail === 0, 'Death saves start at 0/0');
 });
 
+// Companion loyalty: seeded from the roster, dropped when the ally goes down,
+// raised by a shared campfire night. Threshold crossings surface canned quips.
+function makeLoyaltyState(seedLoyalty) {
+  const char = engine.buildCharacter({
+    name: 'Loyalty Tester', species: 'human', className: 'fighter', background: 'soldier',
+    baseScores: { str: 16, dex: 14, con: 14, int: 10, wis: 12, cha: 8 },
+    bgPlus2: 'str', bgPlus1: 'con', skills: ['athletics', 'perception'],
+    fightingStyle: 'defense', armorOption: 'chain_mail', weaponOption: 'sword_board'
+  });
+  char.companionLoyalty = { bram: seedLoyalty };
+  return engine.startGame(char, { difficulty: 'normal', bringAlly: 'bram' });
+}
+
+test('Ally spawns with the roster-seeded loyalty', () => {
+  const state = makeLoyaltyState(35);
+  const ally = state.entities.find(e => e.kind === 'ally');
+  assert(ally != null, 'Bring-ally delve includes the companion entity');
+  assert(ally.loyalty === 35, `Alloy should spawn at the seeded 35, got ${ally.loyalty}`);
+});
+
+test('Ally going down costs 10 loyalty and surfaces a downed quip plus threshold quip', () => {
+  const state = makeLoyaltyState(35);
+  const ally = state.entities.find(e => e.kind === 'ally');
+  const events = [];
+  engine.applyDamage(state, ally, 999, 'slashing', events);
+  assert(ally.alive === false, 'A 999-damage blow downs the ally');
+  assert(ally.loyalty === 25, `Downed ally drops from 35 to 25, got ${ally.loyalty}`);
+  assert(events.filter(e => e.type === 'companion').length >= 2,
+    'Downing fires the crash line and the crossing-the-low-threshold quip');
+});
+
+test('A campfire long rest raises living-ally loyalty and mentions the shared watch', () => {
+  const state = makeLoyaltyState(90);
+  const ally = state.entities.find(e => e.kind === 'ally');
+  const camp = state.objects.find(o => o.id === 'campfire');
+  const p = engine.playerEntity(state);
+  p.x = camp.x; p.y = camp.y;
+  const events = [];
+  engine.longRest(state, events);
+  assert(ally.loyalty === 93, `Rest raises loyalty 90 -> 93, got ${ally.loyalty}`);
+  assert(events.some(e => e.type === 'rest' && e.text.includes('takes the second watch')),
+    'Rest event text mentions the companion sharing the watch');
+});
+
 console.log(`\nCombat Integration Tests Summary: ${passed} passed, ${failed} failed.`);
 if (failed > 0) process.exit(1);

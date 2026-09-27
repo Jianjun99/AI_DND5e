@@ -14,9 +14,7 @@
 
 | 优先级 | 任务 | 说明 |
 |---|---|---|
-| 高 | 修复：路上遭遇的奖励/惩罚从不落库 | `showRoadEncounterModal` 只改内存里的 char（伏击 +25gp/+50xp 或扣血、神殿祝福、贿赂等），但 embark 调 `api.startGame(characterId, …)` 只传 id——服务器重读自己的持久化角色，**遭遇结算全部丢失**（v1.5.0 起就存在，路上遇到的东西白遇）。修法需设计：开局前先把遭遇结果持久化，或让 startGame 接受角色快照 |
 | 高 | 保持 ARCHITECTURE.md 同步 | 每个版本更新后刷新它；它是 AI 协作的核心上下文 |
-| 中 | companion 个性化 | Bram/Valeria/Aldous 已有 AI 队友逻辑，加忠诚度 + DM 吐槽成本低 |
 | 低 | PWA / 离线缓存 | 游戏已经是无构建 vanilla JS，加 service worker 即可离线 |
 | 低 | 更多 ASI 特长 | 已有 5 个（Tough/Alert/Lucky/Healer/Savage Attacker），加更多提升 build 多样性 |
 | 不做 | 引擎物理拆分 | 循环依赖太深（combat ↔ world ↔ interaction ↔ progression），拆了反而更难；等 JSDoc 类型全覆盖后再评估 |
@@ -32,6 +30,22 @@
   - `public/js/views/overworld/road-encounter.js`——路上遭遇弹窗，直接导出 `showRoadEncounterModal`（无工厂，只用自身参数 + imports）
 - **有意保留在 play.js 的**：renderSide / combatHud / wireSide 侧栏子系统——wireSide 的升级处理器直接写 `game.character` / 重赋 `game`，与核心状态是控制器级耦合，抽出 = 搬运 12 个依赖而非消除。未来要拆，先给 game 状态做显式 setter 层。
 - 顺手修的可疑点：creator.js 额外技能上限改读 feat 的 `extraSkillPicks` + 死三元删除；play.js difficulty 单选读取加 `|| 'normal'` 兜底；play.js 删除三块死代码（`personaQuickSelect`、`data-useitem`、`data-equip-slot`/`data-unequip-slot`——真实功能走 `data-delve-inv-*`，改属性名时的遗留）；overworld.js 路遇弹窗按钮判空。
+
+## 路遇落库修复 + 队友忠诚度（拆分之后进行，未发布）
+- **路遇落库**：新端点 `POST /api/characters/:id/road-encounter`（固定结果表
+  `ROAD_ENCOUNTER_OUTCOMES`：ambush_win / ambush_wound / bribe / sneak_wound / shrine_pray /
+  shrine_offer）。客户端弹窗只负责骰点和演出，结果由服务端写进档案——原实现里奖励/扣血
+  全部只改内存（v1.5.0 起，路上遇到的东西白遇）。神殿两项 boon 走 `char.pendingRoadBoons`
+  （镜像 pendingDelveItems 约定）：`POST /api/game/start` 时施加（+5 临时生命 / blessed
+  buff 480 回合）并清空。货郎购买本来就走 cityBuy（已落库），未改。冒烟测试断言了
+  落库 + 开局施加。
+- **队友忠诚度**：`char.companionLoyalty[allyId]` 持久化在档案上（0-100，缺省 50），
+  `startGame` 读它刷 ally 实体，sync-delve 写回。变化：倒下 -10、地牢胜利 +5（活着的）、
+  营地长休 +3（rest 文案追加 "takes the second watch"）。跨过 30/80 阈值推 canned 吐槽
+  事件（type 'companion'，narrate: true，DM 可配音）；引擎 helper `adjustLoyalty(state,
+  delta, events, entity?)`。侧栏队友 chip 显示 😊/😐/😠 + hover 忠诚度；dm.js 旁白提示词
+  加一行队友状态（alive/downed + 心情，允许 DM 给 TA 一句台词）。战斗集成测试 3 条
+  （种子 / 倒下扣分 / 长休回涨）。
 
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）

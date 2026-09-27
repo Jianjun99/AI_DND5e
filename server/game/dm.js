@@ -113,11 +113,14 @@ async function narrateEvents(state, events) {
     outcome: e.text,
     data: e.data ? { dmg: e.data.dmg, crit: e.data.crit, room: e.data.roomName, xp: e.data.xp } : undefined
   }));
+  const ally = (state.entities || []).find(e => e.kind === 'ally');
+  const allyLoy = ally ? (ally.loyalty == null ? 50 : ally.loyalty) : null;
+  const allyMood = allyLoy == null ? null : (allyLoy >= 80 ? 'in high spirits' : allyLoy >= 30 ? 'steady' : 'grumbling, morale low');
   const messages = [
     { role: 'system', content: getDmSystem(personaKey, state.mapName || 'The Sunless Crypt') },
     { role: 'user', content: `Hero: ${state.character.name}, level ${state.character.level} ${state.character.className} (${state.character.species}), ${p.hp}/${p.hpMax} HP.
 Location: ${room ? room.name : 'a corridor of the crypt'}${state.mode === 'combat' ? ' — IN COMBAT' : ''}.
-Recent events: ${recentHistory(state, 4) || '(the delve just began)'}
+${ally ? `Companion: ${ally.name} (${ally.alive ? 'alive' : 'downed'}) is ${allyMood} — you may give them one short in-character remark if it fits.\n` : ''}Recent events: ${recentHistory(state, 4) || '(the delve just began)'}
 Engine-resolved outcomes to narrate (JSON): ${JSON.stringify(payload)}
 
 Narrate these outcomes now.` }

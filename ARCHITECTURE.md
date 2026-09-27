@@ -102,7 +102,7 @@ text can't contradict the world.
 | File | Endpoints |
 |---|---|
 | `server/routes/game.js` | `/start` · `/:id` (get) · `/:id/action` (the big dispatch: move, attack, cast, useItem, equip, rest, freeform, chat, buy, retreat, respawn…) |
-| `server/routes/characters.js` | CRUD · `/level-up` · `/equip` · `/portrait` |
+| `server/routes/characters.js` | CRUD · `/level-up` · `/equip` · `/portrait` · `/road-encounter` (fixed outcome table; delve-scoped boons ride as `pendingRoadBoons`) |
 | `server/routes/city.js` | `/info` · `/rest` · `/buy` · `/sell` · `/gamble` · `/forge` · `/identify` · `/claim-bounty` · `/sync-delve` · `/hall-of-heroes` · `/campaign` · `/rumor` |
 
 ### Frontend (vanilla JS SPA, no build step)
@@ -232,7 +232,8 @@ settlement (`sync-delve` filters them out).
   x, y, hp, hpMax, ac, speedFt, alive, aware, fled,
   conditions: ['poisoned', …], buffs: [{ id, rounds, condId?, … }],
   attacks: [{ name, bonus, damage, damageType, range }],
-  monsterId (monsters), affix (elite champions), boss (bool) }
+  monsterId (monsters), affix (elite champions), boss (bool),
+  loyalty (allies: 0-100 morale, seeded from char.companionLoyalty[allyId]) }
 ```
 
 ## 6. Checks that run on every push (CI)

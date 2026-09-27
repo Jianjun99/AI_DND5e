@@ -577,6 +577,12 @@ router.post('/sync-delve', (req, res) => {
     const delveHero = (delve.entities || []).find(e => e.kind === 'player');
     const delveHp = delveHero ? delveHero.hp : undefined;
     char.hp = (typeof delveHp === 'number') ? Math.min(char.hpMax, Math.max(1, delveHp)) : char.hp;
+    // companion morale rides back to the roster, keyed by ally id
+    const delveAlly = (delve.entities || []).find(e => e.kind === 'ally');
+    if (delveAlly && typeof delveAlly.loyalty === 'number') {
+      char.companionLoyalty = char.companionLoyalty || {};
+      char.companionLoyalty[delveAlly.allyId || 'bram'] = delveAlly.loyalty;
+    }
   } else {
     if (typeof goldGained === 'number') char.gold = (char.gold || 0) + goldGained;
     if (typeof xpGained === 'number') char.xp = (char.xp || 0) + xpGained;
