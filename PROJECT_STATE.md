@@ -78,7 +78,7 @@
   `tests/unit/store-versioning.test.mjs` 用临时 DATA_DIR 做真实读写测试。
   **测试套件总数现为 15**（文档里的 13/14 已全部同步）。
 
-## PWA + 新特长 + CDP 诊断（未发布）
+## PWA + 新特长 + CDP 诊断（v1.9.4 已发布）
 - **PWA**：public/sw.js（HTML/JS/CSS network-first、vendor/icons cache-first、/api 永不缓存——
   本地改代码刷新即见，断网有壳）+ manifest + 占位图标（node zlib 生成 PNG）+ index.html 注册。
 - **新 ASI 特长 4 个**：Observant（被动察觉 +5，passivePerception 纯计算）、Speedy
@@ -87,7 +87,7 @@
 - **CDP 瞬挂根因修掉**：三个 e2e 套件启动前强制清理自己的 profile 残留进程（killStaleBrowser），
   连接失败报出端口与 profile。剩余偶发（点击撞 busy）已记录在任务文件，根治需条件轮询重构。
 
-## 回放机器人（未发布）
+## 回放机器人（v1.9.4 已发布）
 - `scripts/replay-bot.mjs`（`npm run replay`）：headless bot 走 REST 打完整冒险，每 tick 校验
   **游戏级不变量**（玩家 HP 边界/实体有限性/边界内/ID 唯一/金币经验合法/背包条目/回合数上限/
   事件流类型健全），卡死检测 60 动作无进度（进度 = 位置/击杀/门/宝箱状态）。
@@ -100,13 +100,13 @@
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
-- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.3,…}`（多架构 amd64+arm64）
+- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.4,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
 - 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 16 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（16 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
 - 架构文档：`ARCHITECTURE.md`（Mermaid 图）；模组指南：`MODDING.md`
 
-## 当前版本：v1.9.3（已发布：深渊楼层变异与远征榜 + MCP server + 存档版本化）
+## 当前版本：v1.9.4（已发布：PWA 离线 + 四个新特长 + 回放机器人（16 套件）+ CDP 根因修复）
 
 ## v1.9.1 发布内容（原「进行中」段落，转正）
 - **AI 协作入口**：根目录新增 `AGENTS.md`（地面规则正本 + 验证命令 + 硬约束速记 + 文档地图），
@@ -281,4 +281,5 @@ v1.0.0 首发 → v1.2.0 连通地牢+模组+任务 → v1.3.0 UI 修复 → v1.
 → v1.9.0 锻造台（余烬精华/重铸/升阶）+ 图鉴精英变体与首杀奖励 + 四幕主线战役与 AI 结局 + arm64 多架构镜像 + 手机/平板全站适配
 → v1.9.1 AI 协作基建（AGENTS.md/CLAUDE.md 入口）+ dmgType→damageType 统一 + tsc 全仓覆盖（含 public/js）+ 活动铠甲 3D 渲染崩溃修复 + 4 个测试套件假绿修复
 → v1.9.2 视图模块拆分（play/panels·ribbon·delve-inventory，overworld/districts·road-encounter）+ 路遇落库修复 + 队友忠诚度（持久化心情 + 吐槽 + DM 台词）
-→ v1.9.3 深渊楼层变异（精英横行/群涌暗潮/鎏金之层）+ 队友深层台词 + 殿堂深渊远征榜 + 仓库自带 MCP server（四只读工具）+ 存档 schema 版本化（当前）
+→ v1.9.3 深渊楼层变异（精英横行/群涌暗潮/鎏金之层）+ 队友深层台词 + 殿堂深渊远征榜 + 仓库自带 MCP server（四只读工具）+ 存档 schema 版本化
+→ v1.9.4 PWA 离线缓存 + 新特长 Observant/Speedy/Chef/Musician + CDP 瞬挂根因修复 + 回放机器人（REST API 打完整冒险 + 游戏级不变量，16 套件）（当前）
