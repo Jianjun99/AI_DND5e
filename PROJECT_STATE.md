@@ -21,7 +21,7 @@
 | 不做 | React/Vue/打包器 | 无构建 + 离线是核心设计；ES modules 原生够用 |
 | 不做 | AI 生成场景插图 | Google key 的图片配额不稳定；头像已覆盖视觉识别 |
 
-## play.js / overworld.js 拆分（v1.9.1 之后进行，未发布）
+## play.js / overworld.js 拆分（v1.9.2 已发布）
 - play.js **1843 → 1326 行**，overworld.js **1739 → 540 行**。新模块（无构建 ES modules，工厂 + ctx 显式依赖，live 状态走 getter）：
   - `public/js/views/play/panels.js`——商店/日志/检定弹窗/结算面板，`createPanels(ctx)`
   - `public/js/views/play/ribbon.js`——战术先攻条，`renderInitiativeRibbon(game, onSelectTarget)`
@@ -31,7 +31,7 @@
 - **有意保留在 play.js 的**：renderSide / combatHud / wireSide 侧栏子系统——wireSide 的升级处理器直接写 `game.character` / 重赋 `game`，与核心状态是控制器级耦合，抽出 = 搬运 12 个依赖而非消除。未来要拆，先给 game 状态做显式 setter 层。
 - 顺手修的可疑点：creator.js 额外技能上限改读 feat 的 `extraSkillPicks` + 死三元删除；play.js difficulty 单选读取加 `|| 'normal'` 兜底；play.js 删除三块死代码（`personaQuickSelect`、`data-useitem`、`data-equip-slot`/`data-unequip-slot`——真实功能走 `data-delve-inv-*`，改属性名时的遗留）；overworld.js 路遇弹窗按钮判空。
 
-## 路遇落库修复 + 队友忠诚度（拆分之后进行，未发布）
+## 路遇落库修复 + 队友忠诚度（v1.9.2 已发布）
 - **路遇落库**：新端点 `POST /api/characters/:id/road-encounter`（固定结果表
   `ROAD_ENCOUNTER_OUTCOMES`：ambush_win / ambush_wound / bribe / sneak_wound / shrine_pray /
   shrine_offer）。客户端弹窗只负责骰点和演出，结果由服务端写进档案——原实现里奖励/扣血
@@ -50,13 +50,13 @@
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
-- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.1,…}`（多架构 amd64+arm64）
+- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.2,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
 - 测试：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（13 套件）；平衡模拟：`scripts/balance-sim.mjs`
 - 架构文档：`ARCHITECTURE.md`（Mermaid 图）；模组指南：`MODDING.md`
 
-## 当前版本：v1.9.1（已发布：AI 协作基建 + tsc 全仓覆盖 + 活动铠甲渲染崩溃修复 + 测试假绿修复）
+## 当前版本：v1.9.2（已发布：视图模块拆分 + 路遇落库修复 + 队友忠诚度）
 
 ## v1.9.1 发布内容（原「进行中」段落，转正）
 - **AI 协作入口**：根目录新增 `AGENTS.md`（地面规则正本 + 验证命令 + 硬约束速记 + 文档地图），
@@ -229,4 +229,5 @@ v1.0.0 首发 → v1.2.0 连通地牢+模组+任务 → v1.3.0 UI 修复 → v1.
 → v1.7.0 等级上限 12 + 阳光峡谷 3 大新地图 + 无尽深渊程序化地牢 + 5 大新怪 3D 手办 + 传奇成就
 → v1.8.0 精英词缀怪物 + 战利品稀有度/词缀系统 + 视角解绑与平滑跟随 + 尸体移除修复 + 升级徽章一致性修复 + 酒馆赌桌 + 实验性魔药
 → v1.9.0 锻造台（余烬精华/重铸/升阶）+ 图鉴精英变体与首杀奖励 + 四幕主线战役与 AI 结局 + arm64 多架构镜像 + 手机/平板全站适配
-→ v1.9.1 AI 协作基建（AGENTS.md/CLAUDE.md 入口）+ dmgType→damageType 统一 + tsc 全仓覆盖（含 public/js）+ 活动铠甲 3D 渲染崩溃修复 + 4 个测试套件假绿修复（当前）
+→ v1.9.1 AI 协作基建（AGENTS.md/CLAUDE.md 入口）+ dmgType→damageType 统一 + tsc 全仓覆盖（含 public/js）+ 活动铠甲 3D 渲染崩溃修复 + 4 个测试套件假绿修复
+→ v1.9.2 视图模块拆分（play/panels·ribbon·delve-inventory，overworld/districts·road-encounter）+ 路遇落库修复 + 队友忠诚度（持久化心情 + 吐槽 + DM 台词）（当前）
