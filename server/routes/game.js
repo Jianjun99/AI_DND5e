@@ -347,6 +347,15 @@ router.post('/:id/action', async (req, res) => {
             const nextMap = endless.generateFloor(nextDepth, nextDepth <= 3 ? 'crypt' : nextDepth <= 7 ? 'vault' : 'hills');
             contentMod.injectMap(nextMap);
             state.endlessDepth = nextDepth;
+            // the companion has opinions about going deeper (mood scales with loyalty)
+            const descentAlly = state.entities.find(e => e.kind === 'ally' && e.alive);
+            if (descentAlly) {
+              const loy = descentAlly.loyalty == null ? 50 : descentAlly.loyalty;
+              const mood = loy >= 80 ? '"Deeper still? You are insatiable — and I love it."'
+                : loy >= 30 ? '"Another floor. Keep your torch up and stay behind me."'
+                : '"Every step down, my regret compounds. The pay better be waiting."';
+              events.push({ type: 'companion', narrate: true, text: `${descentAlly.name} eyes the descending stairs: ${mood}` });
+            }
             stairsObj.to.mapId = nextMap.id;
             stairsObj.to.x = nextMap.playerStart.x;
             stairsObj.to.y = nextMap.playerStart.y;

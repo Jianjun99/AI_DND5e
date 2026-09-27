@@ -583,6 +583,11 @@ router.post('/sync-delve', (req, res) => {
       char.companionLoyalty = char.companionLoyalty || {};
       char.companionLoyalty[delveAlly.allyId || 'bram'] = delveAlly.loyalty;
     }
+    // deepest endless depth rides back for the Hall of Heroes ranking (+ revives
+    // the endless_delver achievement, which previously had no writer)
+    if (typeof delve.endlessDepth === 'number' && delve.endlessDepth > (char.endlessDepth || 0)) {
+      char.endlessDepth = delve.endlessDepth;
+    }
   } else {
     if (typeof goldGained === 'number') char.gold = (char.gold || 0) + goldGained;
     if (typeof xpGained === 'number') char.xp = (char.xp || 0) + xpGained;
@@ -822,6 +827,12 @@ router.get('/hall-of-heroes', (req, res) => {
     portraitUrl: `/api/characters/${c.id}/portrait`
   })).sort((a, b) => (b.level * 1000 + b.xp) - (a.level * 1000 + a.xp));
 
+  const endlessRunners = chars
+    .filter(c => (c.endlessDepth || 0) >= 2)
+    .map(c => ({ name: c.name, className: c.className, level: c.level || 1, depth: c.endlessDepth || 0 }))
+    .sort((a, b) => b.depth - a.depth)
+    .slice(0, 10);
+
   res.json({
     ok: true,
     characterName: currentChar ? currentChar.name : 'Unknown Hero',
@@ -829,6 +840,7 @@ router.get('/hall-of-heroes', (req, res) => {
     bestiaryProgress,
     trophies,
     champions,
+    endlessRunners,
     campaign: currentChar ? {
       campaign: campaignMod.ensure(currentChar.campaign),
       objective: campaignMod.objective(currentChar.campaign),

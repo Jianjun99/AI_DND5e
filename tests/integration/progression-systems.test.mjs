@@ -6,6 +6,7 @@ const engine = require('../../server/game/engine.js');
 const affixesMod = require('../../server/game/affixes.js');
 const content = require('../../server/game/content.js');
 const store = require('../../server/store.js');
+const endless = require('../../server/game/endless.js');
 
 let passed = 0;
 let failed = 0;
@@ -88,8 +89,7 @@ test('In-dungeon equipment switching recalculates AC and attacks', () => {
 });
 
 // 3. Multi-Floor Dungeon Descent (Crypt -> Drowned Vault)
-test('Stairway descent transitions dungeon map to Drowned Vault', () => {
-  const char = engine.buildCharacter({ name: 'Lyra', className: 'rogue', species: 'elf', background: 'criminal' });
+test('Stairway descent transitions dungeon map to Drowned Vault', () => {  const char = engine.buildCharacter({ name: 'Lyra', className: 'rogue', species: 'elf', background: 'criminal' });
   const state = engine.startGame(char, { difficulty: 'normal', mapId: 'crypt' });
   
   assert(state.mapId === 'crypt', 'Initial map should be Sunless Crypt');
@@ -109,6 +109,36 @@ test('Stairway descent transitions dungeon map to Drowned Vault', () => {
   const travelEv = events.find(e => e.type === 'travel');
   assert(Boolean(travelEv), 'Travel event must be emitted');
   assert(travelEv.data.mapId === 'drowned-vault', 'Event data contains destination mapId');
+});
+
+// 3b. Endless floor mutations (data knobs the engine's map hydration reads)
+test('Endless floors roll one mutation from depth 2 and wire its knobs', () => {
+  const first = endless.generateFloor(1);
+  assert(first.mutation === null, 'Floor 1 has no mutation');
+  assert(first.eliteChance === undefined, 'Floor 1 keeps the default elite chance');
+
+  // every depth >= 2 floor carries one of the three mutations with its knobs;
+  // branch assertions stay RNG-safe (we know which mutation we got)
+  const seen = new Set();
+  for (let d = 2; d <= 10; d++) {
+    const floor = endless.generateFloor(d);
+    assert(floor.mutation != null, `Floor ${d} carries a mutation`);
+    seen.add(floor.mutation.id);
+    const chest = floor.entities.find(e => e.type === 'chest');
+    assert(chest != null, `Floor ${d} has a cache`);
+    if (floor.mutation.id === 'champions') {
+      assert(floor.eliteChance === 0.4, 'Champions mutation raises the elite chance to 0.4');
+    } else {
+      assert(floor.eliteChance === undefined, `Non-champions mutation keeps the default elite chance (depth ${d})`);
+    }
+    if (floor.mutation.id === 'gilded') {
+      assert(chest.loot.gold === (4 + Math.round(d * 1.5)) + 'd6',
+        `Gilded chest gold dice are the rich ones (got ${chest.loot.gold})`);
+    } else {
+      assert(chest.loot.gold === (2 + d) + 'd6', `Normal chest gold dice unchanged (depth ${d})`);
+    }
+  }
+  assert(seen.size === 3, `All three mutations appear across floors 2-10 (got ${[...seen].join(', ')})`);
 });
 
 // 4. Monster Bestiary Kill Counter
@@ -304,8 +334,9 @@ await (async () => {
     assert(hall.trophies.some(t => t.id === 'endless_delver'), 'Endless delver trophy present');
     assert(hall.trophies.some(t => t.id === 'paragon_hero'), 'Paragon hero trophy present');
     assert(Array.isArray(hall.champions), 'Champions leaderboard returned');
+    assert(Array.isArray(hall.endlessRunners), 'Endless runners ranking returned');
     console.log('  ✔ PASS: HTTP API Hall of Heroes Bestiary, Trophies, and Champions');
-    passed += 8;
+    passed += 9;
 
     // 10. Sunlit Vale Expansion Maps & Level 12 Progression
     const roostMap = content.getMap('roost');

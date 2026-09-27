@@ -519,7 +519,7 @@ export function createDistricts(ctx) {
       `;
     }
 
-    const { bestiary = [], trophies = [], champions = [], bestiaryProgress = null, campaign = null } = hallData;
+    const { bestiary = [], trophies = [], champions = [], bestiaryProgress = null, campaign = null, endlessRunners = [] } = hallData;
     const crFilter = hallFilter.cr || 'all';
     const sortBy = hallFilter.sort || 'cr';
     const shown = bestiary
@@ -550,6 +550,16 @@ export function createDistricts(ctx) {
                 ${a.icon} ${esc(a.name.replace(/^第.幕 · /, ''))}
               </span>`).join('<span class="campaign-arrow">→</span>')}
           </div>
+        </div>` : ''}
+
+      ${(endlessRunners && endlessRunners.length) ? `
+        <div class="card" style="margin-bottom:14px; border-color:var(--gold-dim); background:var(--bg2);">
+          <h3 style="margin:0 0 6px;">🕯️ 深渊远征榜 · Endless Depths</h3>
+          ${endlessRunners.map((r, i) => `
+            <div class="stat-line">
+              <span>${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🕯️'} ${esc(r.name)} <span class="muted small">Lv ${r.level} ${esc(r.className)}</span></span>
+              <span style="color:var(--gold); font-weight:600;">第 ${r.depth} 层</span>
+            </div>`).join('')}
         </div>` : ''}
 
       <div class="hall-container">

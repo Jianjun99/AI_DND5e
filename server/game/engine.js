@@ -510,7 +510,7 @@ function generateMapState(mapDef, difficulty) {
         chief: !!e.chief, conditions: [], buffs: [], alive: true, aware: false, fled: false,
         sx: e.x, sy: e.y
       };
-      if (!def.boss && (e.isElite || Math.random() < 0.18)) {
+      if (!def.boss && (e.isElite || Math.random() < (mapDef.eliteChance || 0.18))) {
         affixes.applyMonsterAffix(mon);
       }
       ents.push(mon);

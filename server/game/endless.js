@@ -53,8 +53,18 @@ function pickMonstersForDepth(pool, depth, count) {
   return out;
 }
 
+// floor mutations: from depth 2 every floor rolls one twist. Pure data knobs —
+// the engine's map hydration reads eliteChance, the chest loot block reads the
+// gilded flag, and monster counts read the swarm flag directly below.
+const MUTATIONS = [
+  { id: 'champions', name: 'Champion Floors', zh: '精英横行', desc: 'Champions prowl every chamber of this floor.' },
+  { id: 'swarm', name: 'The Swarming Dark', zh: '群涌暗潮', desc: 'Far more creatures stalk these halls.' },
+  { id: 'gilded', name: 'Gilded Depths', zh: '鎏金之层', desc: 'The caches of this floor run unusually rich.' }
+];
+
 function generateFloor(depth, theme) {
   const pool = buildMonsterPool();
+  const mutation = depth >= 2 ? MUTATIONS[die(MUTATIONS.length) - 1] : null;
   const roomCount = 6 + die(3);
   const rooms = generateRooms(roomCount);
   const grid = Array.from({ length: HEIGHT }, () => Array(WIDTH).fill('#'));
@@ -82,8 +92,8 @@ function generateFloor(depth, theme) {
   // stairs down in the last room
   entities.push({ type: 'stairs', id: 'endless_stairs_' + depth, name: 'Stairs Descending', x: exitRoom.cx, y: exitRoom.cy, icon: '🪜', to: { mapId: '__endless_next__', x: 0, y: 0 }, desc: 'Ancient steps spiral into deeper darkness.' });
 
-  // monsters: 2-4 per room (skip entry room)
-  const monCount = 2 + die(3);
+  // monsters: 2-4 per room (skip entry room); the swarm mutation packs the halls
+  const monCount = Math.ceil((2 + die(3)) * (mutation && mutation.id === 'swarm' ? 1.6 : 1));
   const picks = pickMonstersForDepth(pool, depth, monCount * rooms.length);
   let pi = 0;
   rooms.slice(1).forEach((r, ri) => {
@@ -101,10 +111,11 @@ function generateFloor(depth, theme) {
     entities.push({ type: 'monster', kind: 'ogre', id: 'end_boss_' + depth, x: bossRoom.cx, y: bossRoom.cy, boss: true, name: 'Depth Guardian ' + Math.floor(depth / 5) });
   }
 
-  // chests: 1-2 per level, loot scaled
+  // chests: 1-2 per level, loot scaled; the gilded mutation pays out extra
+  const gilded = mutation && mutation.id === 'gilded';
   const chestRoom = pick(rooms);
   entities.push({ type: 'chest', id: 'end_chest_' + depth, name: 'Forgotten Cache', x: chestRoom.cx, y: chestRoom.cy, icon: '🧰',
-    loot: { gold: (2 + depth) + 'd6', potions: die(2), items: [{ id: 'potion_healing', chance: 0.4 }, { id: depth >= 5 ? 'potion_greater' : 'scroll_magic_missile', chance: 0.3 }] } });
+    loot: { gold: (gilded ? 4 + Math.round(depth * 1.5) : 2 + depth) + 'd6', potions: die(gilded ? 3 : 2), items: [{ id: 'potion_healing', chance: gilded ? 0.55 : 0.4 }, { id: depth >= 5 ? 'potion_greater' : 'scroll_magic_missile', chance: gilded ? 0.45 : 0.3 }] } });
 
   // wandering monsters table from pool
   const wandering = picks.slice(0, 3).map(m => m.id);
@@ -122,10 +133,12 @@ function generateFloor(depth, theme) {
 
   return {
     id: 'endless_' + depth,
-    name: names[nameIdx] + ' — Floor ' + depth,
+    name: names[nameIdx] + ' — Floor ' + depth + (mutation ? ' · ' + mutation.zh : ''),
     theme: floorTheme,
     width: WIDTH, height: HEIGHT, tileSizeFt: 5,
-    blurb: 'Procedurally generated. Depth ' + depth + '.',
+    blurb: 'Procedurally generated. Depth ' + depth + '.' + (mutation ? ' Mutation: ' + mutation.desc : ''),
+    mutation: mutation ? { id: mutation.id, name: mutation.name, zh: mutation.zh, desc: mutation.desc } : null,
+    eliteChance: mutation && mutation.id === 'champions' ? 0.4 : undefined,
     objectiveText: 'Descend deeper or retreat to the surface with your spoils. Survive.',
     recommended: 'Levels ' + Math.max(1, depth) + '-' + (depth + 4),
     playerStart: { x: entryRoom.cx, y: entryRoom.cy },

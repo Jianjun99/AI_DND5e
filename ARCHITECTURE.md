@@ -289,7 +289,8 @@ server/
   game/forge.js       salvage / reroll / upgrade (essence currency)
   game/campaign.js    four-act main story state machine + epilogue
   game/content.js     content registry (core + packs)
-  game/endless.js     procedural floor generator (Endless Depths)
+  game/endless.js     procedural floor generator (Endless Depths) — depth ≥ 2 floors roll a
+                      mutation (champions/swarm/gilded) whose knobs the hydration + chest loot read
   game/retrieval.js   keyword RAG for the DM
   llm/client.js       OpenAI-compatible HTTP client (Google / Ollama / LM Studio / llama.cpp)
   portraits.js        portrait provider chain + cache

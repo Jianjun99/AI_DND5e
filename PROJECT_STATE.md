@@ -52,6 +52,20 @@
   加一行队友状态（alive/downed + 心情，允许 DM 给 TA 一句台词）。战斗集成测试 3 条
   （种子 / 倒下扣分 / 长休回涨）。
 
+## 深渊楼层变异 + 远征榜（未发布）
+- `endless.js`：从第 2 层起每层掷一个**楼层变异**（纯数据旋钮）：`champions 精英横行`
+  （map def 带 `eliteChance: 0.4`，引擎 `generateMapState` 读它替代默认 18%——非精英怪在
+  hydrate 时套 `applyMonsterAffix`，视觉/战斗全走既有精英系统）、`swarm 群涌暗潮`
+  （房间怪数 ×1.6）、`gilded 鎏金之层`（宝箱金币/药水/物品概率上调）。变异写进 map def
+  （`mutation` 字段 + 名称后缀 `· 精英横行`，下潜横幅自动显示）。
+- **队友深层台词**：`routes/game.js` 的 endless 楼梯下降处，按忠诚度心情推
+  `companion` 事件（narrate: true，DM 可配音）——第三档深度语音。
+- **深渊远征榜**：sync-delve 把 `delve.endlessDepth` 最大值写回 `char.endlessDepth`
+  （**顺带救活了 endless_delver 成就**——它一直在读这个字段但从未有人写）；
+  `/api/city/hall-of-heroes` 新增 `endlessRunners`（≥2 层的角色按深度排序 top10）；
+  殿堂页在主线进度卡下方渲染 🕯️ 深渊远征榜。progression 套件新增生成器测试
+  （分支条件断言，RNG 安全）+ 殿堂断言。
+
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
