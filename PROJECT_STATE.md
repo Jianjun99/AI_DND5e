@@ -115,7 +115,7 @@
 - forge `isForgeable` 认 cloak/ring 类型（套装件可熔解/重铸）；词缀套件 516→533 断言。
 - 设计注：套装件只从战利品 roll 出（商店不上架散件）；混合套装分开计数不叠加。
 
-## Companion 支线（未发布）
+## Companion 支线（v1.9.6 已发布）
 - `server/game/companions.js`：三人各一条**忠诚度门槛触发的个人任务线**——
   Bram「旧伤·猎犬」（60，crypt_hound ×4）、Valeria「守誓者之骸」（65，skeleton ×4）、
   Aldous「药师的老鼠账」（55，giant_rat ×4）。忠诚度变化时 `offerPersonalQuest` 检查门槛
@@ -130,7 +130,7 @@
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
-- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.5,…}`（多架构 amd64+arm64）
+- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.6,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
 - 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 17 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（17 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
