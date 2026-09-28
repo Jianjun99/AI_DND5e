@@ -115,6 +115,18 @@
 - forge `isForgeable` 认 cloak/ring 类型（套装件可熔解/重铸）；词缀套件 516→533 断言。
 - 设计注：套装件只从战利品 roll 出（商店不上架散件）；混合套装分开计数不叠加。
 
+## Companion 支线（未发布）
+- `server/game/companions.js`：三人各一条**忠诚度门槛触发的个人任务线**——
+  Bram「旧伤·猎犬」（60，crypt_hound ×4）、Valeria「守誓者之骸」（65，skeleton ×4）、
+  Aldous「药师的老鼠账」（55，giant_rat ×4）。忠诚度变化时 `offerPersonalQuest` 检查门槛
+  （每次只开一条线，roster `char.companionQuests[allyId]` 记 offered/done，永不重复）。
+- 进度挂在杀怪点（applyDamage monster 分支，checkQuest 之后）：`progressPersonalQuest`
+  计数到需要即完成——+60 gp、+15 忠诚、卷一个稀有礼物件（Bram 武器 / Valeria·Aldous 护甲）。
+  上锁宝箱式技能骰不涉及；目标怪是 crypt 系（其他地图的局自然等待，档案持久化跨局有效）。
+- sync-delve 把 `companionQuests` 写回档案；事件复用 quest_offer / quest_done（SFX 已有）。
+- 战斗套件 +2 测试（门槛触发与一次性 / 完成奖励流 / 门槛下不触发）。
+- 设计注：目标怪锁定 crypt 系是有意为之——支线跨局等待而非全图通杀。
+
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）

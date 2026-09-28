@@ -583,6 +583,8 @@ router.post('/sync-delve', (req, res) => {
       char.companionLoyalty = char.companionLoyalty || {};
       char.companionLoyalty[delveAlly.allyId || 'bram'] = delveAlly.loyalty;
     }
+    // companion personal-quest flags ride back so offers happen once, ever
+    if (dc.companionQuests) char.companionQuests = { ...(char.companionQuests || {}), ...dc.companionQuests };
     // deepest endless depth rides back for the Hall of Heroes ranking (+ revives
     // the endless_delver achievement, which previously had no writer)
     if (typeof delve.endlessDepth === 'number' && delve.endlessDepth > (char.endlessDepth || 0)) {

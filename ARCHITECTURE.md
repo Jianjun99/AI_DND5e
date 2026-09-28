@@ -288,6 +288,7 @@ server/
   game/gambling.js    roulette / sic bo / slots (pure evaluators + spinners)
   game/forge.js       salvage / reroll / upgrade (essence currency)
   game/campaign.js    four-act main story state machine + epilogue
+  game/companions.js  companion personal quest lines (loyalty-gated, one per ally)
   game/content.js     content registry (core + packs)
   game/endless.js     procedural floor generator (Endless Depths) — depth ≥ 2 floors roll a
                       mutation (champions/swarm/gilded) whose knobs the hydration + chest loot read

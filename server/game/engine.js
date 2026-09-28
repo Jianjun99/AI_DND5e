@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const content = require('./content');
 const affixes = require('./affixes');
+const companions = require('./companions');
 const forgeMod = require('./forge');
 
 const SHARED = path.join(__dirname, '..', '..', 'shared');
@@ -1012,6 +1013,7 @@ function applyDamage(state, target, amount, damageType, events, opts = {}) {
       }
       rollLoot(state, target, events);
       checkQuest(state, 'slay', target.monsterId, events);
+      progressPersonalQuest(state, target, events);
     } else if (target.kind === 'ally') {
       const ev = { type: 'ally_down', narrate: true, text: `${target.name} collapses!`, data: { targetId: target.id, targetX: target.x, targetY: target.y } };
       events.push(ev); addLog(state, 'mech', ev.text);
@@ -2314,7 +2316,45 @@ function adjustLoyalty(state, delta, events, entity) {
     const ev = { type: 'companion', narrate: true, text: line };
     events.push(ev); addLog(state, 'dm_canned', line);
   }
+  offerPersonalQuest(state, ally, events);
   return after;
+}
+
+// ---- companion personal quests (loyalty-gated story beats, one thread at a time) ----
+function offerPersonalQuest(state, ally, events) {
+  const def = companions.PERSONAL_QUESTS[ally.allyId];
+  if (!def || !events) return;
+  const char = state.character;
+  char.companionQuests = char.companionQuests || {};
+  if (char.companionQuests[ally.allyId]) return;                       // already offered or done
+  if (state.companionQuest) return;                                    // one personal thread at a time
+  if ((ally.loyalty == null ? 50 : ally.loyalty) < def.offerAt) return;
+  state.companionQuest = { allyId: ally.allyId, name: def.name, target: def.target, need: def.need, count: 0 };
+  char.companionQuests[ally.allyId] = 'offered';
+  const ev = { type: 'quest_offer', narrate: true, text: `PERSONAL QUEST — ${def.name}: ${def.offer}` };
+  events.push(ev); addLog(state, 'system', ev.text);
+}
+
+function progressPersonalQuest(state, mon, events) {
+  const q = state.companionQuest;
+  if (!q || q.target !== mon.monsterId) return;
+  q.count++;
+  const def = companions.PERSONAL_QUESTS[q.allyId];
+  if (q.count < def.need) {
+    events.push({ type: 'info', narrate: false, text: `${def.name}: ${q.count}/${def.need} ${def.targetName}s` });
+    return;
+  }
+  state.companionQuest = null;
+  const char = state.character;
+  char.companionQuests[q.allyId] = 'done';
+  char.gold += def.reward.gold;
+  const gift = affixes.rollMagicItem(def.reward.itemRarity, { category: def.reward.itemCategory });
+  char.inventory = char.inventory || [];
+  char.inventory.push(gift);
+  const ally = state.entities.find(e => e.kind === 'ally' && e.allyId === q.allyId);
+  if (ally) adjustLoyalty(state, def.reward.loyalty, events, ally);
+  const ev = { type: 'quest_done', narrate: true, text: `PERSONAL QUEST COMPLETE — ${def.name}! ${def.done} (+${def.reward.gold} gp, +${def.reward.loyalty} loyalty, ${gift.name})` };
+  events.push(ev); addLog(state, 'system', ev.text);
 }
 
 // ---------------------------------------------------------------- checks & interaction ----

@@ -213,5 +213,57 @@ test('Chef cooks temp HP on short rest; Musician blesses the party on long rest'
   assert((ally.buffs || []).some((b) => b.id === 'blessed'), 'Musician blessing lands on the ally');
 });
 
+test('Companion personal quest: offered at the threshold, progresses on kills, completes once', () => {
+  const state = makeLoyaltyState(60); // Bram's line offers at 60
+  const c = state.character;
+  const p = engine.playerEntity(state);
+  const ally = state.entities.find(e => e.kind === 'ally');
+
+  // crossing the threshold through a real loyalty change makes the offer
+  const camp = state.objects.find(o => o.id === 'campfire');
+  p.x = camp.x; p.y = camp.y;
+  const restEvents = [];
+  engine.longRest(state, restEvents);
+  assert(state.companionQuest && state.companionQuest.allyId === 'bram', 'Bram\u2019s personal quest thread opened at the threshold');
+  assert(restEvents.some(e => e.type === 'quest_offer' && e.text.includes('Bram')), 'quest_offer event carries Bram\u2019s story');
+  assert(c.companionQuests.bram === 'offered', 'roster marks the quest offered');
+
+  // four crypt hound kills complete the line (spawn them so the count is deterministic)
+  const events = [];
+  for (let i = 0; i < 4; i++) {
+    state.entities.push({ id: 'hound_' + i, kind: 'monster', monsterId: 'crypt_hound', name: 'Test Hound ' + i, x: 2, y: 2 + i, hp: 5, hpMax: 5, ac: 10, speedFt: 30, alive: true, conditions: [], buffs: [] });
+    const hound = state.entities.find(e => e.id === 'hound_' + i);
+    const beforeGold = c.gold;
+    engine.applyDamage(state, hound, 999, 'slashing', events);
+    assert(hound.alive === false, `hound ${i + 1} slain`);
+    if (i < 3) assert(state.companionQuest && state.companionQuest.count === i + 1, `progress ${i + 1}/4`);
+    if (i === 3) {
+      assert(state.companionQuest === null, 'thread closed on completion');
+      assert(c.companionQuests.bram === 'done', 'roster marks the quest done');
+      assert(c.gold - beforeGold >= 60, `reward gold +60 on top of any loot (got ${c.gold - beforeGold})`);
+      const gift = c.inventory[c.inventory.length - 1];
+      assert(gift.rarity === 'rare' && gift.type === 'weapon', 'rolled rare weapon gift added');
+      assert(events.some(e => e.type === 'quest_done' && e.text.includes('Bram')), 'quest_done event carries the story');
+    }
+  }
+  assert(ally.loyalty >= 75, `completion loyalty surge landed (${ally.loyalty})`);
+
+  // never offered again
+  const again = [];
+  engine.longRest(state, again);
+  assert(!again.some(e => e.type === 'quest_offer'), 'a done line is never offered again');
+});
+
+test('Below the loyalty threshold no personal quest is offered', () => {
+  const state = makeLoyaltyState(50);
+  const camp = state.objects.find(o => o.id === 'campfire');
+  const p = engine.playerEntity(state);
+  p.x = camp.x; p.y = camp.y;
+  const events = [];
+  engine.longRest(state, events); // 50 -> 53, below Bram's 60
+  assert(state.companionQuest == null, 'no thread below the threshold');
+  assert(!events.some(e => e.type === 'quest_offer'), 'no offer event below the threshold');
+});
+
 console.log(`\nCombat Integration Tests Summary: ${passed} passed, ${failed} failed.`);
 if (failed > 0) process.exit(1);
