@@ -158,7 +158,10 @@ async function waitHealthy() {
   const easyPotions = easy.state.character.inventory.find(i => i.itemId === 'potion_healing').qty;
   if (easyPotions !== 4) throw new Error(`Expected 4 potions on easy, got ${easyPotions}`);
   if (!easy.state.entities.some(e => e.kind === 'ally')) throw new Error('Ally missing on easy delve');
-  const goblin = easy.state.entities.find(e => e.monsterId === 'goblin');
+  // elite champions legitimately carry +15-40% HP — the check targets a plain goblin,
+  // otherwise a high-rolled elite flakes this probe (seen once in CI)
+  const goblin = easy.state.entities.find(e => e.monsterId === 'goblin' && !e.isElite && !e.affix);
+  if (!goblin) throw new Error('No plain goblin on the easy delve to check scaling against');
   if (goblin.hp > Math.round(14 * 0.75)) throw new Error(`Easy difficulty did not reduce goblin HP (got ${goblin.hp})`);
   console.log(`✔ easy difficulty: 4 potions, ally present, goblin HP ${goblin.hp}/14 max`);
 
