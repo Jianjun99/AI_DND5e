@@ -16,6 +16,7 @@ const testSuites = [
   { name: 'Unit Tests: Forge, Bestiary & Campaign', file: 'tests/unit/forge-and-campaign.test.mjs' },
   { name: 'Unit Tests: MCP Server (stdio protocol)', file: 'tests/unit/mcp-server.test.mjs' },
   { name: 'Unit Tests: Store Schema Versioning', file: 'tests/unit/store-versioning.test.mjs' },
+  { name: 'Unit Tests: Event Contract (emitted vs client vocabulary)', file: 'tests/unit/event-contract.test.mjs' },
   { name: 'Integration Tests: Delve Replay Bot (API invariants)', file: 'scripts/replay-bot.mjs', env: { REPLAY_QUICK: '1' } },
   { name: 'Integration Tests: Movement, Pathfinding & Vision', file: 'tests/integration/movement.test.mjs' },
   { name: 'Integration Tests: Combat, Actions & Health', file: 'tests/integration/combat.test.mjs' },

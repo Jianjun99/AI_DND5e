@@ -76,10 +76,10 @@ const main = (async () => {
 
   const list = await rpc('tools/list', {});
   const names = list.result.tools.map((t) => t.name);
-  results.push(['tools/list exposes the four tools', () => {
-    assert(names.includes('run_verify') && names.includes('run_balance_sim')
+  results.push(['tools/list exposes the five tools', () => {
+    assert(names.includes('run_verify') && names.includes('run_replay') && names.includes('run_balance_sim')
       && names.includes('query_rules') && names.includes('recent_failures'),
-      `expected the four tools, got ${names.join(', ')}`);
+      `expected the five tools, got ${names.join(', ')}`);
     assert(list.result.tools.every((t) => t.inputSchema && t.description), 'every tool carries schema + description');
   }]);
 

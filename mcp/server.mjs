@@ -87,6 +87,11 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false }
   },
   {
+    name: 'run_replay',
+    description: 'Run the delve replay bot (scripts/replay-bot.mjs): plays complete delves over the REST API and checks gameplay-level invariants. The deep regression net for engine changes.',
+    inputSchema: { type: 'object', properties: { runs: { type: 'number', description: 'delve count (default 4)' } }, additionalProperties: false }
+  },
+  {
     name: 'run_balance_sim',
     description: 'Run scripts/balance-sim.mjs (bot battles) and return the win-rate table. Run this whenever you change combat/loot/gambling numbers.',
     inputSchema: { type: 'object', properties: { runs: { type: 'number', description: 'simulation count (default 50)' } }, additionalProperties: false }
@@ -113,6 +118,13 @@ function callTool(name, args) {
     isError: r.code !== 0,
     text: `(exit ${r.code})\n${r.text}`
   }));
+  if (name === 'run_replay') {
+    const runs = Math.max(1, Math.min(20, Number(args && args.runs) || 4));
+    return runCapture(process.execPath, ['scripts/replay-bot.mjs', '--runs', String(runs)], 20 * 60 * 1000).then((r) => ({
+      isError: r.code !== 0,
+      text: `(exit ${r.code}, delves=${runs})\n${r.text}`
+    }));
+  }
   if (name === 'run_balance_sim') {
     const runs = Math.max(1, Math.min(500, Number(args && args.runs) || 50));
     return runCapture(process.execPath, ['scripts/balance-sim.mjs', String(runs)]).then((r) => ({

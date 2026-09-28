@@ -602,7 +602,7 @@ export async function playView(main, saveRef) {
     trap_spotted: 'trap', trap_disarmed: 'victory', trap_disarm_failed: 'trap',
     chest_unlocked: 'chest_open', chest_locked: 'miss',
     dying: 'death', player_down: 'death', victory: 'victory', door: 'door', blessing: 'heal',
-    barrel_detonate: 'barrel_boom', hazard_burn: 'hazard_burn', parry: 'parry', stealth: 'stealth', retreat: 'retreat'
+    barrel_detonate: 'barrel_boom', hazard_burn: 'hazard_burn', stealth: 'stealth', retreat: 'retreat'
   };
 
   function showFloorBanner(title, subtitle) {

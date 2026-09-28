@@ -74,9 +74,9 @@
 - **verify 落盘**：`scripts/verify.mjs` 把全部步骤输出 tee 到 `data/last-verify.log`
   （recent_failures 的数据源）。
 - **存档版本化**：`store.js` 写入打 `saveVersion`（当前 2），读取走 `migrateSave`
-  迁移链（只增不删、失败降级可用、未来版本原样放行）；第 16 套件
+  迁移链（只增不删、失败降级可用、未来版本原样放行）；第 17 套件
   `tests/unit/store-versioning.test.mjs` 用临时 DATA_DIR 做真实读写测试。
-  **测试套件总数现为 15**（文档里的 13/14 已全部同步）。
+  **测试套件总数现为 17**（文档里的 13/14/15/16 已全部同步；含事件契约与回放机器人）。
 
 ## PWA + 新特长 + CDP 诊断（v1.9.4 已发布）
 - **PWA**：public/sw.js（HTML/JS/CSS network-first、vendor/icons cache-first、/api 永不缓存——
@@ -93,9 +93,16 @@
   事件流类型健全），卡死检测 60 动作无进度（进度 = 位置/击杀/门/宝箱状态）。
   自动起服（BASE_URL/PORT 可指向 Docker 容器），跑完自动 sync-delve 并清理 bot 角色/存档。
   策略会学玩家真实流程：上锁宝箱走 skillCheckObject（客户端骰子契约），拿圣物后回家触发胜利。
-- 第 16 套件（REPLAY_QUICK=1 两局快跑进 test-all；test-all 现支持 per-suite env）。
+- 第 17 套件（REPLAY_QUICK=1 两局快跑进 test-all；test-all 现支持 per-suite env）。
 - **首跑即战果**：抓出 NPC 无 hp 字段（校准不变量）、bot 对着开着的门/上锁宝箱空转（策略修掉）——
   上锁宝箱的 pick/force 是客户端骰子，属设计而非 bug。
+
+## 事件契约测试 + run_replay MCP 工具（未发布）
+- **事件契约测试**（第 17 套件 `tests/unit/event-contract.test.mjs`）：扫描 engine/routes/referee
+  发射的每个 `type: '...'`，必须被归类——play.js SFX_MAP（有音效）/ 测试内 NARRATION_ONLY
+  清单（只走日志旁白管线）/ NOT_EVENTS（伤害骰子类型等假阳性）。反向断言 SFX_MAP 每个键
+  都有发射点（顺带清掉了 parry 死音效映射）。**新事件类型不分类就挂 CI**，强制做声音/旁白决策。
+- **MCP 第五工具 `run_replay`**：远程触发回放机器人（runs 上限 20，20 分钟超时）。
 
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
@@ -103,10 +110,10 @@
 - Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.4,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
-- 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 16 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（16 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
+- 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 17 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（17 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
 - 架构文档：`ARCHITECTURE.md`（Mermaid 图）；模组指南：`MODDING.md`
 
-## 当前版本：v1.9.4（已发布：PWA 离线 + 四个新特长 + 回放机器人（16 套件）+ CDP 根因修复）
+## 当前版本：v1.9.4（已发布：PWA 离线 + 四个新特长 + 回放机器人（17 套件）+ CDP 根因修复）
 
 ## v1.9.1 发布内容（原「进行中」段落，转正）
 - **AI 协作入口**：根目录新增 `AGENTS.md`（地面规则正本 + 验证命令 + 硬约束速记 + 文档地图），
@@ -192,7 +199,7 @@
 
 ## 测试体系
 - `node scripts/smoke-test.mjs`：端到端基础链路健康度探针（CI 每次推送必跑，自动侦测 3000/3100 端口）
-- `node scripts/test-all.mjs` / `npm test`：全套 16 大测试套件，包含 D&D 2024 规则单元测试、
+- `node scripts/test-all.mjs` / `npm test`：全套 17 大测试套件，包含 D&D 2024 规则单元测试、
   3D 手办步态测试（含火龙/蜘蛛/史莱姆/火元素/活动铠甲）、精英词缀与战利品稀有度单元测试、
   地图棋盘可见性与镜头数学单元测试、移动/寻路/视野集成测试、战斗/动作集成测试、
   战术对抗（借机攻击/夹击/推撞）、角色升级（1-12 级与 6 环法术位）/地牢装备换装/楼层下潜/拓展地图集成测试、
@@ -282,4 +289,4 @@ v1.0.0 首发 → v1.2.0 连通地牢+模组+任务 → v1.3.0 UI 修复 → v1.
 → v1.9.1 AI 协作基建（AGENTS.md/CLAUDE.md 入口）+ dmgType→damageType 统一 + tsc 全仓覆盖（含 public/js）+ 活动铠甲 3D 渲染崩溃修复 + 4 个测试套件假绿修复
 → v1.9.2 视图模块拆分（play/panels·ribbon·delve-inventory，overworld/districts·road-encounter）+ 路遇落库修复 + 队友忠诚度（持久化心情 + 吐槽 + DM 台词）
 → v1.9.3 深渊楼层变异（精英横行/群涌暗潮/鎏金之层）+ 队友深层台词 + 殿堂深渊远征榜 + 仓库自带 MCP server（四只读工具）+ 存档 schema 版本化
-→ v1.9.4 PWA 离线缓存 + 新特长 Observant/Speedy/Chef/Musician + CDP 瞬挂根因修复 + 回放机器人（REST API 打完整冒险 + 游戏级不变量，16 套件）（当前）
+→ v1.9.4 PWA 离线缓存 + 新特长 Observant/Speedy/Chef/Musician + CDP 瞬挂根因修复 + 回放机器人（REST API 打完整冒险 + 游戏级不变量，17 套件）（当前）

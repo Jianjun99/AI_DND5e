@@ -8,7 +8,7 @@
 
 ## 验证清单（AI 与人类都照勾）
 
-- [ ] `npm run verify` 全绿（eslint + tsc + 16 套件 + 冒烟）
+- [ ] `npm run verify` 全绿（eslint + tsc + 17 套件 + 冒烟）
 - [ ] 改了数值表（伤害/掉落/概率/赔付）：已跑 `node scripts/balance-sim.mjs` 并在下方贴胜率变化
       （没改数值可划掉本项）
 - [ ] 客户端改动在真实浏览器看过（CDP 截图或手动）
