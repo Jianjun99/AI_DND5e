@@ -97,14 +97,14 @@
 - **首跑即战果**：抓出 NPC 无 hp 字段（校准不变量）、bot 对着开着的门/上锁宝箱空转（策略修掉）——
   上锁宝箱的 pick/force 是客户端骰子，属设计而非 bug。
 
-## 事件契约测试 + run_replay MCP 工具（未发布）
+## 事件契约测试 + run_replay MCP 工具（v1.9.5 已发布）
 - **事件契约测试**（第 17 套件 `tests/unit/event-contract.test.mjs`）：扫描 engine/routes/referee
   发射的每个 `type: '...'`，必须被归类——play.js SFX_MAP（有音效）/ 测试内 NARRATION_ONLY
   清单（只走日志旁白管线）/ NOT_EVENTS（伤害骰子类型等假阳性）。反向断言 SFX_MAP 每个键
   都有发射点（顺带清掉了 parry 死音效映射）。**新事件类型不分类就挂 CI**，强制做声音/旁白决策。
 - **MCP 第五工具 `run_replay`**：远程触发回放机器人（runs 上限 20，20 分钟超时）。
 
-## 套装物品（未发布）
+## 套装物品（v1.9.5 已发布）
 - `affixes.js` 新增 `ARMOR_SETS`（余烬锻造 / 渊守）：护甲池 roll 出的部件 25% 概率携带
   套装标记（保留原词缀加成，套装叠加其上）。**套装跨槽位**：护甲 + 披风 + 戒指——
   基础池新增 cloak / ring 两个基础（共享目录 GEAR 同步补录，可解析名字、有卖价）。
@@ -118,7 +118,7 @@
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
-- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.4,…}`（多架构 amd64+arm64）
+- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.5,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
 - 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 17 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（17 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
