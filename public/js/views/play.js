@@ -950,6 +950,13 @@ export async function playView(main, saveRef) {
                 <div class="small"><span class="chip">💰 ${game.quests.active.reward.gold} gp</span> <span class="chip blue">✨ ${game.quests.active.reward.xp} XP</span></div>
               </div>
             ` : ''}
+            ${game.companionQuest ? `
+              <div style="border-top:1px dashed var(--border); padding-top:6px; margin-top:6px;">
+                <div style="font-size:12px; font-weight:600; color:var(--parchment); margin-bottom:2px;">🤝 ${esc(game.companionQuest.name)}</div>
+                <p class="small muted" style="margin:0 0 6px;">${esc((game.entities.find(e => e.kind === 'ally' && e.allyId === game.companionQuest.allyId) || {}).name || 'Your companion')} has asked for your help — a personal favor, repaid in kind.</p>
+                <div class="small"><span class="chip blue">🎯 ${esc(game.companionQuest.targetName)} ${game.companionQuest.count}/${game.companionQuest.need}</span></div>
+              </div>
+            ` : ''}
           </div>
         `}
       </div>

@@ -2329,7 +2329,7 @@ function offerPersonalQuest(state, ally, events) {
   if (char.companionQuests[ally.allyId]) return;                       // already offered or done
   if (state.companionQuest) return;                                    // one personal thread at a time
   if ((ally.loyalty == null ? 50 : ally.loyalty) < def.offerAt) return;
-  state.companionQuest = { allyId: ally.allyId, name: def.name, target: def.target, need: def.need, count: 0 };
+  state.companionQuest = { allyId: ally.allyId, name: def.name, target: def.target, targetName: def.targetName, need: def.need, count: 0 };
   char.companionQuests[ally.allyId] = 'offered';
   const ev = { type: 'quest_offer', narrate: true, text: `PERSONAL QUEST — ${def.name}: ${def.offer}` };
   events.push(ev); addLog(state, 'system', ev.text);

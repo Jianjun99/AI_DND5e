@@ -124,6 +124,7 @@
   计数到需要即完成——+60 gp、+15 忠诚、卷一个稀有礼物件（Bram 武器 / Valeria·Aldous 护甲）。
   上锁宝箱式技能骰不涉及；目标怪是 crypt 系（其他地图的局自然等待，档案持久化跨局有效）。
 - sync-delve 把 `companionQuests` 写回档案；事件复用 quest_offer / quest_done（SFX 已有）。
+- 侧栏任务区（展开态）在支线激活时显示个人线卡片：任务名、队友、进度 x/need（thread 携带 targetName）。
 - 战斗套件 +2 测试（门槛触发与一次性 / 完成奖励流 / 门槛下不触发）。
 - 设计注：目标怪锁定 crypt 系是有意为之——支线跨局等待而非全图通杀。
 
