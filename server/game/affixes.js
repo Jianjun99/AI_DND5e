@@ -113,6 +113,23 @@ const ARMOR_AFFIXES = [
   { id: 'fleet', prefix: '轻捷之', english: 'Fleet', speedBonus: 5, desc: '+5 ft movement speed' }
 ];
 
+// Item sets: rolled armour-pool pieces (armour / cloak / ring / shield) have a 25%
+// chance to carry a set tag. Equipping N pieces of the same set grants tiered
+// bonuses, resolved live by engine.setAcBonus (currentAc) and the initiative roll
+// (initBonus). Set pieces keep their normal affix bonuses — the set stacks on top.
+const ARMOR_SETS = [
+  {
+    id: 'emberforged', prefix: '余烬锻造', english: 'Emberforged', color: '#f59e0b',
+    set2: { acBonus: 1 }, set3: { acBonus: 2, initBonus: 2 },
+    desc: '套装：2 件 +1 AC，3 件 +2 AC 且先攻 +2'
+  },
+  {
+    id: 'deepwarden', prefix: '渊守', english: 'Deepwarden', color: '#38bdf8',
+    set2: { acBonus: 1 }, set3: { acBonus: 2, initBonus: 2 },
+    desc: '套装：2 件 +1 AC，3 件 +2 AC 且先攻 +2'
+  }
+];
+
 const BASE_WEAPONS = [
   { id: 'longsword', name: '长剑', english: 'Longsword', type: 'weapon', cost: 15 },
   { id: 'shortsword', name: '短剑', english: 'Shortsword', type: 'weapon', cost: 10 },
@@ -129,7 +146,9 @@ const BASE_ARMORS = [
   { id: 'chain_shirt', name: '锁子衫', english: 'Chain Shirt', type: 'armor', cost: 50 },
   { id: 'chain_mail', name: '锁子甲', english: 'Chain Mail', type: 'armor', cost: 75 },
   { id: 'breastplate', name: '胸甲', english: 'Breastplate', type: 'armor', cost: 400 },
-  { id: 'shield', name: '盾牌', english: 'Shield', type: 'shield', cost: 10 }
+  { id: 'shield', name: '盾牌', english: 'Shield', type: 'shield', cost: 10 },
+  { id: 'cloak', name: '披风', english: 'Cloak', type: 'cloak', cost: 20 },
+  { id: 'ring', name: '秘银戒指', english: 'Mithril Ring', type: 'ring', cost: 30 }
 ];
 
 const uidCounter = { n: 0 };
@@ -205,7 +224,16 @@ function rollMagicItem(rarity = 'magic', opts = {}) {
   const base = basePool[Math.floor(Math.random() * basePool.length)];
   const affixPool = isWeapon ? WEAPON_AFFIXES : ARMOR_AFFIXES;
   const affix = affixPool[Math.floor(Math.random() * affixPool.length)];
-  return buildAffixItem(base, affix, rarity);
+  const item = buildAffixItem(base, affix, rarity);
+  if (!isWeapon && Math.random() < 0.25) {
+    const set = ARMOR_SETS[Math.floor(Math.random() * ARMOR_SETS.length)];
+    item.set = set.id;
+    item.name = `${set.prefix}·${item.name}`;
+    item.englishName = `${item.englishName} (${set.english})`;
+    item.desc += `。${set.desc}（当前已装备件数结算见角色面板）`;
+    item.cost = Math.round(item.cost * 1.3);
+  }
+  return item;
 }
 
 module.exports = {
@@ -215,6 +243,7 @@ module.exports = {
   applyMonsterAffix,
   WEAPON_AFFIXES,
   ARMOR_AFFIXES,
+  ARMOR_SETS,
   BASE_WEAPONS,
   BASE_ARMORS,
   rollMagicItem,

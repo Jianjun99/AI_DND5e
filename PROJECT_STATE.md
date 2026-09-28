@@ -104,6 +104,17 @@
   都有发射点（顺带清掉了 parry 死音效映射）。**新事件类型不分类就挂 CI**，强制做声音/旁白决策。
 - **MCP 第五工具 `run_replay`**：远程触发回放机器人（runs 上限 20，20 分钟超时）。
 
+## 套装物品（未发布）
+- `affixes.js` 新增 `ARMOR_SETS`（余烬锻造 / 渊守）：护甲池 roll 出的部件 25% 概率携带
+  套装标记（保留原词缀加成，套装叠加其上）。**套装跨槽位**：护甲 + 披风 + 戒指——
+  基础池新增 cloak / ring 两个基础（共享目录 GEAR 同步补录，可解析名字、有卖价）。
+- **2 件 +1 AC，3 件 +2 AC 且先攻 +2**：AC 走 `currentAc` 活计算（`setAcBonus`，天然重算安全，
+  不碰 acBase）；先攻走 `char.initBonus`（applyClassAndSpecies 盖章时叠加 `setInitBonus`）。
+- **顺手修活一个死字段**：`char.initBonus` 此前全引擎只写不读（startCombat 只用 d20+dexM）——
+  Alert/Feral Instinct/套装的先攻加成现在真正生效。战斗开局玩家先攻会因此略变，属修正非回归。
+- forge `isForgeable` 认 cloak/ring 类型（套装件可熔解/重铸）；词缀套件 516→533 断言。
+- 设计注：套装件只从战利品 roll 出（商店不上架散件）；混合套装分开计数不叠加。
+
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）

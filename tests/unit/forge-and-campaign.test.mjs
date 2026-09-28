@@ -77,7 +77,7 @@ test('Rerolling swaps the affix and keeps the item identity', () => {
   }
   const armor = affixes.rollMagicItem('rare', { category: 'armor' });
   const armorOut = forge.rerollAffix(armor);
-  assert(forge.isForgeable(armorOut.item) && ['armor', 'shield'].includes(armorOut.item.type), 'Armour rerolls within the armour affix pool');
+  assert(forge.isForgeable(armorOut.item) && ['armor', 'shield', 'cloak', 'ring'].includes(armorOut.item.type), 'Armour rerolls within the armour affix pool');
 });
 
 test('Upgrading walks the rarity ladder and stops at legendary', () => {

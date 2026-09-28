@@ -31,8 +31,9 @@ const FORGE_COSTS = {
 };
 
 // Only rolled instances (dropped loot) can be forged — plain shop gear and quest items cannot.
+// Cloak/ring bases joined the armour pool with the item-set system and forge the same way.
 function isForgeable(item) {
-  return !!(item && item.rarity && item.affix && ['weapon', 'armor', 'shield'].includes(item.type));
+  return !!(item && item.rarity && item.affix && ['weapon', 'armor', 'shield', 'cloak', 'ring'].includes(item.type));
 }
 
 function salvageValue(item) {

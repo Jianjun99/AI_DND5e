@@ -552,6 +552,20 @@
       "type": "magic_trinket",
       "cost": 350,
       "desc": "+2 to damage with all weapon attacks."
+    },
+    {
+      "id": "cloak",
+      "name": "Traveller's Cloak",
+      "type": "gear",
+      "cost": 20,
+      "desc": "A plain wool cloak — often the canvas for enchanted set sigils."
+    },
+    {
+      "id": "ring",
+      "name": "Mithril Band",
+      "type": "gear",
+      "cost": 30,
+      "desc": "A plain mithril band — set sigils take readily to it."
     }
   ]
 }

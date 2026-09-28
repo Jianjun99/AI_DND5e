@@ -81,6 +81,35 @@ function equippedBonus(char, key) {
   return total;
 }
 
+// ---- item sets (affixes.ARMOR_SETS): tiered bonuses counted across equipped slots ----
+function equippedSets(char) {
+  const counts = {};
+  if (!char || !char.equipped || !char.inventory) return counts;
+  Object.keys(char.equipped).forEach(slot => {
+    const it = invEntry(char, char.equipped[slot]);
+    if (it && it.set) counts[it.set] = (counts[it.set] || 0) + 1;
+  });
+  return counts;
+}
+function setAcBonus(char) {
+  const counts = equippedSets(char);
+  let bonus = 0;
+  affixes.ARMOR_SETS.forEach(s => {
+    const n = counts[s.id] || 0;
+    if (n >= 3) bonus += s.set3.acBonus;
+    else if (n >= 2) bonus += s.set2.acBonus;
+  });
+  return bonus;
+}
+function setInitBonus(char) {
+  const counts = equippedSets(char);
+  let bonus = 0;
+  affixes.ARMOR_SETS.forEach(s => {
+    if ((counts[s.id] || 0) >= 3) bonus += (s.set3.initBonus || 0);
+  });
+  return bonus;
+}
+
 // Weapons resolve either from the weapon table, magic gear, or custom rolled affix items in inventory
 function resolveWeapon(id, char) {
   const inv = invEntry(char, id);
@@ -327,7 +356,8 @@ function applyClassAndSpecies(char, clsArg, spArg, newLevel, recomputeOnly = fal
   char.saveAdvAbilities = eff.saveAdvAbilities || [];
   char.poisonAdv = !!eff.poisonAdv;
   char.initBonus = dexM + ((FEATS[char.feat] || {}).initBonus || 0)
-    + (cls.id === 'barbarian' && level >= 7 ? 2 : 0); // Feral Instinct
+    + (cls.id === 'barbarian' && level >= 7 ? 2 : 0) // Feral Instinct
+    + setInitBonus(char); // item sets (3-piece tiers)
 
   char.attacks = char.inventory.map(inv => {
     // rolled affix gear resolves by its unique id so each piece keeps its own name and bonuses
@@ -706,7 +736,9 @@ function startCombat(state, monsterIds, events = []) {
     (e.kind === 'player' || e.kind === 'ally') || (e.kind === 'monster' && monsterIds.includes(e.id) && e.alive));
   const order = participants.map(e => {
     const dexM = mod((e.abilities || state.character.abilities).dex);
-    return { id: e.id, name: e.name, total: d20({}).natural + dexM };
+    // the player's initiative bonus (Alert, Feral Instinct, item sets) finally applies here
+    const initBonus = e.kind === 'player' ? (state.character.initBonus || 0) : 0;
+    return { id: e.id, name: e.name, total: d20({}).natural + dexM + initBonus };
   }).sort((a, b) => b.total - a.total);
   state.combat = { order, turnIdx: 0, round: 1, actionUsed: false, bonusUsed: false, movementLeft: playerEntity(state).speedFt };
   participants.filter(e => e.kind === 'monster').forEach(m => { m.aware = true; });
@@ -880,6 +912,7 @@ function currentAc(state, ent) {
   if (hasBuff(ent, 'mage_armor') && !charHasArmor(char)) ac = 13 + mod(char.abilities.dex);
   if (hasBuff(ent, 'shield')) ac += 5;
   if (char && char.equipped && char.inventory) ac += equippedBonus(char, 'acBonus');
+  ac += setAcBonus(char);
   return ac;
 }
 function charHasArmor(char) { return char.inventory.some(i => byId(ARMORS, i.itemId)); }
@@ -2563,6 +2596,7 @@ module.exports = {
   getMap, tileChar, isWall, isBlocked, isDifficult, entityAt, roomAt, los, manhattan, bfsPath, computeVision, markDiscovered,
   startGame, addLog, playerEntity, currentActor, endTurn, beginPlayerTurn, currentSpeed,
   hasBuff, getBuff, addBuff, removeBuff, currentAc, charHasArmor, applyCondition,
+  equippedSets, setAcBonus, setInitBonus,
   alertCheck, startCombat, checkCombatEnd, processUntilPlayer,
   movePlayer, playerAttack, castSpell, findSpell, interactObject, interactDoor,
   shortRest, longRest, skillCheck, damageRoll, applyDamage, healEntity, awardXp, checkPlayerDeath,

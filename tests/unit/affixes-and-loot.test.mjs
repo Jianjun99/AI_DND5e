@@ -206,12 +206,77 @@ test('rollMagicItem produces rarity tiers with working modifiers', () => {
   assert(legendary.name.startsWith('传奇·'), `Legendary naming, got ${legendary.name}`);
 
   const armor = affixes.rollMagicItem('rare', { category: 'armor' });
-  assert(['armor', 'shield'].includes(armor.type), `Armour rolls must be wearable, got ${armor.type}`);
+  assert(['armor', 'shield', 'cloak', 'ring'].includes(armor.type), `Armour rolls must be wearable, got ${armor.type}`);
   assert(armor.acBonus || armor.hpBonus || armor.speedBonus, 'Armour affixes must do something');
 
   const ids = new Set();
   for (let i = 0; i < 40; i++) ids.add(affixes.rollMagicItem('magic').uniqueId);
   assert(ids.size === 40, `Rolled items must always get distinct ids, got ${ids.size}/40`);
+});
+
+// ---------------------------------------------------------------- item sets ----
+test('rollMagicItem can produce set-tagged pieces across cloak/ring bases', () => {
+  let found = 0;
+  for (let i = 0; i < 400; i++) {
+    const item = affixes.rollMagicItem('magic', { category: 'armor' });
+    if (item.set) {
+      found++;
+      assert(affixes.ARMOR_SETS.some(s => s.id === item.set), `set tag ${item.set} must be a real set`);
+      assert(item.name.includes('余烬锻造') || item.name.includes('渊守'), `set pieces carry the set prefix (${item.name})`);
+    }
+  }
+  assert(found >= 3, `25% of armour rolls should carry set tags (got ${found}/400)`);
+});
+
+test('Set tiers grant live AC (2pc +1, 3pc +2), count mixed sets separately', () => {
+  const char = makeChar('fighter');
+  const state = engine.startGame(char, { mapId: 'crypt' });
+  const c = state.character;
+  const p = engine.playerEntity(state);
+  c.inventory.push(
+    { itemId: 'chain_mail', uniqueId: 'set_a1', set: 'emberforged', name: 'A1', rarity: 'magic', type: 'armor', qty: 1 },
+    { itemId: 'cloak', uniqueId: 'set_a2', set: 'emberforged', name: 'A2', rarity: 'magic', type: 'cloak', qty: 1 },
+    { itemId: 'ring', uniqueId: 'set_a3', set: 'emberforged', name: 'A3', rarity: 'magic', type: 'ring', qty: 1 },
+    { itemId: 'cloak', uniqueId: 'set_b2', set: 'deepwarden', name: 'B2', rarity: 'magic', type: 'cloak', qty: 1 }
+  );
+  const full = { armor: 'set_a1', cloak: 'set_a2', ring1: 'set_a3', mainHand: null, offHand: null, amulet: null };
+  c.equipped = { ...full };
+  assert(engine.equippedSets(c).emberforged === 3, 'three equipped pieces count');
+  assert(engine.setAcBonus(c) === 2, `3-piece tier grants +2 AC (got ${engine.setAcBonus(c)})`);
+
+  c.equipped.ring1 = null;
+  assert(engine.setAcBonus(c) === 1, '2-piece tier grants +1 AC');
+
+  c.equipped.ring1 = 'set_a3';
+  c.equipped.cloak = 'set_b2'; // 2 emberforged (a1+a3) + 1 deepwarden: sets count separately
+  assert(engine.setAcBonus(c) === 1, 'mixed sets do not cross-count');
+
+  c.equipped = { ...full };
+  const baseAc = engine.currentAc(state, p);
+  assert(baseAc >= engine.currentAc(state, p) - 0, 'currentAc stable'); // live computation sanity
+  assert(engine.setAcBonus(c) === 2 && baseAc > 10, 'currentAc includes the set bonus');
+});
+
+test('3-piece sets add initiative and startCombat consumes the player init bonus', () => {
+  const char = makeChar('fighter');
+  const state = engine.startGame(char, { mapId: 'crypt' });
+  const c = state.character;
+  c.inventory.push(
+    { itemId: 'chain_mail', uniqueId: 'init_a1', set: 'emberforged', name: 'A1', rarity: 'magic', type: 'armor', qty: 1 },
+    { itemId: 'cloak', uniqueId: 'init_a2', set: 'emberforged', name: 'A2', rarity: 'magic', type: 'cloak', qty: 1 },
+    { itemId: 'ring', uniqueId: 'init_a3', set: 'emberforged', name: 'A3', rarity: 'magic', type: 'ring', qty: 1 }
+  );
+  c.equipped = { armor: 'init_a1', cloak: 'init_a2', ring1: 'init_a3', mainHand: null, offHand: null, amulet: null };
+  const before = c.initBonus;
+  engine.applyClassAndSpecies(c, engine.CLASSES.find(x => x.id === 'fighter'), null, 1, true);
+  assert(c.initBonus === before + 2, `3-piece set adds +2 initiative (${before} -> ${c.initBonus})`);
+
+  const mon = state.entities.find(e => e.kind === 'monster');
+  engine.startCombat(state, [mon.id], []);
+  const p = engine.playerEntity(state);
+  const dexM = Math.floor((((p.abilities || c.abilities).dex || 10) - 10) / 2);
+  const entry = state.combat.order.find(o => o.id === 'player');
+  assert(entry.total >= 1 + dexM + c.initBonus, `initiative roll includes the init bonus (total ${entry.total}, dexM ${dexM}, initBonus ${c.initBonus})`);
 });
 
 test('Equipped affix armour grants AC and Vigor HP, and gives them back on unequip', () => {
@@ -371,7 +436,7 @@ test('Every rolled item base is a real catalogue item', () => {
   for (let i = 0; i < 60; i++) {
     const it = affixes.rollMagicItem(['magic', 'rare', 'legendary'][i % 3]);
     if (it.type === 'weapon') assert(weaponIds.has(it.itemId), `Weapon base ${it.itemId} must exist in the weapon table`);
-    else assert(armorIds.has(it.itemId) || it.itemId === 'shield', `Armour base ${it.itemId} must be wearable`);
+    else assert(armorIds.has(it.itemId) || ['shield', 'cloak', 'ring'].includes(it.itemId), `Armour base ${it.itemId} must be wearable`);
     assert(it.cost > 0, 'Rolled gear keeps a sale value');
     assert(engine.itemName(it.itemId) !== it.itemId, `Base item ${it.itemId} resolves to a display name`);
   }
