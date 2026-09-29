@@ -974,6 +974,24 @@ export function createDistricts(ctx) {
       });
     });
 
+    // Weekly challenge embark
+    const weeklyBtn = /** @type {HTMLButtonElement} */ (document.getElementById('weeklyEmbarkBtn'));
+    if (weeklyBtn) weeklyBtn.addEventListener('click', async () => {
+      const me = ctx.getActiveChar();
+      if (!me) return toast('Select a hero first.');
+      weeklyBtn.disabled = true;
+      try {
+        sfx.play('quest');
+        const res = await api.startGame(me.id, false, 'normal', 'weekly');
+        toast('⚔ 本周试炼开始：' + (res.state.weeklyLabel || 'weekly'));
+        ctx.rerenderPanel(main);
+        location.hash = '#/play/' + res.state.id;
+      } catch (e) {
+        weeklyBtn.disabled = false;
+        toast(e.message);
+      }
+    });
+
     // Guildhall bounty claims
     const bountyBtns = main.querySelectorAll('.claim-bounty-btn');
     bountyBtns.forEach(b => {

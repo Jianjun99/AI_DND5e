@@ -6,7 +6,8 @@ const content = require('./content');
 
 const WIDTH = 34, HEIGHT = 24;
 
-function die(n) { return 1 + Math.floor(Math.random() * n); }
+let _rng = Math.random; // generateFloor swaps in a seeded stream for the weekly challenge
+function die(n) { return 1 + Math.floor(_rng() * n); }
 function pick(arr) { return arr[die(arr.length) - 1]; }
 
 // room: { x, y, w, h, center: {x, y} }
@@ -62,7 +63,8 @@ const MUTATIONS = [
   { id: 'gilded', name: 'Gilded Depths', zh: '鎏金之层', desc: 'The caches of this floor run unusually rich.' }
 ];
 
-function generateFloor(depth, theme) {
+function generateFloor(depth, theme, rng, idPrefix = 'endless_') {
+  _rng = rng || Math.random;
   const pool = buildMonsterPool();
   const mutation = depth >= 2 ? MUTATIONS[die(MUTATIONS.length) - 1] : null;
   const roomCount = 6 + die(3);
@@ -101,14 +103,14 @@ function generateFloor(depth, theme) {
     for (let i = 0; i < num && pi < picks.length; i++, pi++) {
       const mx = r.x + die(r.w) - 1, my = r.y + die(r.h) - 1;
       if (mx === entryRoom.cx && my === entryRoom.cy) continue;
-      entities.push({ type: 'monster', kind: picks[pi].id, id: 'end_' + depth + '_' + ri + '_' + i, x: mx, y: my });
+      entities.push({ type: 'monster', kind: picks[pi].id, id: idPrefix + 'm' + depth + '_' + ri + '_' + i, x: mx, y: my });
     }
   });
 
   // boss every 5 floors in the last room
   if (depth % 5 === 0) {
     const bossRoom = rooms[rooms.length - 1];
-    entities.push({ type: 'monster', kind: 'ogre', id: 'end_boss_' + depth, x: bossRoom.cx, y: bossRoom.cy, boss: true, name: 'Depth Guardian ' + Math.floor(depth / 5) });
+    entities.push({ type: 'monster', kind: 'ogre', id: idPrefix + 'boss_' + depth, x: bossRoom.cx, y: bossRoom.cy, boss: true, name: 'Depth Guardian ' + Math.floor(depth / 5) });
   }
 
   // chests: 1-2 per level, loot scaled; the gilded mutation pays out extra
@@ -132,7 +134,7 @@ function generateFloor(depth, theme) {
   const nameIdx = Math.min(names.length - 1, Math.floor(depth / 3));
 
   return {
-    id: 'endless_' + depth,
+    id: idPrefix + depth,
     name: names[nameIdx] + ' — Floor ' + depth + (mutation ? ' · ' + mutation.zh : ''),
     theme: floorTheme,
     width: WIDTH, height: HEIGHT, tileSizeFt: 5,

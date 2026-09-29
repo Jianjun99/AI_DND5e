@@ -341,7 +341,9 @@ router.get('/info', (req, res) => {
     attacks: (a.attacks || []).map(x => x.name)
   }));
 
-  res.json({
+  const weekly = engine.weeklyInfo ? engine.weeklyInfo() : null;
+    res.json({
+    weekly,
     cityName: 'Oakhaven',
     districts: DISTRICTS,
     mapNodes: MAP_NODES,
@@ -585,6 +587,17 @@ router.post('/sync-delve', (req, res) => {
     }
     // companion personal-quest flags ride back so offers happen once, ever
     if (dc.companionQuests) char.companionQuests = { ...(char.companionQuests || {}), ...dc.companionQuests };
+    // weekly challenge: record victories for the current week on the roster
+    if (delve.weeklyLabel && delve.mode === 'victory') {
+      const cur = engine.weeklyInfo ? engine.weeklyInfo() : null;
+      const label = cur ? cur.label : delve.weeklyLabel;
+      if (delve.weeklyLabel === label) {
+        char.weekly = (char.weekly && char.weekly.label === label) ? char.weekly : { label, wins: 0, best: null };
+        char.weekly.wins += 1;
+        const wk = (delve.stats || {}).kills || 0, wr = (delve.stats || {}).rounds || 0;
+        if (!char.weekly.best || wk > char.weekly.best.kills || (wk === char.weekly.best.kills && wr < char.weekly.best.rounds)) char.weekly.best = { kills: wk, rounds: wr };
+      }
+    }
     // deepest endless depth rides back for the Hall of Heroes ranking (+ revives
     // the endless_delver achievement, which previously had no writer)
     if (typeof delve.endlessDepth === 'number' && delve.endlessDepth > (char.endlessDepth || 0)) {
@@ -835,6 +848,11 @@ router.get('/hall-of-heroes', (req, res) => {
     .sort((a, b) => b.depth - a.depth)
     .slice(0, 10);
 
+  const weeklyLabel = engine.weeklyInfo ? engine.weeklyInfo().label : null;
+  const weeklyRunners = chars
+    .filter(c => c.weekly && c.weekly.label === weeklyLabel && (c.weekly.wins || 0) > 0)
+    .map(c => ({ name: c.name, className: c.className, level: c.level || 1, wins: c.weekly.wins, best: c.weekly.best }))
+    .sort((a, b) => b.wins - a.wins || ((b.best && b.best.kills) || 0) - ((a.best && a.best.kills) || 0));
   res.json({
     ok: true,
     characterName: currentChar ? currentChar.name : 'Unknown Hero',
@@ -843,6 +861,8 @@ router.get('/hall-of-heroes', (req, res) => {
     trophies,
     champions,
     endlessRunners,
+    weeklyRunners,
+    weeklyLabel,
     campaign: currentChar ? {
       campaign: campaignMod.ensure(currentChar.campaign),
       objective: campaignMod.objective(currentChar.campaign),

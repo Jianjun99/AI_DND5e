@@ -85,15 +85,27 @@ function requireConscious(state, events) {
 
 // ---------------- routes ----------------
 router.post('/start', async (req, res) => {
-  const { characterId, bringAlly, difficulty, mapId } = req.body || {};
+  const body = req.body || {};
+  let { characterId, difficulty } = body;
+  let mapId = body.mapId;
+  const bringAlly = body.bringAlly;
   const char = findCharacter(characterId);
   const allyOption = (typeof bringAlly === 'string' && bringAlly === 'none') ? false : (bringAlly || false);
+  // the weekly challenge: a boss-floor procedural delve from one seed per ISO week
+  let weekly = null;
+  if (mapId === 'weekly') {
+    weekly = engine.weeklyInfo();
+    engine.beginSeed(weekly.seed);
+    contentMod.injectMap(endless.generateFloor(weekly.depth, 'crypt', engine.rand, 'weekly_'));
+    mapId = 'weekly_' + weekly.depth;
+  }
   if (mapId === 'endless_1') {
     contentMod.injectMap(endless.generateFloor(1));
   }
   // gambled delve-only prizes ride along, and any curse bought at the table lands here
   const carryItems = (char.pendingDelveItems || []).slice();
-  const state = engine.startGame(char, { bringAlly: allyOption, difficulty, mapId, carryItems });
+  const state = engine.startGame(char, { bringAlly: allyOption, difficulty, mapId, carryItems, seed: weekly ? weekly.seed : undefined });
+  if (weekly) state.weeklyLabel = weekly.label;
   if (mapId === 'endless_1') state.endlessDepth = 1;
   const events = [];
   if (carryItems.length) {
@@ -161,6 +173,7 @@ router.get('/', (req, res) => {
 router.post('/:id/action', async (req, res) => {
   const state = store.getSave(req.params.id);
   if (!state) return res.status(404).json({ error: 'Save not found' });
+  engine.beginRng(state); // seeded delves (weekly challenge) resume their deterministic stream
   const action = req.body || {};
   const events = [];
   const logStart = state.log.length;
@@ -590,6 +603,7 @@ router.post('/:id/action', async (req, res) => {
   }
 
   if (state.mode !== 'over' && state.mode !== 'victory' && state.mode !== 'retreat') engine.checkCombatEnd(state, events);
+  engine.persistRng(state);
   state.updatedAt = Date.now();
   store.saveGame(state);
   if (handled) await narrate(state, events, logStart);

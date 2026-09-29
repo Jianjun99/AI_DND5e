@@ -160,6 +160,52 @@ test('Observant boosts passive Perception and Speedy adds speed without stacking
   assert(char.speedFt === baseSpeed + 10, 'Speedy must not stack across recomputes');
 });
 
+// --- delve RNG stream (weekly challenge): deterministic, resumable, interleave-safe ---
+test('Seeded delves replay identically and different seeds differ', () => {
+  const draft = { name: 'Seed Hero', species: 'human', className: 'fighter', background: 'soldier',
+    baseScores: { str: 15, dex: 14, con: 14, int: 10, wis: 12, cha: 8 },
+    bgPlus2: 'str', bgPlus1: 'con', skills: ['athletics', 'perception'],
+    fightingStyle: 'defense', armorOption: 'chain_mail', weaponOption: 'sword_board' };
+  const snap = (s) => JSON.stringify({
+    rows: s.map.rows,
+    ents: s.entities.filter(e => e.kind === 'monster').map(e => [e.monsterId, e.x, e.y, e.hp])
+  });
+  const a1 = snap(engine.startGame(engine.buildCharacter(draft), { mapId: 'crypt', seed: 12345 }));
+  const a2 = snap(engine.startGame(engine.buildCharacter(draft), { mapId: 'crypt', seed: 12345 }));
+  const b = snap(engine.startGame(engine.buildCharacter(draft), { mapId: 'crypt', seed: 777 }));
+  assert(a1 === a2, 'the same seed produces the same dungeon and monsters');
+  assert(a1 !== b, 'a different seed produces a different dungeon');
+  const unseeded = engine.startGame(engine.buildCharacter(draft), { mapId: 'crypt' });
+  assert(unseeded.seed === undefined && unseeded.rngState === undefined, 'unseeded delves carry no stream state');
+});
+
+test('The RNG stream resumes exactly where the delve left off (interleave-safe)', () => {
+  engine.beginSeed(42);
+  const full = [engine.rand(), engine.rand(), engine.rand()];
+  const saveA = { seed: 42 };
+  engine.beginRng(saveA);
+  engine.rand(); engine.rand();              // delve A consumes two draws
+  engine.persistRng(saveA);
+  engine.beginRng({ seed: 777 });
+  engine.rand();                              // delve B consumes its own stream
+  engine.persistRng({ seed: 777 });
+  engine.beginRng(saveA);
+  const third = engine.rand();               // delve A resumes — not delve B's stream
+  engine.persistRng(saveA);
+  assert(third === full[2], 'A\u2019s third draw matches the uninterrupted stream');
+  assert(saveA.rngState != null, 'the stream state persists on the save');
+});
+
+test('weeklyInfo derives a stable per-week label, seed and boss depth', () => {
+  const wk = engine.weeklyInfo(new Date('2026-09-28T12:00:00Z')); // 2026-W40
+  assert(wk.label === '2026-W40', `ISO week label (got ${wk.label})`);
+  assert(wk.seed === engine.weeklyInfo(new Date('2026-09-30T08:00:00Z')).seed, 'same week, same seed');
+  assert(wk.depth === 5, `W40 is a boss floor at depth 5 (got ${wk.depth})`);
+  const next = engine.weeklyInfo(new Date('2026-10-05T12:00:00Z'));
+  assert(next.label === '2026-W41' && next.depth === 10, 'next week alternates to depth 10');
+  assert(wk.seed !== next.seed, 'seeds differ between weeks');
+});
+
 // Level-up readiness — the one rule the HUD badge and the level-up endpoint must share
 test('levelUpInfo gates on the engine XP table at every boundary', () => {  const at = (level, xp) => engine.levelUpInfo({ level, xp });
 

@@ -152,7 +152,46 @@ function addItemToInventory(char, itemOrId, qty = 1) {
 }
 
 // ---------------------------------------------------------------- dice ----
-function die(n) { return 1 + Math.floor(Math.random() * n); }
+function die(n) { return 1 + Math.floor(rand() * n); }
+
+// --- delve RNG stream --------------------------------------------------------
+// A delve can carry a deterministic RNG stream (state.seed + state.rngState —
+// the weekly challenge uses this): the stream is restored at the start of every
+// action dispatch (beginRng) and persisted back onto the save (persistRng), so
+// identical seeds play identically and interleaved delves keep independent
+// streams. Unseeded delves fall through to Math.random exactly as before.
+let rngState = null;
+function rand() {
+  if (rngState == null) return Math.random();
+  rngState = (rngState + 0x6D2B79F5) | 0;
+  let t = rngState;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+function beginSeed(seed) { rngState = (seed != null) ? (seed >>> 0) : null; }
+function beginRng(state) {
+  rngState = (state && state.seed != null) ? (state.rngState != null ? state.rngState : state.seed) : null;
+}
+function persistRng(state) {
+  if (state && state.seed != null) state.rngState = rngState;
+  rngState = null;
+}
+
+// The weekly challenge: one seed per ISO week, shared by every hero on this
+// install. Boss floors only (depth 5 / 10 alternating) so a win is always possible.
+function weeklyInfo(date = new Date()) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((+d - +yearStart) / 86400000) + 1) / 7);
+  const label = `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+  let seed = 2166136261;
+  for (const ch of label) { seed ^= ch.charCodeAt(0); seed = Math.imul(seed, 16777619); }
+  seed = seed >>> 0;
+  return { label, seed, depth: 5 + 5 * (week % 2) };
+}
 function rollExpr(expr) {
   const m = /^(\d+)d(\d+)([+-]\d+)?$/.exec(String(expr).replace(/\s/g, ''));
   if (!m) return { total: 0, rolls: [], flat: 0 };
@@ -544,7 +583,7 @@ function generateMapState(mapDef, difficulty) {
         chief: !!e.chief, conditions: [], buffs: [], alive: true, aware: false, fled: false,
         sx: e.x, sy: e.y
       };
-      if (!def.boss && (e.isElite || Math.random() < (mapDef.eliteChance || 0.18))) {
+      if (!def.boss && (e.isElite || rand() < (mapDef.eliteChance || 0.18))) {
         affixes.applyMonsterAffix(mon);
       }
       ents.push(mon);
@@ -602,6 +641,7 @@ function loadWorldMap(state, mapId) {
 }
 
 function startGame(character, options = {}) {
+  beginSeed(options.seed != null ? (options.seed >>> 0) : null); // weekly challenge: deterministic stream
   const mapDef = content.getMap(options.mapId);
   const difficulty = DIFFICULTY[options.difficulty] ? options.difficulty : 'normal';
   const state = {
@@ -610,6 +650,7 @@ function startGame(character, options = {}) {
     mapId: mapDef.id, mapName: mapDef.name, map: mapDef, mode: 'explore', difficulty,
     world: {},
     quests: { active: null, completed: [] },
+    seed: options.seed != null ? (options.seed >>> 0) : undefined,
     stats: { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 },
     entities: [], objects: [], discovered: [], flags: { hasRelic: false, altarBlessed: false, victory: false, failed: false, restsBlocked: 0 },
     npcChat: {}, stealth: null, log: [], journal: [], appearances: {}, createdAt: Date.now(), updatedAt: Date.now()
@@ -664,6 +705,8 @@ function startGame(character, options = {}) {
   loadWorldMap(state, mapDef.id);
 
   addLog(state, 'system', `${p.name} the ${cap(p.className)} enters ${mapDef.name}. The delve begins.`);
+  if (state.seed != null) state.rngState = rngState;
+  rngState = null;
   return state;
 }
 
@@ -1846,7 +1889,7 @@ function rollWanderingMonster(state, events) {
   const p = playerEntity(state);
   if ((state.flags.steps || 0) < 6) { state.flags.steps = (state.flags.steps || 0) + 1; return; }
   state.flags.steps = 0;
-  if (Math.random() > 0.22) return;
+  if (rand() > 0.22) return;
   if (hasBuff(p, 'invisible')) return;
   if (state.stealth && state.stealth.success) return;
   const kind = list[die(list.length) - 1];
@@ -1870,7 +1913,7 @@ function rollWanderingMonster(state, events) {
     vulnerabilities: def.vulnerabilities || [], traits: def.traits || [],
     conditions: [], buffs: [], alive: true, aware: true, fled: false, wanderer: true, sx: spot.x, sy: spot.y
   };
-  if (Math.random() < 0.18) {
+  if (rand() < 0.18) {
     affixes.applyMonsterAffix(mon);
   }
   state.entities.push(mon);
@@ -2312,7 +2355,7 @@ function adjustLoyalty(state, delta, events, entity) {
   ally.loyalty = after;
   if (events && ((before < 80 && after >= 80) || (before > 30 && after <= 30))) {
     const bank = after >= 80 ? LOYALTY_QUIPS.high : LOYALTY_QUIPS.low;
-    const line = bank[Math.floor(Math.random() * bank.length)](ally.name);
+    const line = bank[Math.floor(rand() * bank.length)](ally.name);
     const ev = { type: 'companion', narrate: true, text: line };
     events.push(ev); addLog(state, 'dm_canned', line);
   }
@@ -2397,7 +2440,7 @@ function lootChest(state, chest, events) {
   const parts = [];
   for (let i = 0; i < (chest.loot.potions || 0); i++) addItemToInventory(char, 'potion_healing');
   (chest.loot.items || []).forEach(it => {
-    if (it.chance !== undefined && Math.random() >= it.chance) return;
+    if (it.chance !== undefined && rand() >= it.chance) return;
     addItemToInventory(char, it.id, it.qty || 1); parts.push(itemName(it.id));
   });
   applyPickupEffects(state, chest.loot.items || [], events);
@@ -2436,7 +2479,7 @@ function rollLoot(state, mon, events) {
   const gained = [];
   if (def && def.loot && def.loot.items) {
     def.loot.items.forEach(it => {
-      if (Math.random() < (it.chance === undefined ? 1 : it.chance)) {
+      if (rand() < (it.chance === undefined ? 1 : it.chance)) {
         const qty = it.qty || 1;
         addItemToInventory(char, it.id, qty);
         parts.push(itemName(it.id));
@@ -2448,7 +2491,7 @@ function rollLoot(state, mon, events) {
   // Rarity & Affix loot rolls:
   if (mon.isElite) {
     // Elite Champion: 100% guaranteed Magic (75%) or Rare (25%) item drop!
-    const rarity = Math.random() < 0.25 ? 'rare' : 'magic';
+    const rarity = rand() < 0.25 ? 'rare' : 'magic';
     const magicItem = affixes.rollMagicItem(rarity);
     addItemToInventory(char, magicItem);
     parts.push(`[${rarity === 'rare' ? '稀有 🟣' : '魔法 🔵'}] ${magicItem.name}`);
@@ -2462,7 +2505,7 @@ function rollLoot(state, mon, events) {
     });
   } else if (mon.boss) {
     // Boss Monster: 100% guaranteed Rare (75%) or Legendary (25%) item drop!
-    const rarity = Math.random() < 0.25 ? 'legendary' : 'rare';
+    const rarity = rand() < 0.25 ? 'legendary' : 'rare';
     const magicItem = affixes.rollMagicItem(rarity);
     addItemToInventory(char, magicItem);
     parts.push(`[${rarity === 'legendary' ? '传奇 🟠' : '稀有 🟣'}] ${magicItem.name}`);
@@ -2474,7 +2517,7 @@ function rollLoot(state, mon, events) {
       narrate: true,
       text: `👑 BOSS VANQUISHED: ${mon.name} slain! Bestowed ${magicItem.name} (${magicItem.desc})!`
     });
-  } else if (Math.random() < 0.05) {
+  } else if (rand() < 0.05) {
     // Normal monster: 5% chance of rolling a Magic item
     const magicItem = affixes.rollMagicItem('magic');
     addItemToInventory(char, magicItem);
@@ -2634,6 +2677,7 @@ module.exports = {
   die, rollExpr, d20, mod, cap, byId, invEntry, equippedBonus,
   buildCharacter, applyClassAndSpecies, skillMod, passivePerception, levelUpInfo,
   getMap, tileChar, isWall, isBlocked, isDifficult, entityAt, roomAt, los, manhattan, bfsPath, computeVision, markDiscovered,
+  rand, beginSeed, beginRng, persistRng, weeklyInfo,
   startGame, addLog, playerEntity, currentActor, endTurn, beginPlayerTurn, currentSpeed,
   hasBuff, getBuff, addBuff, removeBuff, currentAc, charHasArmor, applyCondition,
   equippedSets, setAcBonus, setInitBonus,

@@ -129,6 +129,19 @@
 - 战斗套件 +2 测试（门槛触发与一次性 / 完成奖励流 / 门槛下不触发）。
 - 设计注：目标怪锁定 crypt 系是有意为之——支线跨局等待而非全图通杀。
 
+## 每周 seed 挑战（未发布）
+- **确定性 RNG 流**：engine 的骰子全部汇聚 `die()`，新增 mulberry32 流（`rand()`）——
+  `beginSeed`/`beginRng(state)`/`persistRng(state)`：动作派发入口恢复流、出口写回
+  `state.rngState`，多存档交替各自独立（rules 套件有流续接测试）。未 seed 的局照旧 Math.random。
+  engine 9 处游戏随机点（精英/游荡/任务候选/吐槽/掉落概率）+ endless 生成 + rollMagicItem
+  的选择全部接流；存档 ID 与任务 ID 仍是真随机（故意）。
+- **每周流**：`engine.weeklyInfo()` = ISO 周 label（如 2026-W40）→ FNV 哈希种子；
+  `POST /api/game/start mapId: 'weekly'` → 种子化 boss 层程序地牢（depth 5/10 逐周交替），
+  `state.weeklyLabel` 标记。本周所有英雄同一地牢同一怪物；两次开局实测逐字节一致。
+- **排行**：sync-delve 在 weekly 局胜利时写 `char.weekly`（label/wins/best）；
+  殿堂端点 + 殿堂页加 🏅 本周试炼榜；公会厅加每周试炼卡（种子标签/深度/本周战绩/接取按钮，
+  直接起 weekly 局）。/api/city/info 暴露 `weekly`。
+
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
