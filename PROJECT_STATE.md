@@ -119,7 +119,7 @@
 - forge `isForgeable` 认 cloak/ring 类型（套装件可熔解/重铸）；词缀套件 516→533 断言。
 - 设计注：套装件只从战利品 roll 出（商店不上架散件）；混合套装分开计数不叠加。
 
-## Companion 支线（v1.9.6 已发布）
+## Companion 支线（v1.9.6/v1.9.7 已发布）
 - `server/game/companions.js`：三人各一条**忠诚度门槛触发的个人任务线**——
   Bram「旧伤·猎犬」（60，crypt_hound ×4）、Valeria「守誓者之骸」（65，skeleton ×4）、
   Aldous「药师的老鼠账」（55，giant_rat ×4）。忠诚度变化时 `offerPersonalQuest` 检查门槛
@@ -132,7 +132,7 @@
 - 战斗套件 +2 测试（门槛触发与一次性 / 完成奖励流 / 门槛下不触发）。
 - 设计注：目标怪锁定 crypt 系是有意为之——支线跨局等待而非全图通杀。
 
-## 存档迁移 fixture 集 + 每周 seed 挑战（未发布）
+## 存档迁移 fixture 集 + 每周 seed 挑战（v1.9.7 已发布）
 - **确定性 RNG 流**：engine 的骰子全部汇聚 `die()`，新增 mulberry32 流（`rand()`）——
   `beginSeed`/`beginRng(state)`/`persistRng(state)`：动作派发入口恢复流、出口写回
   `state.rngState`，多存档交替各自独立（rules 套件有流续接测试）。未 seed 的局照旧 Math.random。
@@ -145,7 +145,7 @@
   殿堂端点 + 殿堂页加 🏅 本周试炼榜；公会厅加每周试炼卡（种子标签/深度/本周战绩/接取按钮，
   直接起 weekly 局）。/api/city/info 暴露 `weekly`。
 
-## Boss 绝境阶段 + 三只新怪（未发布）
+## Boss 绝境阶段 + 三只新怪（v1.9.7 已发布）
 - **Boss 绝境阶段**：`processMonsterTurn` 重构出 `swingAt`（返回是否挥击，不挥则走移动），
   25% HP 以下 boss 进入 `desperate` 阶段——**每回合两次攻击**（50% 狂暴之上叠第二阶段）。
   事件类型 `desperate` 已入事件契约 NARRATION_ONLY。
@@ -159,7 +159,7 @@
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
-- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.6,…}`（多架构 amd64+arm64）
+- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.7,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
 - 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 17 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（17 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
