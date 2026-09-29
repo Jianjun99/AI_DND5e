@@ -2004,6 +2004,11 @@ function processMonsterTurn(state, mon, events) {
     const ev = { type: 'enrage', narrate: true, text: `${mon.name} ENRAGES — its wounds only make it faster and crueler! (+2 to hit and damage, +10 ft speed)` };
     events.push(ev); addLog(state, 'mech', ev.text);
   }
+  if (mon.boss && !mon.desperate && mon.hp > 0 && mon.hp <= mon.hpMax / 4) {
+    mon.desperate = true;
+    const ev = { type: 'desperate', narrate: true, text: `${mon.name} is CORNERED — a final furious flurry! (two attacks per turn)` };
+    events.push(ev); addLog(state, 'mech', ev.text);
+  }
   if (mon.conditions.includes('asleep')) { addLog(state, 'mech', `${mon.name} sleeps soundly.`); return; }
   if (mon.conditions.includes('paralyzed')) { addLog(state, 'mech', `${mon.name} stands frozen, muscles locked.`); return; }
   if ((mon.traits || []).some(t => t.startsWith('Nimble Escape'))) addBuff(mon, { id: 'disengaged', rounds: 1 });
@@ -2028,10 +2033,8 @@ function processMonsterTurn(state, mon, events) {
   const rangedAtk = (mon.attacks || []).find(a => a.ranged);
   const meleeAtk = (mon.attacks || []).find(a => !a.ranged) || (mon.attacks || [])[0];
 
-  if (manhattan(mon, target) <= 1 && meleeAtk) { monsterAttack(state, mon, target, meleeAtk, events); return; }
-  if (rangedAtk && manhattan(mon, target) <= rangedAtk.range / 5 && los(state, mon.x, mon.y, target.x, target.y)) {
-    monsterAttack(state, mon, target, rangedAtk, events); return;
-  }
+  // strike now if in reach; otherwise close the distance and strike at the tail
+  if (swingAt(state, mon, target, meleeAtk, rangedAtk, events, mon.desperate ? 2 : 1)) return;
   const goals = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: target.x + dx, y: target.y + dy }))
     .filter(t => !isBlocked(state, t.x, t.y) && !entityAt(state, t.x, t.y));
   const path = bfsPath(state, { x: mon.x, y: mon.y }, goals, { self: mon.id });
@@ -2055,10 +2058,23 @@ function processMonsterTurn(state, mon, events) {
     }
   }
   if (!mon.alive) return;
-  if (manhattan(mon, target) <= 1 && meleeAtk) monsterAttack(state, mon, target, meleeAtk, events);
-  else if (rangedAtk && manhattan(mon, target) <= rangedAtk.range / 5 && los(state, mon.x, mon.y, target.x, target.y)) {
-    monsterAttack(state, mon, target, rangedAtk, events);
+  swingAt(state, mon, target, meleeAtk, rangedAtk, events, mon.desperate ? 2 : 1);
+}
+
+// One monster turn's attacks: melee when adjacent, ranged when in range and
+// line-of-sight; desperate (cornered) bosses swing twice. Each swing re-checks
+// liveness — the first can kill the victim or trigger the boss's own death.
+function swingAt(state, mon, target, meleeAtk, rangedAtk, events, swings) {
+  for (let i = 0; i < swings; i++) {
+    if (!mon.alive || state.mode !== 'combat' || target.alive === false) return true;
+    let swung = false;
+    if (manhattan(mon, target) <= 1 && meleeAtk) { monsterAttack(state, mon, target, meleeAtk, events); swung = true; }
+    else if (rangedAtk && manhattan(mon, target) <= rangedAtk.range / 5 && los(state, mon.x, mon.y, target.x, target.y)) {
+      monsterAttack(state, mon, target, rangedAtk, events); swung = true;
+    }
+    if (!swung) return false;
   }
+  return true;
 }
 
 function processAllyTurn(state, ally, events) {

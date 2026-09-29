@@ -265,5 +265,46 @@ test('Below the loyalty threshold no personal quest is offered', () => {
   assert(!events.some(e => e.type === 'quest_offer'), 'no offer event below the threshold');
 });
 
+test('Cornered bosses enter a desperate phase and strike twice per turn', () => {
+  const state = makeLoyaltyState(50);
+  const mon = state.entities.find(e => e.kind === 'monster');
+  mon.boss = true;
+  mon.attacks = [{ name: 'Furious Flurry', bonus: 99, range: 5, damage: '1d4', damageType: 'slashing' }];
+  const p = engine.playerEntity(state);
+  mon.x = p.x + 1; mon.y = p.y; mon.sx = mon.x; mon.sy = mon.y;
+  state.mode = 'combat';
+  const ally = state.entities.find(e => e.kind === 'ally');
+  state.combat = { order: [{ id: mon.id, init: 20 }, { id: p.id, init: 5 }], turnIdx: 0, round: 1, actionUsed: false, bonusUsed: false, movementLeft: 0 };
+  const events = [];
+  for (let t = 0; t < 6; t++) {
+    mon.hp = Math.max(1, Math.floor(mon.hpMax / 4));
+    ally.hp = ally.hpMax;
+    engine.processMonsterTurn(state, mon, events);
+  }
+  assert(mon.desperate === true, 'the desperate flag is set at 25% HP');
+  const swings = events.filter(e => e.type === 'attack_in').length;
+  assert(swings >= 8, 'a desperate boss swings ~2/turn: 6 turns must yield >= 8 swings (got ' + swings + ')');
+});
+
+test('A healthy boss never enters the desperate phase and swings once per turn', () => {
+  const state = makeLoyaltyState(50);
+  const mon = state.entities.find(e => e.kind === 'monster');
+  mon.boss = true;
+  mon.attacks = [{ name: 'Flurry', bonus: 99, range: 5, damage: '1d4', damageType: 'slashing' }];
+  const p = engine.playerEntity(state);
+  mon.x = p.x + 1; mon.y = p.y; mon.sx = mon.x; mon.sy = mon.y;
+  state.mode = 'combat';
+  const ally = state.entities.find(e => e.kind === 'ally');
+  state.combat = { order: [{ id: mon.id, init: 20 }, { id: p.id, init: 5 }], turnIdx: 0, round: 1, actionUsed: false, bonusUsed: false, movementLeft: 0 };
+  const events = [];
+  for (let t = 0; t < 6; t++) {
+    ally.hp = ally.hpMax;
+    engine.processMonsterTurn(state, mon, events);
+  }
+  assert(mon.desperate !== true, 'a healthy boss never enters the desperate phase');
+  const swings = events.filter(e => e.type === 'attack_in').length;
+  assert(swings <= 6, 'a healthy boss swings once per turn: 6 turns must yield <= 6 swings (got ' + swings + ')');
+});
+
 console.log(`\nCombat Integration Tests Summary: ${passed} passed, ${failed} failed.`);
 if (failed > 0) process.exit(1);

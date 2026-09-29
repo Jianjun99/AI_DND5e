@@ -61,7 +61,7 @@ export function createCharacterModel(ent, track = (o) => o) {
       buildGoblinMiniature(bodyGroup, ent, rig, track);
     } else if (monsterId === 'giant_rat') {
       buildGiantRatMiniature(bodyGroup, ent, rig, track);
-    } else if (monsterId === 'crypt_hound') {
+    } else if (monsterId === 'crypt_hound' || monsterId === 'dire_wolf') {
       buildCryptHoundMiniature(bodyGroup, ent, rig, track);
     } else {
       buildDefaultMonsterMiniature(bodyGroup, ent, rig, track);
@@ -569,7 +569,9 @@ function buildGiantRatMiniature(g, ent, rig, track) {
 // ==========================================================================
 function buildCryptHoundMiniature(g, ent, rig, track) {
   rig.isQuadruped = true;
-  const skin = 0x2e1f1d;
+  const isWolf = ent.monsterId === 'dire_wolf';
+  const skin = isWolf ? 0x6b7280 : 0x2e1f1d;
+  if (isWolf) g.scale.set(1.2, 1.2, 1.2); // the dire wolf is the hound's bigger, grayer cousin
 
   const body = track(new THREE.Mesh(track(new THREE.BoxGeometry(0.28, 0.24, 0.52)), track(createMat(skin))));
   body.position.y = 0.26;

@@ -145,6 +145,17 @@
   殿堂端点 + 殿堂页加 🏅 本周试炼榜；公会厅加每周试炼卡（种子标签/深度/本周战绩/接取按钮，
   直接起 weekly 局）。/api/city/info 暴露 `weekly`。
 
+## Boss 绝境阶段 + 三只新怪（未发布）
+- **Boss 绝境阶段**：`processMonsterTurn` 重构出 `swingAt`（返回是否挥击，不挥则走移动），
+  25% HP 以下 boss 进入 `desperate` 阶段——**每回合两次攻击**（50% 狂暴之上叠第二阶段）。
+  事件类型 `desperate` 已入事件契约 NARRATION_ONLY。
+- **新怪 ×3**（shared/monsters.json，自动进入 endless/weekly 怪物池）：
+  Ghoul（200xp，5d8，Undead Fortitude）、Dire Wolf（200xp，3d10+6，40ft，Pack Tactics——
+  复用 hound 四足 rig 的灰色放大变体）、Barrow Wight（450xp，4d8+8，necrotic/piercing/
+  slashing 抗性）。crypt 游荡表加入 ghoul/dire_wolf。
+- 战斗套件改为 6 回合统计断言（绝望 ≈2 挥/回 vs 健康 1 挥/回）——nat1 必失手使精确断言
+  偶发失败，规则 9 的又一个案例。
+
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）

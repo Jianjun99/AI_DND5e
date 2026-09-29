@@ -224,6 +224,61 @@
           }
         ]
       }
+    },
+    {
+      "id": "ghoul",
+      "name": "Ghoul",
+      "xp": 200,
+      "ac": 12,
+      "hp": "5d8",
+      "speed": 30,
+      "darkvision": 60,
+      "abilities": { "str": 13, "dex": 15, "con": 10, "int": 7, "wis": 10, "cha": 6 },
+      "attacks": [
+        { "name": "Paralyzing Claws", "bonus": 4, "range": 5, "damage": "2d4+2", "damageType": "slashing" }
+      ],
+      "traits": [
+        "Undead Fortitude: when reduced to 0 HP, a CON save DC 5 + damage lets it survive with 1 HP."
+      ],
+      "blurb": "A gaunt corpse-eater with too many teeth, dragging itself toward the warm and living.",
+      "loot": { "gold": "2d6", "items": [] }
+    },
+    {
+      "id": "dire_wolf",
+      "name": "Dire Wolf",
+      "xp": 200,
+      "ac": 14,
+      "hp": "3d10+6",
+      "speed": 40,
+      "darkvision": 0,
+      "abilities": { "str": 17, "dex": 15, "con": 15, "int": 3, "wis": 12, "cha": 7 },
+      "attacks": [
+        { "name": "Bite", "bonus": 5, "range": 5, "damage": "2d6+3", "damageType": "piercing" }
+      ],
+      "traits": [
+        "Pack Tactics: the wolf has advantage when an ally stands beside its prey."
+      ],
+      "blurb": "A horse-sized wolf with winter-gray fur and a patience that makes it worse.",
+      "loot": { "gold": "1d6", "items": [] }
+    },
+    {
+      "id": "wight",
+      "name": "Barrow Wight",
+      "xp": 450,
+      "ac": 14,
+      "hp": "4d8+8",
+      "speed": 30,
+      "darkvision": 60,
+      "abilities": { "str": 15, "dex": 14, "con": 16, "int": 10, "wis": 13, "cha": 15 },
+      "attacks": [
+        { "name": "Life Drain", "bonus": 5, "range": 5, "damage": "2d6+3", "damageType": "necrotic" }
+      ],
+      "resistances": ["necrotic", "piercing", "slashing"],
+      "traits": [
+        "Sunless Hatred: sunlight sears it — it fights wilder under the torchlight of the deep."
+      ],
+      "blurb": "A barrow-king's resentment given form, crowned in grave-iron and hungry for the living.",
+      "loot": { "gold": "3d6", "items": [] }
     }
   ],
   "allies": [
