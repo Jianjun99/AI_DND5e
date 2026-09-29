@@ -77,6 +77,9 @@
   迁移链（只增不删、失败降级可用、未来版本原样放行）；第 17 套件
   `tests/unit/store-versioning.test.mjs` 用临时 DATA_DIR 做真实读写测试。
   **测试套件总数现为 17**（文档里的 13/14/15/16 已全部同步；含事件契约与回放机器人）。
+- **存档迁移 fixture 集**（AI 防错路线图收官）：`tests/fixtures/saves/` 存代表性旧档形状
+  （legacy-character / legacy-delve），store-versioning 套件逐 fixture 断言「迁移不丢任何原字段 +
+  版本打标 + 真实 store 裸写旧档后读取迁移端到端」。将来每次加迁移步骤，先在 fixtures 加旧样本。
 
 ## PWA + 新特长 + CDP 诊断（v1.9.4 已发布）
 - **PWA**：public/sw.js（HTML/JS/CSS network-first、vendor/icons cache-first、/api 永不缓存——
@@ -129,7 +132,7 @@
 - 战斗套件 +2 测试（门槛触发与一次性 / 完成奖励流 / 门槛下不触发）。
 - 设计注：目标怪锁定 crypt 系是有意为之——支线跨局等待而非全图通杀。
 
-## 每周 seed 挑战（未发布）
+## 存档迁移 fixture 集 + 每周 seed 挑战（未发布）
 - **确定性 RNG 流**：engine 的骰子全部汇聚 `die()`，新增 mulberry32 流（`rand()`）——
   `beginSeed`/`beginRng(state)`/`persistRng(state)`：动作派发入口恢复流、出口写回
   `state.rngState`，多存档交替各自独立（rules 套件有流续接测试）。未 seed 的局照旧 Math.random。

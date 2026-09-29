@@ -1,0 +1,30 @@
+{
+  "id": "char_legacy_01",
+  "name": "Old Hero",
+  "species": "dwarf",
+  "className": "fighter",
+  "background": "soldier",
+  "level": 4,
+  "xp": 1200,
+  "gold": 230,
+  "abilities": { "str": 17, "dex": 14, "con": 15, "int": 10, "wis": 12, "cha": 8 },
+  "profBonus": 2,
+  "hpMax": 38,
+  "hp": 31,
+  "acBase": 18,
+  "speedFt": 30,
+  "skills": ["athletics", "perception"],
+  "inventory": [
+    { "itemId": "potion_healing", "qty": 2 },
+    { "itemId": "chain_mail", "qty": 1 }
+  ],
+  "equipped": { "armor": "chain_mail", "mainHand": "longsword", "offHand": null, "cloak": null, "amulet": null, "ring1": null },
+  "uses": {},
+  "pools": {},
+  "slots": { "1": 0 },
+  "attacks": [
+    { "weaponId": "longsword", "name": "Longsword", "bonus": 5, "dmgDice": "1d8", "dmgMod": 3, "damageType": "slashing", "ranged": false, "range": 5 }
+  ],
+  "feat": "skilled",
+  "fightingStyle": "defense"
+}

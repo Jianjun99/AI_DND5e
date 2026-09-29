@@ -1,0 +1,26 @@
+{
+  "id": "save_legacy_01",
+  "characterId": "char_legacy_01",
+  "mapId": "crypt",
+  "mapName": "The Sunless Crypt",
+  "mode": "explore",
+  "difficulty": "normal",
+  "updatedAt": 1700000000000,
+  "map": { "id": "crypt", "name": "The Sunless Crypt", "width": 34, "height": 24, "rows": ["##################################"] },
+  "entities": [
+    { "id": "player", "kind": "player", "name": "Old Hero", "x": 4, "y": 4, "hp": 31, "hpMax": 38, "ac": 18, "speedFt": 30, "alive": true, "conditions": [], "buffs": [] },
+    { "id": "monster_1", "kind": "monster", "monsterId": "skeleton", "name": "Skeleton", "x": 8, "y": 6, "hp": 9, "hpMax": 13, "ac": 13, "speedFt": 30, "alive": true, "aware": false, "fled": false, "conditions": [], "buffs": [], "attacks": [{ "name": "Claw", "bonus": 4, "damage": "1d6+2", "damageType": "slashing" }] }
+  ],
+  "objects": [
+    { "type": "campfire", "id": "campfire", "name": "Camp", "x": 4, "y": 3, "icon": "🔥" },
+    { "type": "door", "id": "door1", "name": "Wooden Door", "x": 9, "y": 4, "locked": false, "open": false }
+  ],
+  "discovered": ["4,4", "5,4", "8,6"],
+  "quests": { "active": null, "completed": [] },
+  "stats": { "dmgDealt": 40, "dmgTaken": 7, "kills": 1, "goldFound": 15, "rounds": 3 },
+  "log": [
+    { "kind": "mech", "text": "Old Hero enters the crypt.", "ts": 1700000000000 }
+  ],
+  "world": {},
+  "flags": {}
+}

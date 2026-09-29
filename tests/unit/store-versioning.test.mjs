@@ -78,6 +78,55 @@ try {
   fs.rmSync(tmpData, { recursive: true, force: true });
 }
 
+// ---- fixture corpus: representative pre-versioning shapes, kept on disk so every
+// future migration step can be asserted against real old data (add yours here) ----
+import { fileURLToPath } from 'node:url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures', 'saves');
+for (const fixtureFile of fs.readdirSync(FIXTURES_DIR).filter((f) => f.endsWith('.json')).sort()) {
+  const kind = fixtureFile.includes('character') ? 'character' : 'delve';
+  const original = JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, fixtureFile), 'utf8'));
+
+  test(`fixture ${fixtureFile}: migration preserves every original field and stamps the version`, () => {
+    const out = store.migrateSave(JSON.parse(JSON.stringify(original)), kind);
+    assert(out.saveVersion === store.SAVE_VERSION, `stamped to SAVE_VERSION ${store.SAVE_VERSION}`);
+    for (const [key, value] of Object.entries(original)) {
+      assert(JSON.stringify(out[key]) === JSON.stringify(value), `field '${key}' survives migration untouched`);
+    }
+  });
+
+  test(`fixture ${fixtureFile}: the real store round-trips it end to end`, () => {
+    const tmpData2 = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-dnd-store-fixture-'));
+    try {
+      // a fresh store instance rooted at the throwaway dir (cache-busted so
+      // DATA_DIR is re-read), with the fixture written RAW — the migration
+      // under test happens on the READ path, exactly like a real old save
+      const prevData = process.env.DATA_DIR;
+      process.env.DATA_DIR = tmpData2;
+      const req = createRequire(import.meta.url);
+      const storePath = req.resolve('../../server/store.js');
+      delete req.cache[storePath];
+      const localStore = req('../../server/store.js');
+      if (kind === 'character') {
+        fs.writeFileSync(path.join(tmpData2, 'characters.json'), JSON.stringify([original]), 'utf8');
+        const loaded = localStore.getCharacters();
+        assert(loaded.length === 1 && loaded[0].saveVersion === store.SAVE_VERSION, 'roster read migrates');
+        assert(loaded[0].name === original.name, 'character data intact');
+      } else {
+        fs.mkdirSync(path.join(tmpData2, 'saves'), { recursive: true });
+        fs.writeFileSync(path.join(tmpData2, 'saves', original.id + '.json'), JSON.stringify(original), 'utf8');
+        const loaded = localStore.getSave(original.id);
+        assert(loaded.saveVersion === store.SAVE_VERSION, 'delve read migrates');
+        assert(loaded.mode === original.mode && loaded.mapId === original.mapId, 'delve data intact');
+      }
+      delete req.cache[storePath]; // don't leave the throwaway-dir store cached
+      if (prevData === undefined) delete process.env.DATA_DIR; else process.env.DATA_DIR = prevData;
+    } finally {
+      fs.rmSync(tmpData2, { recursive: true, force: true });
+    }
+  });
+}
+
 console.log('\n--- Running Unit Tests: Store Schema Versioning ---');
 console.log(`\nStore Versioning Unit Tests Summary: ${passed} passed, ${failed} failed.`);
 if (failed > 0) process.exit(1);
