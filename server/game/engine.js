@@ -224,8 +224,14 @@ function damageRoll(diceExpr, opts = {}) {
     const r2 = rollSet().reduce((a, b) => a + b, 0);
     if (r2 > total) total = r2;
   }
+  if (opts.piercer) { // Piercer: reroll the lowest die once, keep the higher
+    let minIdx = 0;
+    rolls.forEach((r, i) => { if (r < rolls[minIdx]) minIdx = i; });
+    rolls[minIdx] = Math.max(rolls[minIdx], die(sides));
+    total = rolls.reduce((a, b) => a + b, 0);
+  }
   if (opts.crit) total += rollSet().reduce((a, b) => a + b, 0);
-  return { total: total + flat, dice: total };
+  return { total: total + flat, dice: total, piercerRerolled: !!opts.piercer };
 }
 
 // ------------------------------------------------------- character build ----
@@ -912,6 +918,9 @@ function beginPlayerTurn(state, events = []) {
   state.flags.used_sneak = false;
   state.flags.used_divine_smite = false;   // Improved Divine Smite is once per turn
   state.flags.savage_used = false;
+  state.flags.used_crusher = false;
+  state.flags.used_slasher = false;
+  state.flags.used_piercer = false;
   c.movementLeft = currentSpeed(state, p);
   removeBuff(p, 'shield'); // Shield lasts until the start of your next turn
   state.flags.used_extra = false;
@@ -1293,8 +1302,9 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
     events.push({ type: 'miss', narrate: true, text, data: { targetId: target.id, targetX: target.x, targetY: target.y } }); addLog(state, 'mech', text);
     return true;
   }
-  let dmg = damageRoll(atk.dmgDice, { crit, gwf: char.fightingStyle === 'great_weapon', rerollAll: char.savageAttacker && !state.flags.savage_used });
+  let dmg = damageRoll(atk.dmgDice, { crit, gwf: char.fightingStyle === 'great_weapon', rerollAll: char.savageAttacker && !state.flags.savage_used, piercer: (char.unlockedFeats || []).includes('piercer') && atk.damageType === 'piercing' && !state.flags.used_piercer });
   if (char.savageAttacker) state.flags.savage_used = true;
+  if (dmg.piercerRerolled) state.flags.used_piercer = true;
   let dmgTotal = dmg.total + (atk.dmgMod || 0) + mods.bonusFlat;
   const bonusTxts = [];
   if (atk.dmgMod) bonusTxts.push(`+${atk.dmgMod} mod`);
@@ -1319,6 +1329,26 @@ function playerAttack(state, targetId, weaponId, events, opts = {}) {
   addLog(state, 'mech', `${target.name} takes ${dealt} damage (${target.hp}/${target.hpMax} HP${target.alive === false ? ', slain' : ''}).`);
   if (atk.vampiricHeal && dealt > 0) {
     healEntity(state, p, atk.vampiricHeal, events, `${atk.name} (vampiric)`);
+  }
+  // Weapon-style feats: once-per-turn riders on a confirmed hit
+  if (target.alive !== false && dealt > 0 && (char.unlockedFeats || []).length) {
+    const feats = char.unlockedFeats;
+    if (feats.includes('crusher') && atk.damageType === 'bludgeoning' && !state.flags.used_crusher) {
+      const dx = Math.sign(target.x - p.x), dy = Math.sign(target.y - p.y);
+      const nx = target.x + dx, ny = target.y + dy;
+      if ((dx || dy) && !isBlocked(state, nx, ny) && !entityAt(state, nx, ny)) {
+        state.flags.used_crusher = true;
+        target.x = nx; target.y = ny;
+        const ev = { type: 'shove', narrate: true, text: `${target.name} is smashed 5 ft away by the crushing blow!` };
+        events.push(ev); addLog(state, 'mech', ev.text);
+      }
+    }
+    if (feats.includes('slasher') && atk.damageType === 'slashing' && !state.flags.used_slasher && !hasBuff(target, 'slowed')) {
+      state.flags.used_slasher = true;
+      addBuff(target, { id: 'slowed', rounds: 2 });
+      const ev = { type: 'info', narrate: true, text: `${target.name}'s stride falters — the slash slows it by 10 ft.` };
+      events.push(ev); addLog(state, 'mech', ev.text);
+    }
   }
   // Extra Attack (level 5 martials): the Attack action strikes twice
   if (opts.allowExtra && state.mode === 'combat' && !state.flags.used_extra && hasExtraAttack(char)

@@ -191,7 +191,10 @@ const FEAT_CHOICES = [
   { id: 'observant', name: 'Observant', desc: 'Passive Perception +5. You notice what others miss.', icon: '👁️' },
   { id: 'speedy', name: 'Speedy', desc: 'Your speed increases by 10 feet.', icon: '💨' },
   { id: 'chef', name: 'Chef', desc: 'Short rests come with a hot meal: proficiency bonus temp HP for you and your ally.', icon: '🍳' },
-  { id: 'musician', name: 'Musician', desc: 'Campfire tunes after a long rest bless the party (+1d4 on attack rolls).', icon: '🎵' }
+  { id: 'musician', name: 'Musician', desc: 'Campfire tunes after a long rest bless the party (+1d4 on attack rolls).', icon: '🎵' },
+  { id: 'crusher', name: 'Crusher', desc: 'Once per turn, bludgeoning hits smash the target 5 ft away.', icon: '🔨' },
+  { id: 'slasher', name: 'Slasher', desc: 'Once per turn, slashing hits slow the target by 10 ft.', icon: '🗡️' },
+  { id: 'piercer', name: 'Piercer', desc: 'Once per turn, piercing hits reroll the lowest damage die (keep the higher).', icon: '📌' }
 ];
 
 router.get('/:id/level-up-options', (req, res) => {

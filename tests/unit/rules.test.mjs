@@ -206,6 +206,23 @@ test('weeklyInfo derives a stable per-week label, seed and boss depth', () => {
   assert(wk.seed !== next.seed, 'seeds differ between weeks');
 });
 
+test('Piercer rerolls the lowest damage die and never lowers the total', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    engine.beginSeed(seed);
+    const base = engine.damageRoll('1d6+2', {});
+    engine.beginSeed(seed);
+    const pierced = engine.damageRoll('1d6+2', { piercer: true });
+    engine.beginSeed(seed);
+    const multi = engine.damageRoll('3d6', { piercer: true });
+    engine.beginSeed(seed);
+    const multiBase = engine.damageRoll('3d6', {});
+    assert(pierced.total >= base.total, `piercer never lowers 1d6+2 (base ${base.total}, pierced ${pierced.total})`);
+    assert(pierced.piercerRerolled === true, 'the reroll flag rides on the result');
+    assert(multi.total >= multiBase.total, `piercer never lowers 3d6 (base ${multiBase.total}, pierced ${multi.total})`);
+  }
+  engine.beginSeed(null);
+});
+
 // Level-up readiness — the one rule the HUD badge and the level-up endpoint must share
 test('levelUpInfo gates on the engine XP table at every boundary', () => {  const at = (level, xp) => engine.levelUpInfo({ level, xp });
 

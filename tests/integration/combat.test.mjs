@@ -306,5 +306,55 @@ test('A healthy boss never enters the desperate phase and swings once per turn',
   assert(swings <= 6, 'a healthy boss swings once per turn: 6 turns must yield <= 6 swings (got ' + swings + ')');
 });
 
+test('Weapon feats: Crusher pushes once, Slasher slows once — once per turn', () => {
+  const state = makeLoyaltyState(50);
+  const c = state.character;
+  c.unlockedFeats = ['crusher', 'slasher'];
+  const p = engine.playerEntity(state);
+  const mon = state.entities.find(e => e.kind === 'monster');
+  mon.hp = 999; mon.hpMax = 999; // survive the whole probe
+  mon.attacks = [];
+  state.mode = 'combat';
+  state.combat = { order: [{ id: mon.id, init: 20 }, { id: p.id, init: 5 }], turnIdx: 0, round: 1, actionUsed: false, bonusUsed: false, movementLeft: 30 };
+
+  // Crusher: bludgeoning hits smash the target one tile away (retry: nat 1 auto-misses)
+  c.attacks = [
+    { weaponId: 'mace', name: 'Mace', bonus: 99, dmgDice: '1d6', dmgMod: 0, damageType: 'bludgeoning', ranged: false, range: 5 },
+    { weaponId: 'longsword', name: 'Longsword', bonus: 99, dmgDice: '1d6', dmgMod: 0, damageType: 'slashing', ranged: false, range: 5 }
+  ];
+  const events = [];
+  for (let i = 0; i < 30 && !state.flags.used_crusher; i++) {
+    mon.x = p.x + 1; mon.y = p.y;
+    engine.playerAttack(state, mon.id, 'mace', events, {});
+  }
+  assert(state.flags.used_crusher === true, 'crusher flag burned on the first bludgeoning hit');
+  assert(mon.x === p.x + 2 && mon.y === p.y, `crusher pushed the target a tile away (at ${mon.x},${mon.y})`);
+
+  // Slasher: slashing hits slow by 10 ft
+  for (let i = 0; i < 30 && !state.flags.used_slasher; i++) {
+    mon.x = p.x + 1; mon.y = p.y;
+    engine.playerAttack(state, mon.id, 'longsword', events, {});
+  }
+  assert(state.flags.used_slasher === true, 'slasher flag burned on the first slashing hit');
+  assert(engine.hasBuff(mon, 'slowed'), 'the target carries the slowed buff');
+  assert(engine.currentSpeed(state, mon) === mon.speedFt - 10, `speed reduced by 10 (got ${engine.currentSpeed(state, mon)})`);
+
+  // once per turn: more attacks neither push nor re-slow
+  mon.x = p.x + 1; mon.y = p.y;
+  for (let i = 0; i < 10; i++) engine.playerAttack(state, mon.id, 'mace', events, {});
+  assert(mon.x === p.x + 1 && mon.y === p.y, 'no second push this turn');
+
+  // new turn: flags reset — the riders work again
+  engine.beginPlayerTurn(state, []);
+  mon.x = p.x + 1; mon.y = p.y;
+  const pushed = [];
+  for (let i = 0; i < 30 && mon.x === p.x + 1 && mon.y === p.y; i++) {
+    mon.x = p.x + 1; mon.y = p.y;
+    engine.playerAttack(state, mon.id, 'mace', events, {});
+    pushed.push(mon.x === p.x + 2);
+  }
+  assert(pushed.some(Boolean), 'the push returns on the new turn');
+});
+
 console.log(`\nCombat Integration Tests Summary: ${passed} passed, ${failed} failed.`);
 if (failed > 0) process.exit(1);

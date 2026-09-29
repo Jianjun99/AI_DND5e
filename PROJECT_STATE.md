@@ -156,6 +156,17 @@
 - 战斗套件改为 6 回合统计断言（绝望 ≈2 挥/回 vs 健康 1 挥/回）——nat1 必失手使精确断言
   偶发失败，规则 9 的又一个案例。
 
+## Crusher/Slasher/Piercer 特长（未发布）
+- **Crusher**（钝击命中，once/turn）：目标被推离 5 ft（复用 shove 的格子校验，无豁免）。
+- **Slasher**（挥砍命中，once/turn）：目标获得 `slowed` buff（速度 -10，2 回合自然过期——
+  currentSpeed 本来就读这个 buff id，零改动）。
+- **Piercer**（穿刺命中，once/turn）：`damageRoll` 新增 `piercer` 选项——重骰**最低**一颗伤害骰
+  取高，返回 `piercerRerolled` 标记驱动 once-per-turn 旗标（crit 加骰在其后结算，次序正确）。
+- 旗标 `used_crusher/slasher/piercer` 在 beginPlayerTurn 重置；向导选项来自 FEAT_CHOICES
+  （+3 行）。三特长只对 `unlockedFeats` 持有者生效，balance-sim 机器人不受影响。
+- 战斗套件 +1（推位/减速/once-per-turn/新回合恢复，5 连绿），rules 套件 +1（Piercer 种子化
+  不变量：同种子重骰不低于原值）。
+
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
