@@ -84,8 +84,9 @@
 - **新 ASI 特长 4 个**：Observant（被动察觉 +5，passivePerception 纯计算）、Speedy
   （速度 +10，applyClassAndSpecies 全新赋值故重算安全）、Chef（短休全队 prof 临时 HP）、
   Musician（长休全队 blessed buff）。升级向导选项来自 API 的 FEAT_CHOICES，加行即生效。
-- **CDP 瞬挂根因修掉**：三个 e2e 套件启动前强制清理自己的 profile 残留进程（killStaleBrowser），
-  连接失败报出端口与 profile。剩余偶发（点击撞 busy）已记录在任务文件，根治需条件轮询重构。
+- **CDP 瞬挂根治完成**：启动前清 profile（killStaleBrowser）+ 17 处固定 sleep 改条件轮询
+  （tests/e2e/_cdp-helpers.mjs：pollUntil / clickUntil，点击撞 busy 自动重点）。断言零改动，
+  任务文件记录全部 17 处的映射表。
 
 ## 回放机器人（v1.9.4 已发布）
 - `scripts/replay-bot.mjs`（`npm run replay`）：headless bot 走 REST 打完整冒险，每 tick 校验

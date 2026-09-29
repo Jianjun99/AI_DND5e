@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { pollUntil, clickUntil } from './_cdp-helpers.mjs';
 
 const BASE_URL = process.env.BASE_URL || (process.env.PORT ? `http://localhost:${process.env.PORT}` : 'http://localhost:3000');
 const CDP_PORT = 9226;
@@ -163,18 +164,20 @@ try {
     });
 
     // --- every top-level view must fit the viewport width ---
+    // each view mounts its own DOM after an async fetch — poll for a per-view mount marker
+    // instead of a fixed 2.6s sleep per view (12 sleeps across the two device passes)
     const views = [
-      { hash: '#/', label: 'home' },
-      { hash: '#/create', label: 'character creator' },
-      { hash: `#/character/${hero.id}`, label: 'character sheet' },
-      { hash: `#/overworld?char=${hero.id}`, label: 'overworld' },
-      { hash: `#/play/${delveId}`, label: 'delve' },
-      { hash: `#/campaign/${hero.id}`, label: 'campaign' }
+      { hash: '#/', label: 'home', ready: `!!document.querySelector('.hero')` },
+      { hash: '#/create', label: 'character creator', ready: `!!document.querySelector('.wizard-steps')` },
+      { hash: `#/character/${hero.id}`, label: 'character sheet', ready: `!!document.querySelector('.sheet-grid')` },
+      { hash: `#/overworld?char=${hero.id}`, label: 'overworld', ready: `!!document.querySelector('.overworld-view')` },
+      { hash: `#/play/${delveId}`, label: 'delve', ready: `!!document.querySelector('#map3d canvas')` },
+      { hash: `#/campaign/${hero.id}`, label: 'campaign', ready: `!!document.querySelector('.campaign-hero')` }
     ];
 
     for (const v of views) {
       await send('Runtime.evaluate', { expression: `location.hash = '${v.hash}'; 1` });
-      await wait(2600);
+      await pollUntil(send, v.ready, { timeout: 15000, description: `${v.label} view to mount (${v.hash})` });
       const metrics = await send('Runtime.evaluate', {
         expression: `(() => {
           const de = document.documentElement;
@@ -205,7 +208,11 @@ try {
     // --- on a phone the delve must still be playable ---
     if (device.name === 'phone') {
       await send('Runtime.evaluate', { expression: `location.hash = '#/play/${delveId}'; 1` });
-      await wait(3000);
+      // poll until the 3D board is mounted and sized instead of a fixed 3s sleep
+      await pollUntil(send, `(() => {
+        const m = document.getElementById('map3d');
+        return !!document.querySelector('#map3d canvas') && !!m && m.getBoundingClientRect().height > 0;
+      })()`, { timeout: 15000, description: 'the phone 3D board to mount and size' });
 
       const playable = await send('Runtime.evaluate', {
         expression: `(() => {
@@ -236,9 +243,12 @@ try {
       assert(playable.actions >= 4, `Phone: the action buttons are present (${playable.actions})`);
       assert(playable.tapTargets >= 4, `Phone: action buttons are tall enough to tap (${playable.tapTargets})`);
 
-      // the backpack modal must open and fit
-      await send('Runtime.evaluate', { expression: `document.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', bubbles: true })); 1` });
-      await wait(1200);
+      // the backpack modal must open and fit — the 'b' hotkey applies synchronously, so poll
+      // for the modal (re-dispatching the key if it never appears) instead of a fixed 1.2s
+      await clickUntil(send,
+        `document.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', bubbles: true })); 1`,
+        `!!document.getElementById('delveInventoryModal')`,
+        { description: 'the backpack modal to open' });
       const modal = await send('Runtime.evaluate', {
         expression: `(() => {
           const m = document.getElementById('delveInventoryModal');
@@ -299,7 +309,9 @@ try {
     })()`,
     returnByValue: true
   });
-  await wait(1000);
+  // district pills re-render synchronously — poll for the forge tab instead of a fixed 1s
+  await pollUntil(send, `!!document.getElementById('armoryForgeTabBtn')`,
+    { description: 'the forge tab to render' });
   const forgeUi = await send('Runtime.evaluate', {
     expression: `(() => ({ tab: !!document.getElementById('armoryForgeTabBtn') }))()`,
     returnByValue: true

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { pollUntil, clickUntil } from './_cdp-helpers.mjs';
 
 const BASE_URL = process.env.BASE_URL || (process.env.PORT ? `http://localhost:${process.env.PORT}` : 'http://localhost:3000');
 const CDP_PORT = 9225;
@@ -279,13 +280,21 @@ try {
   const freeLook = await send('Runtime.evaluate', {
     expression: `(async () => {
       document.getElementById('cameraFollowBtn').click();
-      await new Promise(r => setTimeout(r, 120));
+      await new Promise(r => setTimeout(r, 60)); // belt-and-braces settle only — the toggle applies synchronously
       const dbg = window.__dndDebug;
       const tap = (key) => document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
       const parked = { ...dbg.camera().camTarget };
       const heroBefore = dbg.playerTile();
       for (const key of ['w', 'w', 's', 'a', 'a']) { tap(key); await new Promise(r => setTimeout(r, 420)); }
-      await new Promise(r => setTimeout(r, 1800));
+      // wait until the hero's logical tile stops changing instead of a fixed 1.8s — headless
+      // frames are uneven, and a busy-swallowed tap would make a fixed sleep pointless
+      let prevTile = dbg.playerTile(), stable = 0;
+      for (let i = 0; i < 24 && stable < 3; i++) {
+        await new Promise(r => setTimeout(r, 250));
+        const t = dbg.playerTile();
+        stable = (t && prevTile && t.x === prevTile.x && t.z === prevTile.z) ? stable + 1 : 0;
+        prevTile = t;
+      }
       const after = dbg.camera();
       return {
         parked,
@@ -308,8 +317,14 @@ try {
   const recentre = await send('Runtime.evaluate', {
     expression: `(async () => {
       document.getElementById('cameraFollowBtn').click();
-      await new Promise(r => setTimeout(r, 200));
-      const after = window.__dndDebug.camera();
+      // the re-centre glides back over several rAF frames — poll until the view has actually
+      // moved off the parked spot instead of sampling one fixed 200ms mid-glide frame
+      let after = window.__dndDebug.camera();
+      const parked = { x: after.camTarget.x, z: after.camTarget.z };
+      for (let i = 0; i < 32 && Math.hypot(after.camTarget.x - parked.x, after.camTarget.z - parked.z) < 0.4; i++) {
+        await new Promise(r => setTimeout(r, 250));
+        after = window.__dndDebug.camera();
+      }
       return { follow: after.follow, camTarget: after.camTarget, attr: document.getElementById('mapWrap').dataset.camFollow };
     })()`,
     awaitPromise: true,
@@ -370,8 +385,9 @@ try {
   const moveRes = await apiReq('POST', `/api/game/${delveId}/action`, { type: 'move', x: 4, y: 5 });
   assert(moveRes.ok || moveRes.state, 'Move action accepted on server');
 
-  // Wait 1.5s for view update
-  await new Promise(r => setTimeout(r, 1500));
+  // brief settle for the view update — nothing below asserts on this move itself (the next
+  // checks read stylesheets or reload the page from disk), so half the old 1.5s is plenty
+  await new Promise(r => setTimeout(r, 750));
 
   // Check 3: Turn Economy CSS classes exist
   const cssCheck = await send('Runtime.evaluate', {
@@ -570,8 +586,8 @@ try {
   assert(town.hasButton, 'The bet button is present');
   assert(/幸运币|护身符|屠戮油/.test(town.tokenList), 'The prize-token list is documented on the table');
 
-  const betResult = await send('Runtime.evaluate', {
-    expression: `(async () => {
+  const betStake = await send('Runtime.evaluate', {
+    expression: `(() => {
       const goldText = () => {
         const m = (document.querySelector('.hero-stats-row') || document.body).innerText.match(/Gold:\\s*(\\d+)/);
         return m ? Number(m[1]) : null;
@@ -579,17 +595,29 @@ try {
       const before = goldText();
       const chip = document.querySelector('.gamble-stake-btn[data-stake="5"]');
       if (chip) chip.click();
-      await new Promise(r => setTimeout(r, 200));
-      document.getElementById('gambleRollBtn').click();
-      await new Promise(r => setTimeout(r, 2500));
-      const line = document.getElementById('gambleResult').innerText;
-      const diff = line.match(/本注 ([+-]\\d+) gp/);
-      return { before, after: goldText(), line: line.slice(0, 160), net: diff ? Number(diff[1]) : null };
+      return { before };
     })()`,
-    awaitPromise: true,
     returnByValue: true
   });
-  const bet = betResult.result.value;
+  // the roll is a server round trip plus an in-page dice animation — poll for the result
+  // line (re-clicking the roll button if it never shows) instead of sleeping a fixed 2.5s
+  await clickUntil(send,
+    `(() => { const b = document.getElementById('gambleRollBtn'); if (b && !b.disabled) { b.click(); return true; } return false; })()`,
+    `/本注 [+-]?\\d+ gp/.test((document.getElementById('gambleResult') || {}).innerText || '')`,
+    { timeout: 10000, description: 'the gamble result line to render' });
+  const betResult = await send('Runtime.evaluate', {
+    expression: `(() => {
+      const goldText = () => {
+        const m = (document.querySelector('.hero-stats-row') || document.body).innerText.match(/Gold:\\s*(\\d+)/);
+        return m ? Number(m[1]) : null;
+      };
+      const line = document.getElementById('gambleResult').innerText;
+      const diff = line.match(/本注 ([+-]\\d+) gp/);
+      return { after: goldText(), line: line.slice(0, 160), net: diff ? Number(diff[1]) : null };
+    })()`,
+    returnByValue: true
+  });
+  const bet = { before: betStake.result.value.before, ...betResult.result.value };
   assert(bet.net !== null, `The table reports the net result (${bet.line})`);
   assert(bet.after === bet.before + bet.net, `Gold moved by the reported net (${bet.before} -> ${bet.after}, net ${bet.net})`);
 
@@ -603,7 +631,12 @@ try {
     returnByValue: true
   });
   assert(shelf.result.value, 'The apothecary district is reachable');
-  await new Promise(r => setTimeout(r, 800));
+  // district pills re-render synchronously — poll for the shelf instead of a fixed 0.8s
+  await pollUntil(send, `(() => {
+    const cards = Array.from(document.querySelectorAll('.buy-item-btn'))
+      .filter(b => (b.getAttribute('data-item-id') || '').includes('potion_mystery')).length;
+    return cards === 3 && document.body.innerText.includes('实验性魔药');
+  })()`, { description: 'the experimental-brew shelf to render' });
   const brews = await send('Runtime.evaluate', {
     expression: `(() => ({
       cards: Array.from(document.querySelectorAll('.buy-item-btn')).filter(b => (b.getAttribute('data-item-id') || '').includes('potion_mystery')).length,

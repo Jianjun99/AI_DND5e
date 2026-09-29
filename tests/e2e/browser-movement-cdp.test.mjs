@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { pollUntil, clickUntil } from './_cdp-helpers.mjs';
 
 const BASE_URL = process.env.BASE_URL || (process.env.PORT ? `http://localhost:${process.env.PORT}` : 'http://localhost:3000');
 const CDP_PORT = 9224;
@@ -46,6 +47,24 @@ async function apiReq(method, path, body) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`${method} ${path} -> HTTP ${res.status}: ${JSON.stringify(data)}`);
   return data;
+}
+
+// Poll the server save until the player stands on (tx, ty) — condition-based replacement
+// for the old fixed movement sleeps (the engine applies a move synchronously inside the
+// POST, so the probe is the assertion's own condition). Best-effort: on timeout the
+// original assertions below still run and fail with their own messages.
+async function waitPlayerTile(id, tx, ty, timeout = 8000) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    const save = await apiReq('GET', `/api/game/${id}`);
+    const p = save.state.entities.find(e => e.kind === 'player');
+    if (p && p.x === tx && p.y === ty) return;
+    if (Date.now() >= deadline) {
+      console.log(`  (timed out after ${timeout}ms waiting for the player to reach (${tx},${ty}) — currently at (${p ? p.x : '?'},${p ? p.y : '?'}))`);
+      return;
+    }
+    await new Promise(r => setTimeout(r, 250));
+  }
 }
 
 console.log('\n--- Running E2E Browser Test: 3D Miniatures & Walk Animations ---');
@@ -187,9 +206,14 @@ try {
   await send('Page.enable');
   await send('DOM.enable');
 
-  // Wait for 3D engine and game state to mount
-  console.log('  Waiting 3s for 3D world to render...');
-  await new Promise(r => setTimeout(r, 3000));
+  // Wait for the 3D engine and game state to mount — poll for the DOM the assertions below
+  // read instead of sleeping a fixed 3s (a cold boot renders noticeably later than a warm one)
+  console.log('  Waiting for the 3D world to render...');
+  await pollUntil(send, `(() => {
+    const map3d = document.getElementById('map3d');
+    return !!map3d && !!map3d.querySelector('canvas') && !!document.getElementById('mapCanvas')
+      && getComputedStyle(map3d).display !== 'none';
+  })()`, { timeout: 15000, description: '3D world mount (#map3d canvas, #mapCanvas, visible)' });
 
   // Check 1: 3D Canvas & Minimap Mount
   const domCheck = await send('Runtime.evaluate', {
@@ -235,9 +259,7 @@ try {
   // Check 3: Trigger Move Action via API and Observe Traversal in Game
   console.log('  Executing player move action to tile (4,5)...');
   await apiReq('POST', `/api/game/${delveId}/action`, { type: 'move', x: 4, y: 5 });
-
-  // Wait 1.5s for smooth walking animation to step across tiles
-  await new Promise(r => setTimeout(r, 1500));
+  await waitPlayerTile(delveId, 4, 5);
 
   const gameAfterMove = await apiReq('GET', `/api/game/${delveId}`);
   const player = gameAfterMove.state.entities.find(e => e.kind === 'player');
@@ -245,7 +267,7 @@ try {
 
   // Move back to start position so retreat is valid
   await apiReq('POST', `/api/game/${delveId}/action`, { type: 'move', x: 4, y: 4 });
-  await new Promise(r => setTimeout(r, 800));
+  await waitPlayerTile(delveId, 4, 4);
 
   // Check 4: Retreat to Safety & Verify Summary Popup Does Not Get Stuck
   console.log('  Testing Retreat to Safety flow...');
@@ -259,7 +281,12 @@ try {
     returnByValue: true
   });
   assert(retreatClicked.result.value === true, 'Retreat button must exist and be clicked in browser');
-  await new Promise(r => setTimeout(r, 1200));
+  // act() swallows clicks while busy — poll for the modal and re-click on a swallowed click
+  // instead of a fixed 1.2s sleep racing the busy window (the retreat-popup CI flake, cured)
+  await clickUntil(send,
+    `(() => { const btn = document.querySelector('[data-act="retreat"]'); if (btn) { btn.click(); return true; } return false; })()`,
+    `!!document.getElementById('summaryModal')`,
+    { description: 'Summary modal rendered after retreat click' });
 
   // Verify modal is open and has title
   const modalCheck1 = await send('Runtime.evaluate', {
@@ -289,10 +316,10 @@ try {
 
   // Test dismissing the popup via close button
   console.log('  Testing close button dismissal...');
-  await send('Runtime.evaluate', {
-    expression: `document.getElementById('closeSummaryX').click()`
-  });
-  await new Promise(r => setTimeout(r, 200));
+  await clickUntil(send,
+    `(() => { const x = document.getElementById('closeSummaryX'); if (x) { x.click(); return true; } return false; })()`,
+    `!document.getElementById('summaryModal')`,
+    { description: 'Summary modal removed after clicking ✕' });
 
   const modalCheckClosed = await send('Runtime.evaluate', {
     expression: `!!document.getElementById('summaryModal')`,
@@ -303,13 +330,10 @@ try {
 
   // Re-open summary from side panel
   console.log('  Testing reopening summary from side panel...');
-  await send('Runtime.evaluate', {
-    expression: `(() => {
-      const btn = document.querySelector('[data-act="retreat"]');
-      if (btn) btn.click();
-    })()`
-  });
-  await new Promise(r => setTimeout(r, 200));
+  await clickUntil(send,
+    `(() => { const btn = document.querySelector('[data-act="retreat"]'); if (btn) { btn.click(); return true; } return false; })()`,
+    `!!document.getElementById('summaryModal')`,
+    { description: 'Summary modal reopened from the side panel' });
 
   const modalCheckReopened = await send('Runtime.evaluate', {
     expression: `!!document.getElementById('summaryModal')`,
@@ -320,13 +344,12 @@ try {
 
   // Click "Return to Oakhaven" link and verify clean town navigation without stuck modal
   console.log('  Clicking Return to Oakhaven link...');
-  await send('Runtime.evaluate', {
-    expression: `(() => {
-      const link = document.querySelector('.sumNavBtn');
-      if (link) link.click();
-    })()`
-  });
-  await new Promise(r => setTimeout(r, 800));
+  await clickUntil(send,
+    `(() => { const link = document.querySelector('.sumNavBtn'); if (link) { link.click(); return true; } return false; })()`,
+    `(() => !document.getElementById('summaryModal') && !document.querySelector('.modal-back')
+      && location.hash.includes('overworld')
+      && !!document.querySelector('.city-view, .overworld-view'))()`,
+    { timeout: 10000, description: 'Return to Oakhaven navigation completed' });
 
   const townNavCheck = await send('Runtime.evaluate', {
     expression: `(() => {

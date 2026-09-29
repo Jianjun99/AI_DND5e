@@ -10,7 +10,7 @@
 - 已知背景（PROJECT_STATE 测试体系节）：浏览器残留进程按 `--user-data-dir` 档案目录名
   PowerShell 杀；localStorage 串味要在测试开头重置键。
 
-> 🔍 **排查记录**（v1.9.4 批次）：瞬挂根因 = 残留浏览器进程占着本套件的 profile——三个套件启动前现已强制清理自己的 profile（killStaleBrowser），连接失败时报出端口与 profile 路径。**剩余偶发**：点击撞上 busy 窗口（固定 sleep 竞态，如 retreat 弹窗偶发缺失，复跑即绿）——根治要把固定 sleep 改成条件轮询，工程量在三个套件的时序重构，留作后续。
+> ✅ **已根治**（两步）：① v1.9.4 批次修掉瞬挂根因（启动前强制清理本套件 profile 残留进程 killStaleBrowser + 失败诊断报端口/profile）。② v1.9.6 批次把 17 处固定 sleep 改成条件轮询（`tests/e2e/_cdp-helpers.mjs`：pollUntil / clickUntil——点击后轮询条件、条件不出现自动重点，根治 busy 竞态）。断言零改动；三套件各 3× + verify 2× 全绿。验收达标（≥5 连绿）。
 
 ## 疑点清单（按概率）
 
