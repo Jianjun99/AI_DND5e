@@ -265,6 +265,78 @@ test('Below the loyalty threshold no personal quest is offered', () => {
   assert(!events.some(e => e.type === 'quest_offer'), 'no offer event below the threshold');
 });
 
+test('Boss gimmicks: ground slam, undead summon, fire breath — status-blocked while asleep', () => {
+  // ground slam: every 3rd turn, party within 2 tiles takes bludgeoning
+  const state = makeLoyaltyState(50);
+  const mon = state.entities.find(e => e.kind === 'monster');
+  mon.gimmick = 'ground_slam';
+  mon.attacks = [];
+  mon.turnCount = 2; // next tick = 3
+  const p = engine.playerEntity(state);
+  mon.x = p.x + 1; mon.y = p.y; mon.sx = mon.x; mon.sy = mon.y;
+  state.mode = 'combat';
+  state.combat = { order: [{ id: mon.id, init: 20 }, { id: p.id, init: 5 }], turnIdx: 0, round: 1, actionUsed: false, bonusUsed: false, movementLeft: 0 };
+  const pBefore = p.hp;
+  const events = [];
+  engine.processMonsterTurn(state, mon, events);
+  assert(events.some(e => e.type === 'ground_slam'), 'slam event fired on the 3rd tick');
+  assert(p.hp < pBefore, 'slam damage landed on the player');
+
+  // a sleeping slammer does not slam
+  const state2 = makeLoyaltyState(50);
+  const mon2 = state2.entities.find(e => e.kind === 'monster');
+  mon2.gimmick = 'ground_slam';
+  mon2.attacks = [];
+  mon2.turnCount = 2; // next tick = 3
+  const p2 = state2.entities.find(e => e.kind === 'player');
+  mon2.x = p2.x + 1; mon2.y = p2.y;
+  state2.mode = 'combat';
+  state2.combat = { order: [{ id: mon2.id, init: 20 }], turnIdx: 0, round: 1, actionUsed: false, bonusUsed: false, movementLeft: 0 };
+  mon2.conditions.push('asleep');
+  const pBefore2 = p2.hp;
+  const events2 = [];
+  engine.processMonsterTurn(state2, mon2, events2);
+  assert(!events2.some(e => e.type === 'ground_slam'), 'a sleeping boss never slams');
+  assert(p2.hp === pBefore2, 'no slam damage while asleep');
+
+  // summon: an enraged tomb warden raises a risen guard once
+  const state3 = makeLoyaltyState(50);
+  const mon3 = state3.entities.find(e => e.kind === 'monster');
+  mon3.gimmick = 'summon_undead';
+  mon3.boss = true;
+  mon3.enraged = false;
+  mon3.hp = Math.floor(mon3.hpMax / 2); // crosses the enrage line this turn
+  mon3.attacks = [];
+  mon3.x = 7; mon3.y = 4; mon3.sx = mon3.x; mon3.sy = mon3.y; // open corridor: adjacent tiles are free for the guard
+  state3.mode = 'combat';
+  state3.combat = { order: [{ id: mon3.id, init: 20 }], turnIdx: 0, round: 1, actionUsed: false, bonusUsed: false, movementLeft: 0 };
+  const events3 = [];
+  engine.processMonsterTurn(state3, mon3, events3);
+  assert(events3.some(e => e.type === 'summon'), 'summon event fired on enrage');
+  const guards = state3.entities.filter(e => e.monsterId === 'skeleton' && e.summoned);
+  assert(guards.length === 1, 'exactly one risen guard joined');
+  assert(state3.combat.order.some(o => o.id === guards[0].id), 'the guard joined the combat order');
+  const events3b = [];
+  engine.processMonsterTurn(state3, mon3, events3b);
+  assert(state3.entities.filter(e => e.summoned).length === 1, 'the summon happens only once');
+
+  // fire breath: every 3rd turn, party within 3 tiles takes fire
+  const state4 = makeLoyaltyState(50);
+  const mon4 = state4.entities.find(e => e.kind === 'monster');
+  mon4.gimmick = 'fire_breath';
+  mon4.attacks = [];
+  mon4.turnCount = 2; // next tick = 3
+  const p4 = state4.entities.find(e => e.kind === 'player');
+  mon4.x = p4.x + 2; mon4.y = p4.y; mon4.sx = mon4.x; mon4.sy = mon4.y; // in breath range, out of melee
+  state4.mode = 'combat';
+  state4.combat = { order: [{ id: mon4.id, init: 20 }], turnIdx: 0, round: 1, actionUsed: false, bonusUsed: false, movementLeft: 0 };
+  const pBefore4 = p4.hp;
+  const events4 = [];
+  engine.processMonsterTurn(state4, mon4, events4);
+  assert(events4.some(e => e.type === 'fire_breath'), 'breath event fired');
+  assert(p4.hp < pBefore4, 'breath damage landed on the player');
+});
+
 test('Cornered bosses enter a desperate phase and strike twice per turn', () => {
   const state = makeLoyaltyState(50);
   const mon = state.entities.find(e => e.kind === 'monster');

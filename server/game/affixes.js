@@ -225,7 +225,7 @@ function rollMagicItem(rarity = 'magic', opts = {}) {
   const affixPool = isWeapon ? WEAPON_AFFIXES : ARMOR_AFFIXES;
   const affix = affixPool[Math.floor(Math.random() * affixPool.length)];
   const item = buildAffixItem(base, affix, rarity);
-  if (!isWeapon && Math.random() < 0.25) {
+  if (!isWeapon && (opts.set || Math.random() < 0.25)) {
     const set = ARMOR_SETS[Math.floor(Math.random() * ARMOR_SETS.length)];
     item.set = set.id;
     item.name = `${set.prefix}·${item.name}`;

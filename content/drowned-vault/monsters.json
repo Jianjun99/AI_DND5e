@@ -65,6 +65,7 @@
         ]
       },
       "boss": true,
+      "gimmick": "ground_slam",
       "blurb": "A towering construct of green stone and old bronze, bound to guard the vault until the water rises no more."
     }
   ]

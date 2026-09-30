@@ -214,6 +214,7 @@
         "Bound to the Relic: Grubnik cannot stray far from the altar."
       ],
       "boss": true,
+      "gimmick": "summon_undead",
       "blurb": "A hulking brute festooned with bones, swinging a tree-trunk club.",
       "loot": {
         "gold": "10d6",

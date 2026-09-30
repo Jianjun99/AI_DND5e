@@ -182,6 +182,7 @@
         ]
       },
       "boss": true,
+      "gimmick": "fire_breath",
       "traits": [
         "Bound to the Roost: Yzmerith never strays from her hoard."
       ],

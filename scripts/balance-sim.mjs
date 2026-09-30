@@ -1,6 +1,8 @@
 // balance-sim.mjs v2 — the bot now opens doors, casts spells, and uses subclass/level resources.
 import '../server/game/engine.js';
 const engine = await import('../server/game/engine.js');
+const contentMod = await import('../server/game/content.js');
+const endless = await import('../server/game/endless.js');
 
 const RUNS = +(process.argv[2] || 50);
 
@@ -104,8 +106,22 @@ function botCombatTurn(state, p, cautious) {
   engine.endTurn(state, ev);
 }
 
-function simulateDelve({ char, difficulty, mapId, bringAlly, cautious }) {
-  const state = engine.startGame(char, { difficulty, mapId, bringAlly });
+function simulateDelve({ char, difficulty, mapId, bringAlly, cautious, endlessDepth, weekly }) {
+  // procedural configs: inject the floor (mutations roll per injection) and, for
+  // the weekly trial, run the delve on the ISO-week seed like the real route does
+  let finalMapId = mapId;
+  let seed;
+  if (endlessDepth) {
+    contentMod.injectMap(endless.generateFloor(endlessDepth, 'crypt'));
+    finalMapId = 'endless_' + endlessDepth;
+  }
+  if (weekly) {
+    const wk = engine.weeklyInfo();
+    contentMod.injectMap(endless.generateFloor(wk.depth, 'crypt', engine.rand, 'weekly_'));
+    seed = wk.seed;
+    finalMapId = 'weekly_' + wk.depth;
+  }
+  const state = engine.startGame(char, { difficulty, mapId: finalMapId, bringAlly, seed });
   const p = engine.playerEntity(state);
   const stats = { deaths: 0, wins: 0, level: 1, rounds: 0, stabilized: 0, kills: 0 };
   const rooms = (state.map.rooms || []).map(r => ({
@@ -156,16 +172,21 @@ for (const mapId of ['crypt', 'drowned-vault']) {
 }
 configs.push({ mapId: 'crypt', difficulty: 'normal', cautious: true, ally: true, label: 'crypt normal +ally' });
 configs.push({ mapId: 'drowned-vault', difficulty: 'normal', cautious: true, ally: true, label: 'vault normal +ally' });
+// procedural probes: mutations roll per injection, the weekly trial uses the ISO-week seed
+configs.push({ endlessDepth: 5, difficulty: 'normal', cautious: false, ally: false, label: 'endless-5 normal solo', runs: Math.max(10, Math.floor(RUNS / 5)) });
+configs.push({ endlessDepth: 10, difficulty: 'hard', cautious: false, ally: false, label: 'endless-10 hard solo', runs: Math.max(10, Math.floor(RUNS / 5)) });
+configs.push({ weekly: true, difficulty: 'normal', cautious: false, ally: false, label: 'weekly trial (seeded)', runs: 3 });
 
 console.log(`Balance simulation v2: ${RUNS} runs per config (bot opens doors, casts, uses resources)\n`);
 console.log('config'.padEnd(24), 'deaths', 'wins', 'surv', 'avgLvl', 'avgKills');
 for (const cfg of configs) {
   let deaths = 0, wins = 0, lvl = 0, kills = 0;
   const classes = ['fighter', 'ranger', 'wizard', 'rogue', 'cleric', 'paladin'];
-  for (let i = 0; i < RUNS; i++) {
+  const runs = cfg.runs || RUNS;
+  for (let i = 0; i < runs; i++) {
     const char = makeBotCharacter(classes[i % classes.length]);
-    const r = simulateDelve({ char, difficulty: cfg.difficulty, mapId: cfg.mapId, bringAlly: cfg.ally, cautious: cfg.cautious });
+    const r = simulateDelve({ char, difficulty: cfg.difficulty, mapId: cfg.mapId, bringAlly: cfg.ally, cautious: cfg.cautious, endlessDepth: cfg.endlessDepth, weekly: cfg.weekly });
     deaths += r.deaths; wins += r.wins; lvl += r.level; kills += r.kills;
   }
-  console.log(cfg.label.padEnd(24), String(deaths).padStart(6), String(wins).padStart(4), ((RUNS - deaths) / RUNS * 100).toFixed(0).padStart(4) + '%', (lvl / RUNS).toFixed(1).padStart(6), (kills / RUNS).toFixed(1).padStart(9));
+  console.log(cfg.label.padEnd(24), String(deaths).padStart(6), String(wins).padStart(4), ((runs - deaths) / runs * 100).toFixed(0).padStart(4) + '%', (lvl / runs).toFixed(1).padStart(6), (kills / runs).toFixed(1).padStart(9));
 }

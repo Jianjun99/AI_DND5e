@@ -167,6 +167,20 @@
 - 战斗套件 +1（推位/减速/once-per-turn/新回合恢复，5 连绿），rules 套件 +1（Piercer 种子化
   不变量：同种子重骰不低于原值）。
 
+## Boss 专属机制 + 每周奖励（未发布）
+- **Boss 专属 gimmick**（数据驱动：monster def 的 `gimmick` 字段，水合时带上）：
+  Grubnik/Depth Guardian → `summon_undead`（狂暴时召唤 Risen Vault Guard，加入战斗序列，仅一次）；
+  Tomb Warden → `ground_slam`（每 3 回合对 2 格内玩家+队友 1d8+2 钝击，DC 13 力豁免减半）；
+  Yzmerith → `fire_breath`（每 3 回合对 3 格内 2d6 火焰，DC 13 敏豁免减半）。
+  三个机制挂在水合后的状态检查**之后**（睡眠/麻痹/魅惑的 boss 不施放）。事件类型
+  ground_slam/fire_breath/summon 已入事件契约。
+- **每周试炼奖励**：weekly 局胜利时 `checkVictory` 授予一件强制套装的稀有件（rollMagicItem
+  新增 `opts.set`），delve 旗标防重复；sync-delve 的 wins/best 照旧。
+- **balance-sim v3**：新增 endless-5 normal / endless-10 hard / weekly（种子局 ×3）三个配置，
+  per-config runs。基线：endless-5 normal 生存 40%（试炼模式确实更难）、endless-10 hard 70%、
+  weekly 67%——作为后续调参基准记录。
+- 战斗套件 +1（四 gimmick 场景：触发/伤害/睡眠封印/召唤一次性）。
+
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）

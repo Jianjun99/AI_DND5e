@@ -586,6 +586,7 @@ function generateMapState(mapDef, difficulty) {
         x: e.x, y: e.y, hp, hpMax: hp, ac: def.ac, speedFt: def.speed, abilities: def.abilities,
         attacks: def.attacks, darkvision: def.darkvision || 0, xp: def.xp, boss: !!def.boss,
         vulnerabilities: def.vulnerabilities || [], traits: def.traits || [],
+        gimmick: def.gimmick || null,
         chief: !!e.chief, conditions: [], buffs: [], alive: true, aware: false, fled: false,
         sx: e.x, sy: e.y
       };
@@ -2022,7 +2023,16 @@ function checkVictory(state, events) {
   state.mode = 'victory'; state.flags.victory = true;
   awardXp(state, 100, events);
   state.entities.filter(e => e.kind === 'ally' && e.alive).forEach(a => adjustLoyalty(state, 5, events, a));
-  const ev = { type: 'victory', narrate: true, text: `VICTORY! ${p.name} escapes ${state.mapName} into daylight${v.type === 'slay_boss' ? ', leaving a broken guardian behind' : ', the prize in hand'}. The delve is complete! (+100 XP)` };
+  // the weekly trial pays its champion: a forced set piece the first time each delve wins
+  if (state.weeklyLabel && !state.flags.weeklyGift) {
+    state.flags.weeklyGift = true;
+    const gift = affixes.rollMagicItem('rare', { category: 'armor', set: true });
+    state.character.inventory = state.character.inventory || [];
+    state.character.inventory.push(gift);
+    const ev = { type: 'magic_item', narrate: true, text: `本周试炼完成 — 冠军战利品加持：${gift.name}!` };
+    events.push(ev); addLog(state, 'mech', ev.text);
+  }
+  const ev = { type: 'victory', narrate: true, text: `VICTORY! ${p.name} escapes ${state.mapName} into daylight${v.type === 'slay_boss' ? ', leaving a broken guardian behind' : ', the prize in hand'}.${state.weeklyLabel ? ' 本周试炼完成！' : ''} The delve is complete! (+100 XP)` };
   events.push(ev); addLog(state, 'system', ev.text);
 }
 
@@ -2039,10 +2049,60 @@ function processMonsterTurn(state, mon, events) {
     const ev = { type: 'desperate', narrate: true, text: `${mon.name} is CORNERED — a final furious flurry! (two attacks per turn)` };
     events.push(ev); addLog(state, 'mech', ev.text);
   }
+  mon.turnCount = (mon.turnCount || 0) + 1;
   if (mon.conditions.includes('asleep')) { addLog(state, 'mech', `${mon.name} sleeps soundly.`); return; }
   if (mon.conditions.includes('paralyzed')) { addLog(state, 'mech', `${mon.name} stands frozen, muscles locked.`); return; }
   if ((mon.traits || []).some(t => t.startsWith('Nimble Escape'))) addBuff(mon, { id: 'disengaged', rounds: 1 });
   if (hasBuff(mon, 'charmed')) { addLog(state, 'mech', `${mon.name} gazes at ${p_name(state)} with vacant affection and does nothing.`); return; }
+  // boss gimmicks fire after status checks, before the attack routine
+  if (mon.gimmick === 'summon_undead' && mon.enraged && !mon.hasSummoned) {
+    mon.hasSummoned = true;
+    const spot = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: mon.x + dx, y: mon.y + dy }))
+      .find(t => !isBlocked(state, t.x, t.y) && !entityAt(state, t.x, t.y));
+    if (spot) {
+      const skelDef = byId(MONSTERS, 'skeleton');
+      const hp = skelDef ? Math.max(1, Math.round(rollExpr(skelDef.hp).total * DIFFICULTY[state.difficulty || 'normal'].hpMult)) : 9;
+      const summonId = 'summon_' + mon.id + '_' + Date.now().toString(36);
+      state.entities.push({
+        id: summonId, kind: 'monster', monsterId: 'skeleton', name: 'Risen Vault Guard',
+        x: spot.x, y: spot.y, hp, hpMax: hp, ac: skelDef ? skelDef.ac : 13, speedFt: 30,
+        abilities: skelDef ? skelDef.abilities : undefined,
+        attacks: skelDef ? skelDef.attacks : [{ name: 'Claw', bonus: 3, range: 5, damage: '1d6+1', damageType: 'slashing' }],
+        darkvision: 60, xp: 50, alive: true, aware: true, conditions: [], buffs: [], summoned: true
+      });
+      state.combat.order.push({ id: summonId, name: 'Risen Vault Guard', total: 0 });
+      const ev = { type: 'summon', narrate: true, text: `${mon.name} gestures — the bones strewn across its lair clatter together and rise as a Risen Vault Guard!` };
+      events.push(ev); addLog(state, 'mech', ev.text);
+    }
+  }
+  if (mon.gimmick === 'ground_slam' && (mon.turnCount % 3) === 0) {
+    const victims = state.entities.filter(e => (e.kind === 'player' || e.kind === 'ally') && e.alive !== false && manhattan(mon, e) <= 2);
+    if (victims.length) {
+      const ev = { type: 'ground_slam', narrate: true, text: `${mon.name} SLAMS the ground — the hall shudders and stone rains down!` };
+      events.push(ev); addLog(state, 'mech', ev.text);
+      victims.forEach(v => {
+        const saved = die(20) + mod((v.abilities || state.character.abilities).dex || 10) >= 13;
+        let dmg = rollExpr('1d8').total + 2;
+        if (saved) { dmg = Math.floor(dmg / 2); events.push({ type: 'save', narrate: false, text: `${v.name} dives clear — half damage.` }); }
+        applyDamage(state, v, dmg, 'bludgeoning', events);
+      });
+      if (state.mode !== 'combat') return; // the slam may finish a dying hero
+    }
+  }
+  if (mon.gimmick === 'fire_breath' && (mon.turnCount % 3) === 0) {
+    const victims = state.entities.filter(e => (e.kind === 'player' || e.kind === 'ally') && e.alive !== false && manhattan(mon, e) <= 3);
+    if (victims.length) {
+      const ev = { type: 'fire_breath', narrate: true, text: `${mon.name} inhales — a cone of ember-fire washes over the hall!` };
+      events.push(ev); addLog(state, 'mech', ev.text);
+      victims.forEach(v => {
+        const saved = die(20) + mod((v.abilities || state.character.abilities).dex || 10) >= 13;
+        let dmg = rollExpr('2d6').total;
+        if (saved) { dmg = Math.floor(dmg / 2); events.push({ type: 'save', narrate: false, text: `${v.name} rolls with the flames — half damage.` }); }
+        applyDamage(state, v, dmg, 'fire', events);
+      });
+      if (state.mode !== 'combat') return;
+    }
+  }
   const targets = state.entities.filter(e => (e.kind === 'player' || e.kind === 'ally') && e.alive !== false
     && !(e.kind === 'player' && e.conditions.includes('unconscious'))
     && !(e.kind === 'player' && hasBuff(e, 'invisible')));

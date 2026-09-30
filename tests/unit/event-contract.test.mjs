@@ -48,6 +48,7 @@ const NARRATION_ONLY = new Set([
   'sneak', 'steady_aim', 'stones', 'superiority', 'surge', 'undead_fort', 'wildshape',
   'simple_melee', 'sleep', 'sleep_fail', 'parley', 'parley_fail', 'shove', 'shove_fail',
   'sacred', 'bless', 'combat_end', 'slay', 'buff', 'spore_burst', 'chat_open', 'desperate',
+  'ground_slam', 'fire_breath', 'summon',
   // exploration and interaction
   'altar_fail', 'bestiary_entry', 'boss_loot', 'elite_loot', 'fetch_relic', 'font_heal',
   'hint', 'info', 'lever_pull', 'listen', 'relic', 'relic_fail', 'trap_fail', 'trap_found',
