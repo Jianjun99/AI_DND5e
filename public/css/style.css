@@ -2360,3 +2360,22 @@ label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px
 @media (min-width: 621px) and (max-width: 1100px) {
   .play-layout { grid-template-columns: 1fr; }
 }
+
+/* ==========================================================================
+   Immersive mode (toggle: ⛶ button or V) — maximize the board in small panes
+   ========================================================================== */
+#immersiveBtn, #sidePanelBtn { position: fixed; z-index: 70; }
+#immersiveBtn { top: 8px; right: 8px; }
+#sidePanelBtn { top: 8px; right: 150px; display: none; }
+body.immersive .topbar { display: none; }
+body.immersive #sidePanelBtn { display: inline-block; }
+body.immersive main:has(.play-layout) { padding-top: 40px; }
+body.immersive .play-layout { grid-template-columns: minmax(0, 1fr); }
+body.immersive .side-panel {
+  position: fixed; top: 42px; right: 8px; bottom: 8px; width: 340px; z-index: 60;
+  overflow-y: auto; background: rgba(10, 8, 6, .93); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px; backdrop-filter: blur(2px);
+}
+body.immersive .side-panel.immersive-hidden { display: none; }
+body.immersive .map-wrap.view-3d #map3d { height: min(76vh, 980px); }
+body.immersive .log-panel { height: 180px; }

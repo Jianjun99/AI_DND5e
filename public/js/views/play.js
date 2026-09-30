@@ -97,6 +97,8 @@ export async function playView(main, saveRef) {
 
   main.innerHTML = `
     <div class="play-layout">
+      <button class="btn small" id="immersiveBtn" title="Immersive mode — hide the top bar, maximize the board (V)">⛶ Immersive</button>
+      <button class="btn small" id="sidePanelBtn" title="Toggle the side panel overlay">📋 Panel</button>
       <div>
         <div class="map-wrap" id="mapWrap">
           <div id="map3d"></div>
@@ -370,6 +372,21 @@ export async function playView(main, saveRef) {
     hoverText.innerHTML = `<b>Tile (${x}, ${y})</b> — Beyond current movement range this turn`;
   }
 
+  // immersive mode: hide the page chrome, maximize the board (toggle: ⛶ button or V)
+  function toggleImmersive() {
+    document.body.classList.toggle('immersive');
+    window.dispatchEvent(new Event('resize'));
+    const btn = document.getElementById('immersiveBtn');
+    if (btn) btn.textContent = document.body.classList.contains('immersive') ? '✕ Exit Immersive' : '⛶ Immersive';
+  }
+  const immersiveBtn = document.getElementById('immersiveBtn');
+  if (immersiveBtn) immersiveBtn.onclick = toggleImmersive;
+  const sidePanelBtn = document.getElementById('sidePanelBtn');
+  if (sidePanelBtn) sidePanelBtn.onclick = () => {
+    const sp = document.getElementById('sidePanel');
+    if (sp) sp.classList.toggle('immersive-hidden');
+  };
+
   const canvas = document.getElementById('mapCanvas');
   const renderer = createMapRenderer(canvas, {
     isSelected: e => selectedTarget && e.id === selectedTarget.id,
@@ -499,6 +516,7 @@ export async function playView(main, saveRef) {
       }
     }
     if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
+    if (e.key === 'v' || e.key === 'V') { e.preventDefault(); toggleImmersive(); return; }
     const dirs = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] };
     const d = dirs[e.key];
     if (d) {
