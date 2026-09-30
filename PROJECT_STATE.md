@@ -156,7 +156,7 @@
 - 战斗套件改为 6 回合统计断言（绝望 ≈2 挥/回 vs 健康 1 挥/回）——nat1 必失手使精确断言
   偶发失败，规则 9 的又一个案例。
 
-## Crusher/Slasher/Piercer 特长（未发布）
+## Crusher/Slasher/Piercer 特长（v1.9.8 已发布）
 - **Crusher**（钝击命中，once/turn）：目标被推离 5 ft（复用 shove 的格子校验，无豁免）。
 - **Slasher**（挥砍命中，once/turn）：目标获得 `slowed` buff（速度 -10，2 回合自然过期——
   currentSpeed 本来就读这个 buff id，零改动）。
@@ -167,7 +167,7 @@
 - 战斗套件 +1（推位/减速/once-per-turn/新回合恢复，5 连绿），rules 套件 +1（Piercer 种子化
   不变量：同种子重骰不低于原值）。
 
-## Boss 专属机制 + 每周奖励（未发布）
+## Boss 专属机制 + 每周奖励（v1.9.8 已发布）
 - **Boss 专属 gimmick**（数据驱动：monster def 的 `gimmick` 字段，水合时带上）：
   Grubnik/Depth Guardian → `summon_undead`（狂暴时召唤 Risen Vault Guard，加入战斗序列，仅一次）；
   Tomb Warden → `ground_slam`（每 3 回合对 2 格内玩家+队友 1d8+2 钝击，DC 13 力豁免减半）；
@@ -184,7 +184,7 @@
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
-- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.7,…}`（多架构 amd64+arm64）
+- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.8,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
 - 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 17 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（17 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
