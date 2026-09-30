@@ -343,6 +343,7 @@ test('Cornered bosses enter a desperate phase and strike twice per turn', () => 
   mon.boss = true;
   mon.attacks = [{ name: 'Furious Flurry', bonus: 99, range: 5, damage: '1d4', damageType: 'slashing' }];
   const p = engine.playerEntity(state);
+  p.hpMax = 999; p.hp = 999; // unkillable hero: a downed hero vanishes from the boss's targets
   mon.x = p.x + 1; mon.y = p.y; mon.sx = mon.x; mon.sy = mon.y;
   state.mode = 'combat';
   const ally = state.entities.find(e => e.kind === 'ally');
@@ -364,6 +365,7 @@ test('A healthy boss never enters the desperate phase and swings once per turn',
   mon.boss = true;
   mon.attacks = [{ name: 'Flurry', bonus: 99, range: 5, damage: '1d4', damageType: 'slashing' }];
   const p = engine.playerEntity(state);
+  p.hpMax = 999; p.hp = 999;
   mon.x = p.x + 1; mon.y = p.y; mon.sx = mon.x; mon.sy = mon.y;
   state.mode = 'combat';
   const ally = state.entities.find(e => e.kind === 'ally');

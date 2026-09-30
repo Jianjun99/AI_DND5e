@@ -2401,3 +2401,15 @@ body.immersive .map-wrap.view-3d .minimap-container { bottom: 150px; }
 .pause-menu-card h3 { margin: 0 0 6px; color: var(--gold); }
 .pause-menu-card a, .pause-menu-card button { display: block; width: 100%; text-align: left; padding: 8px 12px; border-radius: 8px; color: var(--text); text-decoration: none; background: var(--bg2); border: 1px solid var(--border); cursor: pointer; font-size: 14px; }
 .pause-menu-card a:hover, .pause-menu-card button:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+/* ==========================================================================
+   Immersive v3: MMO-style HUD — quests top-left, status/actions top-right,
+   log/chat bottom-left, minimap bottom-right, guidance pills top-center
+   ========================================================================== */
+#questTrackerHost {
+  position: fixed; top: 42px; left: 8px; width: 320px; z-index: 55; display: none;
+}
+#questTrackerHost .quest-objective-card { margin: 0 0 8px; background: rgba(10, 8, 6, .84); backdrop-filter: blur(2px); }
+body.immersive #questTrackerHost { display: block; }
+body.immersive .side-panel { top: 42px; bottom: auto; max-height: calc(100vh - 200px); }
+body.immersive .map-wrap.view-3d .minimap-container { bottom: 12px; }

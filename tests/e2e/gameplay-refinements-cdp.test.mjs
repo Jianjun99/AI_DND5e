@@ -284,23 +284,31 @@ try {
       const dbg = window.__dndDebug;
       const tap = (key) => document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
       const parked = { ...dbg.camera().camTarget };
-      const heroBefore = dbg.playerTile();
-      for (const key of ['w', 'w', 's', 'a', 'a']) { tap(key); await new Promise(r => setTimeout(r, 420)); }
-      // wait until the hero's logical tile stops changing instead of a fixed 1.8s — headless
-      // frames are uneven, and a busy-swallowed tap would make a fixed sleep pointless
-      let prevTile = dbg.playerTile(), stable = 0;
-      for (let i = 0; i < 24 && stable < 3; i++) {
-        await new Promise(r => setTimeout(r, 250));
-        const t = dbg.playerTile();
-        stable = (t && prevTile && t.x === prevTile.x && t.z === prevTile.z) ? stable + 1 : 0;
-        prevTile = t;
+      // taps race the app's busy guard — retry the walk sequence until the hero
+      // actually moves (<= 3 rounds), instead of failing on a fully swallowed round
+      let heroMoved = 0, rounds = 0;
+      for (let round = 0; round < 3 && heroMoved <= 0.5; round++) {
+        rounds = round + 1;
+        const heroBefore = dbg.playerTile();
+        for (const key of ['w', 'w', 's', 'a', 'a']) { tap(key); await new Promise(r => setTimeout(r, 420)); }
+        // wait until the hero's logical tile stops changing instead of a fixed 1.8s — headless
+        // frames are uneven, and a busy-swallowed tap would make a fixed sleep pointless
+        let prevTile = dbg.playerTile(), stable = 0;
+        for (let i = 0; i < 24 && stable < 3; i++) {
+          await new Promise(r => setTimeout(r, 250));
+          const t = dbg.playerTile();
+          stable = (t && prevTile && t.x === prevTile.x && t.z === prevTile.z) ? stable + 1 : 0;
+          prevTile = t;
+        }
+        heroMoved = Math.hypot(heroBefore.x - dbg.playerTile().x, heroBefore.z - dbg.playerTile().z);
       }
       const after = dbg.camera();
       return {
         parked,
         after: { ...after.camTarget },
         follow: after.follow,
-        heroMoved: Math.hypot(heroBefore.x - dbg.playerTile().x, heroBefore.z - dbg.playerTile().z),
+        heroMoved,
+        rounds,
         label: document.getElementById('cameraFollowBtn').textContent.trim()
       };
     })()`,
@@ -310,7 +318,7 @@ try {
   const fl = freeLook.result.value;
   assert(fl.follow === false, 'Clicking the button releases the camera binding');
   assert(/自由/.test(fl.label), `Button switches to the free-camera label (got "${fl.label}")`);
-  assert(fl.heroMoved > 0.5, `The hero kept walking with the camera released (${fl.heroMoved.toFixed(2)} tiles)`);
+  assert(fl.heroMoved > 0.5, `The hero kept walking with the camera released (${fl.heroMoved.toFixed(2)} tiles after ${fl.rounds} round(s))`);
   assert(dist(fl.parked, fl.after) < 0.01, `A released camera stays parked while the hero walks (moved ${dist(fl.parked, fl.after).toFixed(2)} tiles)`);
 
   // And back on: the camera snaps home to the hero

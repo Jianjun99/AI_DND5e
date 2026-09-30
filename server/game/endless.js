@@ -158,4 +158,4 @@ function generateNextFloor(prevDepth, theme) {
   return generateFloor(prevDepth + 1, theme);
 }
 
-module.exports = { generateFloor, generateNextFloor, WIDTH, HEIGHT };
+module.exports = { generateFloor, generateNextFloor, MUTATIONS, WIDTH, HEIGHT };

@@ -100,16 +100,17 @@ export async function playView(main, saveRef) {
       <button class="btn small" id="immersiveBtn" title="Immersive mode — hide the top bar, maximize the board (V)">⛶ Immersive</button>
       <button class="btn small" id="pauseMenuBtn" title="Menu (Esc)">☰ Menu</button>
       <button class="btn small" id="sidePanelBtn" title="Toggle the side panel overlay">📋 Panel</button>
-      <div class="pause-menu hidden" id="pauseMenu">
-        <div class="pause-menu-card">
-          <h3>⚔ Paused</h3>
-          <a href="#/">🏠 Characters</a>
-          <a href="#/overworld">🗺️ Overworld</a>
-          <a href="#/create">✨ Create Character</a>
-          <button id="pauseSettingsBtn">⚙️ Settings</button>
-          <button id="pauseExitImmersive">✕ Exit Immersive</button>
+        <div class="pause-menu hidden" id="pauseMenu">
+          <div class="pause-menu-card">
+            <h3>⚔ Paused</h3>
+            <a href="#/">🏠 Characters</a>
+            <a href="#/overworld">🗺️ Overworld</a>
+            <a href="#/create">✨ Create Character</a>
+            <button id="pauseSettingsBtn">⚙️ Settings</button>
+            <button id="pauseExitImmersive">✕ Exit Immersive</button>
+          </div>
         </div>
-      </div>
+        <div id="questTrackerHost" class="hidden"></div>
       <div>
         <div class="map-wrap" id="mapWrap">
           <div id="map3d"></div>
@@ -388,9 +389,25 @@ export async function playView(main, saveRef) {
   function toggleImmersive() {
     document.body.classList.toggle('immersive');
     window.dispatchEvent(new Event('resize'));
+    relayoutQuestTracker();
     const btn = document.getElementById('immersiveBtn');
     if (btn) btn.textContent = document.body.classList.contains('immersive') ? '✕ Exit Immersive' : '⛶ Immersive';
   }
+  // HUD layout: in immersive mode the quest tracker lives top-left as its own overlay
+  function relayoutQuestTracker() {
+    const host = document.getElementById('questTrackerHost');
+    if (!host) return;
+    const card = document.querySelector('.quest-objective-card'); // wherever it currently lives
+    if (document.body.classList.contains('immersive')) {
+      if (card) host.appendChild(card); // live node move — fold listeners stay wired
+      host.classList.remove('hidden');
+    } else {
+      const sp = document.getElementById('sidePanel');
+      if (card && sp && !sp.contains(card)) sp.appendChild(card);
+      host.classList.add('hidden');
+    }
+  }
+
   const immersiveBtn = document.getElementById('immersiveBtn');
   if (immersiveBtn) immersiveBtn.onclick = toggleImmersive;
   const sidePanelBtn = document.getElementById('sidePanelBtn');
@@ -1014,6 +1031,7 @@ export async function playView(main, saveRef) {
 
     wireSide(myTurn);
     initTooltips(document.getElementById('sidePanel'), appState.rules);
+    relayoutQuestTracker();
     document.getElementById('sfxBtn').addEventListener('click', () => { sfx.toggle(); renderSide(); });
     document.getElementById('volSlider').addEventListener('input', (e) => { sfx.setVolume(+(/** @type {HTMLInputElement} */ (e.target).value) / 100); });
     const vt = document.getElementById('viewToggle');

@@ -138,7 +138,11 @@ test('Endless floors roll one mutation from depth 2 and wire its knobs', () => {
       assert(chest.loot.gold === (2 + d) + 'd6', `Normal chest gold dice unchanged (depth ${d})`);
     }
   }
-  assert(seen.size === 3, `All three mutations appear across floors 2-10 (got ${[...seen].join(', ')})`);
+  // RNG-safe per ground rule 9: the mutation pick is random, so we do NOT require all
+  // three to appear in a small sample. The table itself is asserted exactly, the sample
+  // only checks the knob wiring for whichever mutation each floor rolled.
+  assert(endless.MUTATIONS.length === 3, 'the mutation table has exactly three entries');
+  assert(seen.size >= 2, `floors 2-10 should show at least two kinds (got ${[...seen].join(', ')})`);
 });
 
 // 4. Monster Bestiary Kill Counter

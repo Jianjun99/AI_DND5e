@@ -11,6 +11,8 @@
   PowerShell 杀；localStorage 串味要在测试开头重置键。
 
 > ✅ **已根治**（两步）：① v1.9.4 批次修掉瞬挂根因（启动前强制清理本套件 profile 残留进程 killStaleBrowser + 失败诊断报端口/profile）。② v1.9.6 批次把 17 处固定 sleep 改成条件轮询（`tests/e2e/_cdp-helpers.mjs`：pollUntil / clickUntil——点击后轮询条件、条件不出现自动重点，根治 busy 竞态）。断言零改动；三套件各 3× + verify 2× 全绿。验收达标（≥5 连绿）。
+> 🔧 **后续补丁**（v1.9.8 后）：gameplay 套件的 WASD 走位段撞 busy 竞态偶发 0.00 tiles——
+  连点序列加重试环（≤3 轮，走动即停），3× + verify 全绿。最后一个已知偶发位点关闭。
 
 ## 疑点清单（按概率）
 
