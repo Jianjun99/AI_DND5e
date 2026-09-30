@@ -98,7 +98,18 @@ export async function playView(main, saveRef) {
   main.innerHTML = `
     <div class="play-layout">
       <button class="btn small" id="immersiveBtn" title="Immersive mode — hide the top bar, maximize the board (V)">⛶ Immersive</button>
+      <button class="btn small" id="pauseMenuBtn" title="Menu (Esc)">☰ Menu</button>
       <button class="btn small" id="sidePanelBtn" title="Toggle the side panel overlay">📋 Panel</button>
+      <div class="pause-menu hidden" id="pauseMenu">
+        <div class="pause-menu-card">
+          <h3>⚔ Paused</h3>
+          <a href="#/">🏠 Characters</a>
+          <a href="#/overworld">🗺️ Overworld</a>
+          <a href="#/create">✨ Create Character</a>
+          <button id="pauseSettingsBtn">⚙️ Settings</button>
+          <button id="pauseExitImmersive">✕ Exit Immersive</button>
+        </div>
+      </div>
       <div>
         <div class="map-wrap" id="mapWrap">
           <div id="map3d"></div>
@@ -137,7 +148,8 @@ export async function playView(main, saveRef) {
           </div>
           <button class="btn small" id="viewToggle2D" style="display:none; position:absolute; top:8px; right:10px; z-index:5;">🏰 3D View</button>
         </div>
-        <div class="log-panel">
+        <div class="log-panel" id="logPanel">
+          <button class="btn small log-min-btn" id="logMinBtn" title="Minimize / expand the log">▼</button>
           <div class="log-entries" id="logEntries"></div>
           <div class="chat-bar">
             <input type="text" id="chatInput" placeholder="${activeNpc ? 'Speak to ' + esc(activeNpc.name) + '…' : 'Describe an action — "search the room", "listen at the door", "hide in the shadows"…'}">
@@ -386,6 +398,22 @@ export async function playView(main, saveRef) {
     const sp = document.getElementById('sidePanel');
     if (sp) sp.classList.toggle('immersive-hidden');
   };
+  function togglePauseMenu() {
+    const menu = document.getElementById('pauseMenu');
+    if (menu) menu.classList.toggle('hidden');
+  }
+  const pauseMenuBtn = document.getElementById('pauseMenuBtn');
+  if (pauseMenuBtn) pauseMenuBtn.onclick = togglePauseMenu;
+  const pauseSettingsBtn = document.getElementById('pauseSettingsBtn');
+  if (pauseSettingsBtn) pauseSettingsBtn.onclick = () => { togglePauseMenu(); openSettingsModal(); };
+  const pauseExitImmersive = document.getElementById('pauseExitImmersive');
+  if (pauseExitImmersive) pauseExitImmersive.onclick = () => { togglePauseMenu(); if (document.body.classList.contains('immersive')) toggleImmersive(); };
+  const logMinBtn = document.getElementById('logMinBtn');
+  if (logMinBtn) logMinBtn.onclick = () => {
+    const lp = document.getElementById('logPanel');
+    if (lp) lp.classList.toggle('log-min');
+    logMinBtn.textContent = lp && lp.classList.contains('log-min') ? '▲' : '▼';
+  };
 
   const canvas = document.getElementById('mapCanvas');
   const renderer = createMapRenderer(canvas, {
@@ -508,12 +536,16 @@ export async function playView(main, saveRef) {
 
   const onKey = (e) => {
     if (e.key === 'Escape') {
+      e.preventDefault();
+      const pause = document.getElementById('pauseMenu');
+      if (pause && !pause.classList.contains('hidden')) { pause.classList.add('hidden'); return; }
       const openModals = document.querySelectorAll('.modal-back');
       if (openModals.length > 0) {
-        e.preventDefault();
         openModals.forEach(m => m.remove());
         return;
       }
+      if (document.body.classList.contains('immersive')) togglePauseMenu();
+      return;
     }
     if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
     if (e.key === 'v' || e.key === 'V') { e.preventDefault(); toggleImmersive(); return; }
@@ -1346,6 +1378,7 @@ export async function playView(main, saveRef) {
     document.removeEventListener('keydown', onKey);
     tts.stop();
     sfx.stopAmbient();
+    document.body.classList.remove('immersive');
     if (renderer3d) renderer3d.dispose();
     if (settingsLink) settingsLink.removeEventListener('click', onSettingsNav, true);
     document.querySelectorAll('.modal-back').forEach(m => m.remove());

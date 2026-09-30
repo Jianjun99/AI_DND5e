@@ -2379,3 +2379,25 @@ body.immersive .side-panel {
 body.immersive .side-panel.immersive-hidden { display: none; }
 body.immersive .map-wrap.view-3d #map3d { height: min(76vh, 980px); }
 body.immersive .log-panel { height: 180px; }
+
+/* ==========================================================================
+   Immersive v2: log/chat = bottom-left overlay, topbar = pause menu (Esc/Menu)
+   ========================================================================== */
+.log-panel { position: relative; }
+.log-min-btn { position: absolute; top: 6px; right: 6px; padding: 0 8px; font-size: 11px; line-height: 18px; z-index: 3; }
+#pauseMenuBtn { position: fixed; top: 8px; left: 8px; z-index: 70; display: none; }
+body.immersive #pauseMenuBtn { display: inline-block; }
+body.immersive .log-panel {
+  position: fixed; left: 8px; bottom: 8px; width: min(460px, 52vw); height: auto;
+  z-index: 55; background: rgba(10, 8, 6, .84); backdrop-filter: blur(2px);
+}
+body.immersive .log-panel .log-entries { height: auto; max-height: 21vh; }
+body.immersive .log-panel.log-min .log-entries { display: none; }
+body.immersive .map-wrap.view-3d #map3d { height: min(calc(100vh - 132px), 1150px); }
+body.immersive .map-wrap.view-3d .minimap-container { bottom: 150px; }
+.pause-menu { position: fixed; inset: 0; z-index: 80; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; }
+.pause-menu.hidden { display: none; }
+.pause-menu-card { background: var(--panel); border: 1px solid var(--gold-dim); border-radius: 12px; padding: 18px 22px; display: flex; flex-direction: column; gap: 8px; min-width: 270px; box-shadow: 0 10px 40px rgba(0, 0, 0, .6); }
+.pause-menu-card h3 { margin: 0 0 6px; color: var(--gold); }
+.pause-menu-card a, .pause-menu-card button { display: block; width: 100%; text-align: left; padding: 8px 12px; border-radius: 8px; color: var(--text); text-decoration: none; background: var(--bg2); border: 1px solid var(--border); cursor: pointer; font-size: 14px; }
+.pause-menu-card a:hover, .pause-menu-card button:hover { border-color: var(--gold-dim); color: var(--gold); }

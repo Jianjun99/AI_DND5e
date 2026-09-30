@@ -129,6 +129,9 @@
   上锁宝箱式技能骰不涉及；目标怪是 crypt 系（其他地图的局自然等待，档案持久化跨局有效）。
 - sync-delve 把 `companionQuests` 写回档案；事件复用 quest_offer / quest_done（SFX 已有）。
 - 侧栏任务区（展开态）在支线激活时显示个人线卡片：任务名、队友、进度 x/need（thread 携带 targetName）。
+- **沉浸模式 v2**（玩家反馈：面板太小）：日志/聊天变左下半透明悬浮层（▼ 收起后只留聊天条，
+  仿小地图的收展交互）；顶栏变 ESC/☰ 暂停菜单（Characters/Overworld/Create/Settings/退出沉浸，
+  ESC 优先级 = 先关弹窗再开关菜单）；地图拉到 ~100vh-132px 近全屏；退出地牢时 cleanup 清 body.immersive。
 - 战斗套件 +2 测试（门槛触发与一次性 / 完成奖励流 / 门槛下不触发）。
 - 设计注：目标怪锁定 crypt 系是有意为之——支线跨局等待而非全图通杀。
 
