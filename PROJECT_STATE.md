@@ -6,6 +6,7 @@
 ## 当前摘要（2026-10-03）
 
 - 当前代码版本：**1.10.0**，以 `package.json` 为准；用户已授权发布本轮的快速开始、全程引导、可靠结算、内容校验与山谷哨门记忆遭遇。发布说明见 `docs/RELEASE_NOTES_1.10.0.md`。
+- 发版环境补修（2026-10-03）：首次 GitHub CI 的全部 Chromium 启动失败已定位为 Linux 宿主 UID 1001 在镜像无 passwd 条目、默认 `HOME=/`；同一个专用验证容器中以 UID 1001 复现 crashpad `--database is required`，改用可写临时 home/config/cache 后正常启动。测试镜像与入口显式创建临时浏览器目录，环境套件新增实际 UID 写入回归，负 WebGL 探针保留浏览器 stderr；游戏规则与生产 Dockerfile 不变。
 - 本轮 T8 与用户授权续做的 T6 均已完成（2026-10-03）：T8 为内容包两阶段校验、结构化诊断、预检 API/作者 CLI、导入替换/回滚、最小通关示例，修复发行地图坏坐标/营火 ID 与已有实体 Boss 标记；[详细结果](tasks/t8-content-validation.md)。T6 加入城镇区域地图可进入的“山谷哨门”：交回真实通行印可和平通过，或走现有 bandit 战斗路线；一次性引擎事实、回城档案合并、不同 NPC 记忆、服务器选项面板、AI 失败/迟到边界与 scene 协议校验；[结果与试玩](tasks/t6-remembered-encounter.md)。最终专用 Docker `npm run verify -- --balance-runs=50` 退出 0，27 套件（6 CDP）与 smoke/balance 全绿，T8 51 场景/180 断言，T6 9 场景/210 断言 + 39 CDP 断言；两路线各 50 次普通单人模拟完成率为和平 100% / 战斗 96%。`artifacts/verify/2026-10-03T05-22-00-971Z-9fa5e442/`，容器清理完成；本轮任务无未完成项。
 - 自动验证环境（2026-10-02）：已建立专用 `Dockerfile.test` 与统一 `npm run verify` Docker 入口；
   固定 2 CPU / 4 GiB、容器名互斥、临时测试数据、关闭真实 AI/外网，服务端和 Chromium 都在容器内。

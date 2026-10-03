@@ -22,6 +22,21 @@ await test('test environment has no external network interface or player data di
   assert.equal(process.env.DATA_DIR, '/tmp/ai-dnd-test-data');
 });
 
+await test('browser home and XDG directories are writable for the actual container UID', () => {
+  assert.equal(process.env.HOME, '/tmp/ai-dnd-test-home');
+  assert.equal(process.env.XDG_CONFIG_HOME, path.join(process.env.HOME, '.config'));
+  assert.equal(process.env.XDG_CACHE_HOME, path.join(process.env.HOME, '.cache'));
+  for (const directory of [process.env.HOME, process.env.XDG_CONFIG_HOME, process.env.XDG_CACHE_HOME]) {
+    const probe = path.join(directory, 'verify-home-probe-' + process.pid);
+    try {
+      fs.writeFileSync(probe, 'writable', { flag: 'wx' });
+      assert.equal(fs.readFileSync(probe, 'utf8'), 'writable');
+    } finally {
+      fs.rmSync(probe, { force: true });
+    }
+  }
+});
+
 await test('missing browser exits nonzero before contacting any game server', () => {
   const child = spawnSync(process.execPath, ['tests/e2e/browser-movement-cdp.test.mjs'], {
     env: { ...process.env, CHROMIUM_PATH: '/no-such-test-browser', BASE_URL: 'http://127.0.0.1:1' }, encoding: 'utf8', timeout: 5000
@@ -53,7 +68,9 @@ await test('disabled WebGL fails on a real browser and retains PNG + page diagno
     '--headless=new', '--no-sandbox', '--no-first-run', ...softwareWebGLFlags(),
     '--disable-webgl', '--disable-webgl2', '--remote-debugging-port=' + port,
     '--user-data-dir=' + profile, 'about:blank'
-  ], { detached: true, stdio: 'ignore' });
+  ], { detached: true, stdio: ['ignore', 'ignore', 'pipe'] });
+  let browserStderr = '';
+  browser.stderr.on('data', data => { browserStderr = (browserStderr + data).slice(-4000); });
   let ws;
   let launchError;
   browser.on('error', error => { launchError = error; });
@@ -67,7 +84,7 @@ await test('disabled WebGL fails on a real browser and retains PNG + page diagno
       } catch {}
       if (!page) await new Promise(resolve => setTimeout(resolve, 100));
     }
-    assert.ok(page, 'Chromium must launch for the negative WebGL probe');
+    assert.ok(page, 'Chromium must launch for the negative WebGL probe; stderr: ' + browserStderr);
     ws = new WebSocket(page.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('CDP open timed out')), 5000);

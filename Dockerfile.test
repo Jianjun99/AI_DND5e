@@ -22,6 +22,9 @@ COPY eslint.config.mjs tsconfig.json ./
 ENV NODE_ENV=test \
     AI_DND_TEST_CONTAINER=1 \
     DATA_DIR=/tmp/ai-dnd-test-data \
+    HOME=/tmp/ai-dnd-test-home \
+    XDG_CONFIG_HOME=/tmp/ai-dnd-test-home/.config \
+    XDG_CACHE_HOME=/tmp/ai-dnd-test-home/.cache \
     VERIFY_ARTIFACT_DIR=/test-artifacts \
     CHROMIUM_PATH=/usr/bin/chromium
 USER node

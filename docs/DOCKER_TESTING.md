@@ -31,6 +31,8 @@ npm run verify -- --balance-runs=50
 
 每轮的 `DATA_DIR=/tmp/ai-dnd-test-data` 位于全新容器层，初始化为关闭 LLM 和肖像服务的空配置；部分集成测试另建自己的临时目录。镜像使用源码白名单，构建上下文排除 `data/`、凭据、本地工具目录、宿主依赖和旧验证产物。**绝不挂载玩家存档、模型配置、生产卷或 Docker socket**。
 
+Linux/CI 保留宿主 UID/GID，以便日志挂载可写；这个 UID 不必出现在镜像的 passwd 中。浏览器的 `HOME=/tmp/ai-dnd-test-home` 与 XDG config/cache 由容器入口创建在临时层，避免未知 UID 默认 home 为 `/` 时 Chromium crashpad 无法启动。环境回归检查实际 UID 的写入能力，所有正常 CDP 与 WebGL 失败探针仍必须运行。
+
 唯一宿主机挂载是本轮 `artifacts/verify/<时间>-<随机 ID>/` → `/test-artifacts`，只存日志与诊断。`--network none` 阻断外部网络；服务端、浏览器和确定性 HTTP 模型 mock 只在容器 loopback 通信。AI 持久化回归仍使用本地 mock，不接真实模型。
 
 ## 完整验证和失败

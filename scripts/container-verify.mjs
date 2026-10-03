@@ -7,6 +7,11 @@ import { captureBrowserArtifacts } from './cdp-artifacts.mjs';
 assertTestContainer();
 const directory = process.env.VERIFY_ARTIFACT_DIR;
 fs.mkdirSync(directory, { recursive: true });
+// Linux hosts keep their own UID for bind-mounted logs; it may have no passwd
+// entry in the image. Chromium still needs a writable home/config/cache.
+for (const browserDirectory of [process.env.HOME, process.env.XDG_CONFIG_HOME, process.env.XDG_CACHE_HOME]) {
+  fs.mkdirSync(browserDirectory, { recursive: true });
+}
 // A fresh writable container layer owns these files. No player data is mounted.
 fs.mkdirSync(process.env.DATA_DIR, { recursive: true });
 fs.writeFileSync(path.join(process.env.DATA_DIR, 'settings.json'), JSON.stringify({
