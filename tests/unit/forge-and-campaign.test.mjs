@@ -5,6 +5,7 @@ const engine = require('../../server/game/engine.js');
 const affixes = require('../../server/game/affixes.js');
 const forge = require('../../server/game/forge.js');
 const campaign = require('../../server/game/campaign.js');
+const guidance = require('../../server/game/guidance.js');
 
 let passed = 0;
 let failed = 0;
@@ -289,6 +290,147 @@ test('The fallback epilogue names the hero and survives a missing model', () => 
   assert(/Vex/.test(text) && text.length > 40, 'The epilogue names the hero and reads like prose');
   assert(/30/.test(text), 'It mentions the kill count when provided');
   assert(campaign.fallbackEpilogue({}, {}).length > 20, 'It still works without stats');
+});
+
+// ---------------------------------------------------------------- guidance (T4) ----
+test('Guidance points a fresh hero at the crypt with a reason', () => {
+  const char = { id: 'c1', campaign: campaign.newCampaign(), settlements: [] };
+  const g = guidance.journey(char, { liveSave: null });
+  assert(g.stage === 'preparing' && g.primary.kind === 'prepare' && g.primary.mapId === 'crypt', 'A fresh hero prepares the crypt');
+  assert(/沉没墓穴/.test(g.primary.text) && !!g.primary.reason, 'The primary action names the destination and carries a reason');
+  assert(g.options.length >= 1 && !!g.objective.text, 'The objective and at least one option ride along');
+});
+
+test('Guidance follows the story: vault, missing clues, roost, then free play', () => {
+  const char = { id: 'c1', campaign: campaign.newCampaign(), settlements: [] };
+  const step = () => guidance.journey(char, { liveSave: null });
+  char.campaign = campaign.advance(char.campaign, 'crypt').campaign;
+  assert(step().primary.mapId === 'drowned-vault', 'After act 1 the vault is next');
+  char.campaign = campaign.advance(char.campaign, 'drowned-vault').campaign;
+  assert(step().primary.mapId === 'howling-hills', 'Act 3 starts with the first missing clue');
+  char.campaign = campaign.advance(char.campaign, 'howling-hills').campaign;
+  assert(step().primary.mapId === 'sewers', 'A collected clue is skipped');
+  char.campaign = campaign.advance(char.campaign, 'sewers').campaign;
+  assert(step().primary.mapId === 'mill', 'The last missing clue is recommended');
+  char.campaign = campaign.advance(char.campaign, 'mill').campaign;
+  assert(step().primary.mapId === 'roost', 'Act 4 sends you to the roost');
+  char.campaign = campaign.advance(char.campaign, 'roost').campaign;
+  const done = step();
+  assert(done.stage === 'complete' && done.objective.done === true && /无尽深渊/.test(done.primary.text),
+    'Completion switches to free play — no stale act advice');
+});
+
+test('Guidance prefers settling an ended delve over starting a new one', () => {
+  const char = { id: 'c1', campaign: campaign.newCampaign(), settlements: [] };
+  const ended = { id: 's1', characterId: 'c1', mode: 'over', mapId: 'crypt', mapName: 'The Sunless Crypt', endSeq: 1, settled: null, updatedAt: 5 };
+  const running = { id: 's2', characterId: 'c1', mode: 'explore', mapId: 'crypt', mapName: 'The Sunless Crypt', endSeq: null, settled: null, updatedAt: 9 };
+  let g = guidance.journey(char, { liveSave: guidance.pickLiveSave(char, [running, ended]) });
+  assert(g.stage === 'unsettled' && g.primary.saveId === 's1', 'An ended unsettled save wins over a newer running one');
+  assert(/结算/.test(g.primary.text), 'The primary action is to settle, not to embark');
+  // once the receipt exists (mirror form), the running delve takes over
+  char.settlements = [{ id: 's1#1' }];
+  g = guidance.journey(char, { liveSave: guidance.pickLiveSave(char, [running, { ...ended, settled: 's1#1' }]) });
+  assert(g.stage === 'in_delve' && g.primary.saveId === 's2', 'A settled ended save steps aside for the running delve');
+  g = guidance.journey(char, { liveSave: null });
+  assert(g.stage === 'preparing', 'No saves at all -> prepare the next story step');
+});
+
+test('T4a: a newer settled delve no longer hides an older running one', () => {
+  const char = { id: 'c1', campaign: campaign.newCampaign(), settlements: [] };
+  const running = { id: 'sA', characterId: 'c1', mode: 'explore', mapId: 'crypt', mapName: 'The Sunless Crypt', endSeq: null, settled: null, updatedAt: 5 };
+  // the settled end is NEWER than the running delve — the old pickLiveSave chose it by
+  // updatedAt alone and the home card recommended re-embarking instead of continuing
+  const settledNewer = { id: 'sB', characterId: 'c1', mode: 'retreat', mapId: 'crypt', mapName: 'The Sunless Crypt', endSeq: 1, settled: 'sB#1', updatedAt: 9 };
+  let live = guidance.pickLiveSave(char, [settledNewer, running]);
+  assert(live.id === 'sA' && live.settled === false, 'The older running delve wins over the newer settled one');
+  let g = guidance.journey(char, { liveSave: live });
+  assert(g.stage === 'in_delve' && g.primary.saveId === 'sA', 'Journey continues the running delve');
+
+  const combat = { ...running, id: 'sC', mode: 'combat', updatedAt: 3 };
+  live = guidance.pickLiveSave(char, [settledNewer, combat]);
+  assert(live.id === 'sC', 'A running combat delve is continuable as well');
+
+  live = guidance.pickLiveSave(char, [{ ...running }, { ...running, id: 'sD', updatedAt: 7 }]);
+  assert(live.id === 'sD', 'Within the running group the newest wins');
+
+  live = guidance.pickLiveSave(char, [settledNewer]);
+  assert(live.id === 'sB' && live.settled === true, 'Only settled saves -> the newest is returned');
+  g = guidance.journey(char, { liveSave: live });
+  assert(g.stage === 'preparing', 'Journey moves on to the next story step');
+
+  const stranger = { id: 'sX', characterId: 'c2', mode: 'explore', mapId: 'crypt', mapName: 'The Sunless Crypt', endSeq: null, settled: null, updatedAt: 99 };
+  live = guidance.pickLiveSave(char, [stranger, settledNewer]);
+  assert(live.id === 'sB', "Another hero's running delve is ignored");
+
+  const oldUnsettled = { id: 's0', characterId: 'c1', mode: 'over', mapId: 'crypt', mapName: 'The Sunless Crypt', endSeq: 1, settled: null, updatedAt: 1 };
+  live = guidance.pickLiveSave(char, [settledNewer, { ...running, id: 'sE', updatedAt: 8 }, oldUnsettled]);
+  assert(live.id === 's0', 'An unsettled end still has top priority');
+});
+
+test('T4a: the roster receipt settles a delve even when the mirror write was lost', () => {
+  const running = { id: 'sA', characterId: 'c1', mode: 'explore', mapId: 'crypt', mapName: 'The Sunless Crypt', endSeq: null, settled: null, updatedAt: 5 };
+  // the T3 authority write succeeded, the mirror write failed: settled=null on the save
+  const mirrorLost = { id: 'sB', characterId: 'c1', mode: 'retreat', mapId: 'crypt', mapName: 'The Sunless Crypt', endSeq: 1, settled: null, updatedAt: 9 };
+  const char = { id: 'c1', campaign: campaign.newCampaign(), settlements: [{ id: 'sB#1' }] };
+  const live = guidance.pickLiveSave(char, [mirrorLost, running]);
+  assert(live.id === 'sA', 'The receipt-only settle steps aside for the running delve');
+
+  // a mirror with a seq that matches neither the save nor any receipt is no proof — that
+  // end really is unsettled and must be offered first (within-group newest still applies)
+  const secondEnd = { ...mirrorLost, endSeq: 2, settled: 'sB#9' };
+  const live2 = guidance.pickLiveSave(char, [secondEnd, running]);
+  assert(live2.id === 'sB' && live2.settled === false, 'A stale mirror id does not count as settled');
+});
+
+test('Delve guidance distinguishes goal reached, area cleared and combat economy', () => {
+  const base = {
+    mode: 'explore',
+    map: { victory: { type: 'fetch_relic' }, objectiveText: '取回圣物。' },
+    flags: {},
+    entities: [{ kind: 'monster', id: 'm1', alive: true, hp: 3 }],
+    character: { inventory: [] }
+  };
+  const clone = () => JSON.parse(JSON.stringify(base));
+  let d = guidance.delve(clone());
+  assert(d.stage === 'explore' && !d.returnPrompt, 'Enemies alive -> plain exploration');
+  const relic = clone(); relic.flags.hasRelic = true;
+  d = guidance.delve(relic);
+  assert(d.stage === 'objective' && d.returnPrompt === true, 'The relic in hand switches to the objective stage');
+  assert(/营火|营地/.test(d.objective) && /胜利/.test(d.objective), 'The copy sends the player to the campfire to complete the victory');
+  assert(!/入口撤退|撤退回城/.test(d.objective), 'The goal-reached copy no longer sells an entrance retreat as completion');
+  assert(/主线不推进/.test(d.hint), 'The hint spells out what an early retreat does NOT do');
+  const cleared = clone(); cleared.entities[0].alive = false;
+  d = guidance.delve(cleared);
+  assert(d.stage === 'cleared' && /区域已安全/.test(d.objective) && d.returnPrompt === false, 'A cleared area without the goal is not a completion prompt');
+  assert(!/胜利！/.test(d.objective), 'The cleared copy does not claim victory');
+  assert(/继续探索|主动撤退/.test(d.objective), 'The cleared copy offers both honest options');
+  const boss = clone();
+  boss.map = { victory: { type: 'slay_boss' }, objectiveText: '击败守卫。' };
+  boss.entities = [{ kind: 'monster', id: 'b1', boss: true, alive: false }];
+  d = guidance.delve(boss);
+  assert(d.stage === 'objective', 'A dead boss counts as the goal reached');
+  const combat = clone();
+  combat.mode = 'combat';
+  combat.combat = { order: [{ id: 'player' }, { id: 'm1' }], turnIdx: 0, movementLeft: 15, actionUsed: true, bonusUsed: false };
+  d = guidance.delve(combat);
+  assert(d.combat.yourTurn === true && /主要动作已用/.test(d.combat.notes) && /移动 15 ft/.test(d.combat.notes),
+    'The combat line spells out spent actions and remaining movement');
+  combat.combat.turnIdx = 1;
+  d = guidance.delve(combat);
+  assert(d.combat.yourTurn === false && /等待/.test(d.combat.notes), 'The enemy turn says to wait');
+  const fled = clone(); fled.mode = 'retreat';
+  d = guidance.delve(fled);
+  assert(/主线不推进/.test(d.objective), 'The retreat copy says the story does not advance');
+});
+
+test('Guidance copy never leaks coordinates or hidden objects', () => {
+  const char = { id: 'c1', campaign: campaign.newCampaign(), settlements: [] };
+  const g = guidance.journey(char, { liveSave: null });
+  const text = [g.primary.text, g.primary.reason, ...g.options.map(o => o.text)].join(' ');
+  assert(!/\d+\s*,\s*\d+/.test(text), 'Journey copy has no tile coordinates');
+  assert(!/陷阱位置|宝箱位置/.test(text), 'Journey copy does not reveal hidden object positions');
+  const d = guidance.delve({ mode: 'explore', map: { victory: { type: 'fetch_relic' }, objectiveText: '取回圣物。' }, flags: {}, entities: [], character: { inventory: [] } });
+  assert(!/\d+\s*,\s*\d+/.test(d.objective + d.hint), 'Delve copy has no tile coordinates');
 });
 
 test('Every act points at a map that exists in the content registry', () => {

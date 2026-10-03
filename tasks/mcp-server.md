@@ -1,5 +1,11 @@
 # Task: 仓库自带 MCP server
 
+> ✅ **已实现，历史规格**：当前已有五个工具，包含后续加入的 run_replay；参考 mcp/server.mjs 与 AGENTS 的当前列表。下文原目标不是待办，新任务见 tasks/README.md。
+
+> 2026-10-02 验证入口更新：`run_verify` 统一进入专用 Docker 测试容器；`recent_failures`
+> 从 `artifacts/verify/latest.json` 找本轮日志。下文 `data/last-verify.log` 是原实现的历史约定，
+> 当前不再写玩家 data/。资源、互斥与环境要求见 [Docker 测试指南](../docs/DOCKER_TESTING.md)。
+
 > AI 协作基建第三档。让任何支持 MCP 的 AI（Cursor / Claude / ZCode / …）接上就能
 > 自助跑验证、查规则表、看最近失败——不用读 2500 行 engine.js 或翻 JSON。
 

@@ -2,24 +2,15 @@
 // Renders every view at phone (390x844) and tablet (820x1180) viewports and asserts there is
 // no horizontal overflow anywhere, plus that the map, the action buttons and the backpack stay
 // reachable on a phone.
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { browserBinary, softwareWebGLFlags, requireWebGL, captureBrowserArtifacts } from './_browser-runtime.mjs';
 import { pollUntil, clickUntil } from './_cdp-helpers.mjs';
 
 const BASE_URL = process.env.BASE_URL || (process.env.PORT ? `http://localhost:${process.env.PORT}` : 'http://localhost:3000');
 const CDP_PORT = 9226;
 
-const BROWSER_PATHS = [
-  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium-browser',
-  '/usr/bin/chromium'
-];
 
 let passed = 0;
 let failed = 0;
@@ -52,11 +43,7 @@ const DEVICES = [
 
 console.log('\n--- Running E2E Test: Device Adaptation (phone & tablet) ---');
 
-const browserBin = BROWSER_PATHS.find(p => fs.existsSync(p));
-if (!browserBin) {
-  console.log('⚠️ No Edge or Chrome binary found; skipping the responsive E2E test.');
-  process.exit(0);
-}
+const browserBin = browserBinary();
 
 const char = await apiReq('POST', '/api/characters', {
   name: 'Responsive Hero', species: 'human', className: 'fighter', background: 'soldier',
@@ -84,7 +71,7 @@ const browserProc = spawn(browserBin, [
   '--headless=new',
   `--remote-debugging-port=${CDP_PORT}`,
   `--user-data-dir=${PROFILE_MARKER}`,
-  '--disable-gpu',
+  ...softwareWebGLFlags(),
   '--no-sandbox',
   '--disable-dev-shm-usage',
   '--no-first-run',
@@ -142,6 +129,7 @@ try {
   };
   await new Promise(r => ws.onopen = r);
   await send('Runtime.enable');
+  await requireWebGL(send);
   await send('Page.enable');
 
   // poll instead of sleeping: a cold browser renders the overworld noticeably later than a warm one
@@ -320,6 +308,7 @@ try {
   assert(forgeUi.tab, 'The armory offers the forge tab');
 
 } catch (err) {
+  await captureBrowserArtifacts('responsive-cdp.test.mjs', [CDP_PORT]);
   console.error('  ❌ E2E Responsive Test Error:', err);
   failed++;
 } finally {

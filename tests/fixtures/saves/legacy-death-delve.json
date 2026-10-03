@@ -1,0 +1,26 @@
+{
+  "id": "save_legacy_dead_01",
+  "characterId": "char_legacy_02",
+  "mapId": "crypt",
+  "mapName": "The Sunless Crypt",
+  "mode": "over",
+  "difficulty": "normal",
+  "updatedAt": 1700000000000,
+  "rev": 4,
+  "settled": null,
+  "map": { "id": "crypt", "name": "The Sunless Crypt", "width": 34, "height": 24, "rows": ["##################################"] },
+  "entities": [
+    { "id": "player", "kind": "player", "name": "Old Hero", "x": 9, "y": 7, "hp": 0, "hpMax": 38, "ac": 18, "speedFt": 30, "alive": false, "conditions": [], "buffs": [] }
+  ],
+  "objects": [
+    { "type": "campfire", "id": "campfire", "name": "Camp", "x": 4, "y": 3, "icon": "🔥" }
+  ],
+  "discovered": ["4,4", "9,7"],
+  "quests": { "active": null, "completed": [] },
+  "stats": { "dmgDealt": 30, "dmgTaken": 44, "kills": 2, "goldFound": 25, "rounds": 8 },
+  "log": [
+    { "kind": "system", "text": "The third failure. Old Hero slips beyond the reach of any blade or prayer…", "ts": 1700000000000 }
+  ],
+  "world": {},
+  "flags": { "failed": true }
+}

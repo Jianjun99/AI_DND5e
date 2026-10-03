@@ -1,5 +1,6 @@
 {
   "gear": [
+    { "id": "vale_seal", "name": "山谷通行印", "type": "quest", "cost": 0, "desc": "旧木箱中的通行凭证。哨门守卫愿意收回它，换你平安通过。" },
     {
       "id": "warboss_banner",
       "name": "Warboss's Banner",

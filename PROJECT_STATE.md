@@ -3,6 +3,67 @@
 > 本文件是给 AI 助手/开发者看的项目状态快照。更新版本后请同步更新此文件。
 > 架构与扩展方法见 `ARCHITECTURE.md`（含 cookbook）；模组格式见 `MODDING.md`。
 
+## 当前摘要（2026-10-03）
+
+- 当前代码版本：**1.10.0**，以 `package.json` 为准；用户已授权发布本轮的快速开始、全程引导、可靠结算、内容校验与山谷哨门记忆遭遇。发布说明见 `docs/RELEASE_NOTES_1.10.0.md`。
+- 本轮 T8 与用户授权续做的 T6 均已完成（2026-10-03）：T8 为内容包两阶段校验、结构化诊断、预检 API/作者 CLI、导入替换/回滚、最小通关示例，修复发行地图坏坐标/营火 ID 与已有实体 Boss 标记；[详细结果](tasks/t8-content-validation.md)。T6 加入城镇区域地图可进入的“山谷哨门”：交回真实通行印可和平通过，或走现有 bandit 战斗路线；一次性引擎事实、回城档案合并、不同 NPC 记忆、服务器选项面板、AI 失败/迟到边界与 scene 协议校验；[结果与试玩](tasks/t6-remembered-encounter.md)。最终专用 Docker `npm run verify -- --balance-runs=50` 退出 0，27 套件（6 CDP）与 smoke/balance 全绿，T8 51 场景/180 断言，T6 9 场景/210 断言 + 39 CDP 断言；两路线各 50 次普通单人模拟完成率为和平 100% / 战斗 96%。`artifacts/verify/2026-10-03T05-22-00-971Z-9fa5e442/`，容器清理完成；本轮任务无未完成项。
+- 自动验证环境（2026-10-02）：已建立专用 `Dockerfile.test` 与统一 `npm run verify` Docker 入口；
+  固定 2 CPU / 4 GiB、容器名互斥、临时测试数据、关闭真实 AI/外网，服务端和 Chromium 都在容器内。
+  Windows 用户目录 Docker Desktop 已实测；并发拒绝 73、超时 124 与真实游戏截图/容器清理通过。
+  最终 eslint、tsc、24 套件（5 个正常 CDP e2e + 5 项环境回归）、smoke 与追加回放/模拟全绿，退出 0。
+  日志/截图迁至 `artifacts/verify/`，完整说明见 [测试指南](docs/DOCKER_TESTING.md)与[任务结果](tasks/docker-test-environment.md)。
+- 用户本轮目标：解决“功能很多，但体验不顺、不知道该玩什么”，串起一次冒险与下一目标。
+- 首次接手入口：[`START_HERE.md`](START_HERE.md)；游戏方向：[`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md)。
+- 最新独立复核：[2026-10-02 报告](docs/T5A_T7A_REVIEW_2026-10-02.md) 的四条剩余项（离页后迟到响应仍弹旧路遇、刷新恢复后 start 失败丢失原地重试、smoke 金币基线、CDP 包装器双发计数）已于同日补完并验证：overworld cleanup 注销视图身份、恢复路径保留 start 结果可原地重试、smoke 改为献祭前权威基线并确定性覆盖“伏击胜→神社”、e2e 包装器单发并新增两条真实 UI 回归（生命周期套件 50 断言）；**T5/T5a/T7/T7a 均通过**，之后的 T8 → T6 也已完成。历史复核报告原样保留。
+- 开发与整合历史（其中“关闭/全绿”是开发阶段记录，以顶部最新独立复核为准）：**T1、T2、补修 T2a、T3、T3a、T4 及 T4a 补修已完成（2026-10-01，本轮纳入 v1.10.0）**——T1：开局准备页的地图/难度/
+  同伴选择真实生效，`api.startGame` 统一为显式 options 对象并带类型，顺带修活每周试炼入口；
+  T2：同档写入契约（rev + 同步读改写 + 模型等待出锁 + 字段级合并），慢 describe 不再回退
+  位置，旁白按 actionId 关联并持久化；T2a：轮询/升级 GET/动作/辅助响应统一经 adoptState
+  （存档身份 + rev）采纳并带视图存活检查——旧轮询响应不再回退画面；同 NPC 并发对话按
+  actionId 合并问答——慢回复不再抹掉已落库的快回复；T3：一次结算契约——结算 id
+  `<saveId>#<endSeq>` 独立于 rev，收据存角色档并镜像地牢档，重复 sync-delve 返回同一收据
+  零重放，结算后的购买/升级不被旧快照覆盖，保存失败可重试且零落盘，摘要面板显示
+  保存中/成功/失败并锁定未确认的返回操作；T3a：旧终局档缺 endSeq 由 store 迁移在读取时
+  补 #1 基线（下次真实结束为 #2，镜像写失败不丢基线），过期镜像由 duplicate 分支修成
+  当前收据，摘要面板用点击守卫 + `aria-disabled`/`tabindex` 封锁键盘与脚本导航、
+  确认前金额不宣称入账；T4：`server/game/guidance.js` 确定性提供"下一步"——首页卡片
+  目标 + 主行动 + 理由（待结算优先）、区域地图推荐点与理由（`?node=` 预选、不自动出发）、
+  地牢 HUD 目标与战斗经济行（行动为何不可用）、结算面板展示本局增量/故事推进/下一目标
+  并把统计折叠；全流程无 LLM 依赖；T4a：目标取得文案对齐引擎裁决（走回营火才算完成胜利，
+  入口撤退只结算已有收获且明示主线不推进，区域清空不再被当作完成），pickLiveSave 改为
+  "待结算终局 → 进行中（explore/combat）→ 准备"优先级（较新已结算档不再遮住活动局，
+  权威收据即算已结算）。**T5 已实现（2026-10-02 随 T5a 关闭）**：`server/game/presets.js` 提供两个经真实
+  buildCharacter 构建的推荐英雄（guardian 近战 / arcane 施法），客户端只提交 presetId+名字，
+  首页快速开始卡创建后直达主线准备入口（不自动出发）；`play/tutorial.js` 悬浮教学卡（移动→互动→
+  战斗→结算）只观察服务端状态/事件推进、可跳过、localStorage 一次性，play.js 仅 6 行挂接；
+  顺带修复 buildCharacter 从未把背景 origin feat 传入 finalizeSpells（magic-initiate 背景的
+  赠礼戏法/免费法术此前对所有新角色丢失）；新增第 20 套件 quick-start（55 断言）与第 4 个 CDP
+  e2e quick-start（24 断言，端口 9227）；真实浏览器全流程试玩通过（含一次死亡豁免与撤退结算，
+  教学四步全部完成；试玩抓出并修复"击杀步永不完成"bug）。**T7 主体已实现（独立验收待 T7a）**：开锁（`pick`/`force`）、
+  拆陷阱与路遇全量收归服务端引擎权威裁决；`engine.unlockChest`/`disarmTrap` 在服务端投掷并派发事件
+  （`chest_unlocked`/`chest_locked`、`trap_disarmed`/`trap_disarm_failed`），带 natural/modifier/total/dc/outcome
+  payload，彻底忽略客户端伪造的 `rollTotal`；客户端 `rollAnimated` 支持传入服务端 natural 骰值呈现真实动画，
+  无工具显示警告并阻止伪造；`engine.triggerRoadEncounter` 与 `resolveRoadEncounter` 追踪事件实例与选项、
+  严格校验金钱（贿赂 10 GP/献祭 5 GP）、执行检定与发奖并落库，支持幂等去重防重复领奖（`alreadyResolved: true`）
+  与老旧 outcome 向后映射；新增第 21 套件 `tests/integration/server-checks.test.mjs`（14 场景 72 断言全绿）
+  与真实 Edge/Chrome CDP 验收套件 `tests/e2e/t7-browser-acceptance.mjs`（11 断言全绿）；`balance-sim` 确认数值平衡
+  （crypt normal 64% 存活，vault 86%）。T5/T7 并行交接见 [并行交接指南](docs/T5_T7_PARALLEL_HANDOFF.md)。**T5/T7 整合已完成（2026-10-01）**：两增量逐段合并共存，整合后 `npm run verify` 全绿（22 套件 + smoke）；真实浏览器共同流程全走通（双预设快速创建 → 准备/出发 → 教学四步 → T7 开锁/撬门/路遇选择与骰面演出 → 路遇幂等与 boon 带入 → 圣物 → 营火胜利故事推进 → 结算 → 首页下一目标）；过程中发现并修复三个预存 bug（crypt 圣物因与祭坛同格在 UI 中不可点击——主线第一幕此前在浏览器里无法完成；自然 1 死亡使 deathSaves.fail=4 导致地牢视图白屏；侧栏复活不重置 summaryShown 导致下一次终局无法弹出结算），详见 ARCHITECTURE §7 与整合记录。**T5a/T7a 补修已完成（2026-10-02，独立复核 docs/T5_T7_REVIEW_2026-10-01.md 的三处问题全部关闭，T5/T7 随之 done）**：T5a 为两个推荐预设补齐职业 skillPicks（guardian +insight/survival，arcane +investigation/religion，含专精加成经引擎 skillMod 验证）；T7a 将路遇收敛为持久化实例生命周期（trigger 复用存活实例不重掷不耗 RNG、status 恢复、start 对未处理实例 409、已选择实例开局一次性消费、客户端全程防重/失败重试/迟到响应丢弃）并以只读预览端点 +api/game/:id/preview 消除客户端自算加值（含专精），panels 改渲染服务端预览；新增第 23 套件 t7a-road-lifecycle CDP e2e（32 断言：连续点击/刷新恢复/丢失响应重试/迟到响应），server-checks 扩至 108 断言，smoke 适配新生命周期；整合后 verify 全绿。T6、T8 状态见下表。
+- 评估复现的四个问题：准备页设置被忽略（**T1 已修**）；慢 AI 描述覆盖新移动、旁白未持久化
+  （**T2 已修**）；同批边界（旧轮询回退、并发对话覆盖，**T2a 已修**）；同一局重复结算增加
+  次数（**T3 已修**）。
+- T7a 补完轮实测基线（2026-10-02）：隔离 `npm run verify` 的 eslint、tsc、23 套件（含 5 个 CDP）与 smoke 全绿；T7a 生命周期 CDP e2e 50 断言、server-checks 108、quick-start 66；smoke 独立两跑结果一致（确定性覆盖伏击胜→神社）。当时两项写死 data 路径的磁盘检查未验证；本次 Docker 环境任务已修正为 DATA_DIR，缺文件明确失败，尸体移除与升级徽章回归在最终 24 套件中真实通过。
+  T7 单独 CDP 的 11/11 与 balance-sim 属此前开发记录，前者不在完整 runner 内；旧 balance 记录中的 60%/86% 差异仍未作独立比较。
+- 独立复核：[旧报告](docs/T2A_T3_REVIEW_2026-09-30.md) 发现的三处结算边界已由
+  [T3a 补修](tasks/t3a-settlement-boundaries.md) 全部修复并经本轮再次复测（done，2026-10-01），含
+  真实浏览器四态与键盘/鼠标验收。旧代码已造成的 endSeq=1 双重结束档不做时间戳启发式修复
+  （会误伤正常重开），基线建立后不会再产生该形状。[T3/T4 报告](docs/T3_T4_REVIEW_2026-10-01.md)
+  记录 T3 通过和 T4 两处复现；两处已由 [T4a](tasks/t4a-guidance-outcomes.md) 修复并验收（2026-10-01），
+  此前独立复测再次确认两处原场景通过。T5/T7 原三处问题已补修；但最新复核仍有 T7a 两条客户端边界与冒烟基线待补完，见 [后续报告](docs/T5A_T7A_REVIEW_2026-10-02.md)。
+  [并行交接指南](docs/T5_T7_PARALLEL_HANDOFF.md) 保留为此前基线、分工和整合记录。
+- 项目拥有者操作与复制提示词：[`docs/AGENT_HANDOFF.md`](docs/AGENT_HANDOFF.md)。
+
+下方版本功能段落与版本历史用于回顾；当前任务以本摘要、下表和 `tasks/README.md` 为准。
+
 ## ⚡ AI 协作地面规则
 
 **规则正本在仓库根目录 `AGENTS.md`**（AI 编码工具默认自动加载它；`CLAUDE.md` 一行指向它）——
@@ -12,18 +73,109 @@
 
 ## 📋 待办清单（优先级排序）
 
-> 每个待办项若有详细规格，在 `tasks/<name>.md`——冷启动 AI 领任务直接读规格文件
-> （目标 / 动哪些文件 / 验收标准 / 验证命令）。开新任务时照这个格式补规格。
+> 每次只做用户指定的一项；完整状态与依赖见 [`tasks/README.md`](tasks/README.md)，
+> 新任务模板见 `tasks/TEMPLATE.md`。完成时同步规格、队列表和本摘要。
 
 | 优先级 | 任务 | 说明 |
 |---|---|---|
-| 高 | 保持 ARCHITECTURE.md 同步 | 每个版本更新后刷新它；它是 AI 协作的核心上下文 |
-| 低 | [PWA / 离线缓存](tasks/pwa-offline-cache.md) | 游戏已经是无构建 vanilla JS，加 service worker 即可离线 |
-| 低 | [更多 ASI 特长](tasks/more-asi-feats.md) | 已有 5 个（Tough/Alert/Lucky/Healer/Savage Attacker），加更多提升 build 多样性 |
-| 低 | [CDP e2e 闪红排查](tasks/cdp-flaky-investigation.md) | verify 三跑一闪红复跑即绿；找到根因或至少让失败自带诊断 |
+| 1 / 高 | [T1 开局入口与接口类型](tasks/t1-start-options.md) | **done（2026-09-30）**；选择与实际地图/难度/同伴一致 |
+| 2 / 高 | [T2 状态更新与 AI 持久化](tasks/t2-state-and-ai.md) | **done（2026-09-30）**；修竞态与旁白保存，定义写入边界 |
+| 2a / 高 | [T2a 状态采纳与 NPC 记忆补修](tasks/t2a-state-boundaries.md) | **done（2026-09-30）**；旧轮询不回退画面，并发对话不丢记忆 |
+| 3 / 高 | [T3 一次结算与回城](tasks/t3-settlement.md) | **done（2026-09-30）**；结算可重试且不重复处理 |
+| 3a / 高 | [T3a 结算边界补修](tasks/t3a-settlement-boundaries.md) | **done（2026-10-01）**；旧档 endSeq 基线、过期镜像自愈、键盘/脚本导航锁定 |
+| 4 / 高 | [T4 全程目标与下一步](tasks/t4-player-guidance.md) | **done（2026-10-01，T4a 验收通过）**；引导全流程无 LLM 依赖 |
+| 4a / 高 | [T4a 完成动作与继续入口](tasks/t4a-guidance-outcomes.md) | **done（2026-10-01）**；目标取得→营火胜利引导对齐引擎，活动存档优先继续 |
+| 5 / 中 | [T5 快速开始与首次体验](tasks/t5-first-adventure.md) | **done（2026-10-02，T5a 关闭）**；快速开始 + 教学 + 预设技能补齐 |
+| 5a / 中 | [T5a 推荐英雄职业技能](tasks/t5a-preset-skills.md) | **done（2026-10-02）**；guardian +insight/survival，arcane +investigation/religion |
+| 6 / 中 | [T6 有记忆与后果的遭遇](tasks/t6-remembered-encounter.md) | **done（2026-10-03）**；山谷哨门两路线与持久回应，27 套件/smoke/balance 全绿 |
+| 支持 / 中 | [T7 引擎统一检定裁决](tasks/t7-server-checks.md) | **done（2026-10-02，T7a 补完后关闭）**；锁箱/陷阱/路遇服务端裁决 + 完整生命周期 |
+| 支持 / 中 | [T7a 路遇恢复与检定提示](tasks/t7a-road-and-check-feedback.md) | **done（2026-10-02）**；离页注销、原地重试、权威基线与单发计数 |
+| 支持 / 中 | [T8 内容包校验](tasks/t8-content-validation.md) | **done（2026-10-03）**；25 套件/smoke/balance 全绿，51 场景/180 断言 |
+| 持续 | 保持文档同步 | 每项实现后更新任务结果与架构；不用等待发版 |
 | 不做 | 引擎物理拆分 | 循环依赖太深（combat ↔ world ↔ interaction ↔ progression），拆了反而更难；等 JSDoc 类型全覆盖后再评估 |
 | 不做 | React/Vue/打包器 | 无构建 + 离线是核心设计；ES modules 原生够用 |
 | 不做 | AI 生成场景插图 | Google key 的图片配额不稳定；头像已覆盖视觉识别 |
+
+PWA、原 ASI 特长批次、CDP 已知闪红、MCP 和存档版本化已实现，旧 tasks 文件仅供参考，不再列为待实现。当前评估依据见 `docs/PROJECT_REVIEW_2026-09-30.md`。
+
+## T3 一次结算与回城（2026-09-30，未发版）
+
+- **问题**：同一 retreat 存档调两次 sync-delve，`delvesCompleted` 从 1 变 2；openSummary 每次打开
+  都发 sync-delve 且吞掉失败；旧快照同步会覆盖结算后的购买/升级；无存档时还接受客户端上报的
+  goldGained/xpGained/newItems（无可信度）。
+- **结算契约（详见 ARCHITECTURE §7）**：结算 id = `<saveId>#<endSeq>`——engine 在三个终局转换点
+  （死亡 / checkVictory / retreat action）打 `state.endSeq`，respawn 不清零（第二次死亡以 `#2`
+  再结算）；旁白只递增 rev，绝不产生新结算。收据（mode/map/gold/xp/level/delveNumber/
+  campaignAdvanced/weeklyWin）存 `char.settlements`（上限 100，**权威，先写**；写失败零落盘，
+  重试重算）并镜像 `state.settled`（尽力而为，后写）。重复请求返回同一收据 `duplicate:true`
+  零写入；档案丢收据从镜像去重并自愈，镜像缺失由重复路径补写。
+- **校验前置**：非本人存档 403 / 不存在 404 / 未结束 400 / 缺 delveStateId 400 / 残缺档 400，
+  全部在任何写入前。**移除无存档增量入参路径**（grep 确认零使用者）。XP/金币/背包/HP/忠诚/
+  weekly/endless/图鉴/精华/主线的既有入账逻辑原样保留，只是被收据门禁包住。
+- **客户端（play/panels.js openSummary）**：保存中/成功（+收据行）/失败（+重试）；返回链接与
+  回营地恢复在确认前锁定（`.btn.locked`），✕/Review 只读查看始终可用；重开已结算摘要显示
+  "Already settled"（服务端去重，不重放旧背包）。
+- **测试**：新增第 19 套件 `tests/integration/settlement.test.mjs`（进程内真实路由，61 断言：
+  同收据 + rev 无关、购买/升级保留、档案写失败 500→重试恰好一次、镜像写失败自愈、镜像反救
+  档案、五类错误零写入、死亡→respawn→再死两次结算、weekly 一次）；progression 双结算断言
+  扩充 + gamble 段落改先置终局；CDP Check 10（注入一次网络失败 → 锁定 → 重试成功 → 服务端
+  恰好一次 → 重开只读）；`tests/fixtures/saves/settled-delve.json` 迁移 fixture。
+  `npm run verify` 全绿；真实浏览器截图三态（失败/成功/重开）人工确认。数值表未动。
+
+## T2a 状态采纳与 NPC 记忆补修（2026-09-30，未发版）
+
+- 完成后复核（[T1_T2_REVIEW](docs/T1_T2_REVIEW_2026-09-30.md)）复现的两个边界，本轮修复：
+- **P1 旧轮询回退**：4s 轮询此前"rev 不等就直接赋值"，被扣住的旧 GET 在新移动落库后返回，
+  页面整体回退到旧 rev/旧坐标（服务端无损）。现在 play.js 的 `adoptState` 是唯一采纳
+  gate——存档身份（`next.id !== game.id` 拒绝）+ rev 不低于已展示版本（等于允许）；轮询、
+  升级后的 GET、动作与辅助响应全部走它；新增 `viewToken`/`viewAlive`——视图结束后在途
+  GET 丢弃，初始化 GET 是唯一直接赋值点（明确初始化边界）。
+- **P2 并发 NPC 对话覆盖**：chat 的 apply 曾把提示词快照的整段 `npcChat[npcId]` 写回，
+  A 扣住、B 先完成、A 再返回时 B 的问答从历史中消失（模型会"忘记"）。现在按本次动作的
+  actionId 只追加这一对问答（带 aid 去重、完成顺序排列、24 条上限），后续对话的提示词
+  仍包含完整历史（测试用 mock 捕获请求体验证）。
+- **测试**：state-and-ai 套件修正旁白标记用例（标记改为开局后才入队，断言动作前不存在、
+  aid 独立于开局、POST/GET 恰好一次），新增并发同 NPC 对话回归（47 项断言）；mock LLM
+  支持请求体捕获。`npm run verify` 全绿；真实浏览器按评审复现序列验证：扣住 rev2 轮询 →
+  移动采纳 rev5 → 释放后页面保持 rev5/(5,4)，服务端一致；新轮询照常采纳；describe 等待卡
+  → 外观卡不受影响。
+
+## T2 状态更新与 AI 结果持久化（2026-09-30，未发版）
+
+- **问题一（快照回退）**：describe/chat/recap 等在 action 处理中 `await` 模型，持有开局时
+  的整份状态快照；期间普通移动已落盘，模型返回后 `saveGame(旧快照)` 把玩家位置/资源整体
+  回退。**问题二（旁白不持久）**：动作先 saveGame 后 narrate，narrate 只改内存 log——POST
+  响应里有旁白，重新 GET 没有。
+- **修复（写入契约，详见 ARCHITECTURE §7）**：`saveGame` 递增 `state.rev`；新增
+  `store.withSaveLock`。action 路由改为三段式——机械段（同步读改写最新档，零 await，7 个
+  模型调用全部改为 pending 队列）→ 模型段（锁外，用已落盘快照做提示词）→ 合并段（锁内重读
+  最新档，只写自己的字段）。日志条目盖 `aid`，narrate 在最新档上按 aid 去重合并并落盘；
+  响应统一从落盘后的最新档构建。POST 响应协议不变（仍同步等待旁白），无消息队列/SSE。
+- **前端（play.js）**：`adoptState` 按 rev 拒绝旧快照（辅助结果照常展示）；describe 等待
+  显示 spinner 卡片；轮询按 rev 刷新；portrait 缓存提升为模块级 `portraitCache`（修掉
+  状态采纳即清空头像卡的既有缺陷）；`__dndDebug` 增加 rev/portraits/appearance 访问器。
+- **测试**：新增第 18 套件 `tests/integration/state-and-ai.test.mjs`——进程内真实路由 +
+  mock LLM（hold/error/never 模式按信号控制顺序）28 断言：并发 describe+move 不回退、
+  旁白 GET 恰好一次、模型错误/超时/关闭兜底、双存档不串流。`npm run verify` 全绿。
+  浏览器确认：旁白刷新后仍在、点击怪物出现等待卡→外观文案卡（headless Edge 截图）。
+
+## T1 开局入口修复（2026-09-30，未发版）
+
+- **根因**：`play.js` 准备页把 `{ bringAlly, difficulty, mapId }` 对象传进 `api.startGame` 的
+  第 2 个位置参数 `bringAlly`，difficulty/mapId 两个位置实参没传——POST body 里 bringAlly
+  是嵌套对象（truthy，engine 对非字符串回落 `'bram'`），difficulty/mapId 缺省回落
+  normal/crypt。选什么都是 crypt/normal/bram。
+- **修复**：`api.startGame(characterId, options)` 单一显式 options 对象 + `StartGameOptions`
+  JSDoc typedef（options 必填，tsc 探针验证三种传错形式都会报错）；全部 3 个调用点统一
+  （play 准备页 / overworld 区域出发 / districts weekly 出发）；POST 字段与服务端契约不变。
+  Descend 按钮加 busy 守卫（请求中禁用、失败恢复，防双击重复开局）。
+- **顺带修活每周试炼入口**：v1.9.7 的公会厅每周试炼卡、英雄殿堂周榜卡、hallData 解构在
+  后续改动中丢失（只剩事件处理器活着，按钮从未渲染，weekly 入口实际不可达）——按原补丁
+  内容用 Edit 补回三处渲染，无数值改动。T1 验收"每周试炼入口正常"由此达标。
+- **验证**：`gameplay-refinements-cdp.test.mjs` 新增 Check 9（真实准备页两场景 × POST 网络请求体
+  + 服务端最终存档双断言，34→44 断言）；headless Edge CDP 截图人工确认（准备页默认值、
+  howling-hills+hard+solo 的地图/Hard 徽章/无队友/Potion(1)、weekly_5 2026-W40、区域
+  drowned-vault 出发含路遇弹窗）；`npm run verify` 全绿 ×2（weekly UI 补丁前后各一次）。
 
 ## play.js / overworld.js 拆分（v1.9.2 已发布）
 - play.js **1843 → 1326 行**，overworld.js **1739 → 540 行**。新模块（无构建 ES modules，工厂 + ctx 显式依赖，live 状态走 getter）：
@@ -187,13 +339,15 @@
 ## 项目概况
 - 路径：`G:\ai_DND`；GitHub：`Jianjun99/AI_DND5e`（main 分支，CI + GHCR 自动发布）
 - 单人 D&D 2024 网页游戏，Node 20 + Express + 原生 JS SPA（无框架、无构建步骤）
-- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.9.8,…}`（多架构 amd64+arm64）
+- Docker 镜像：`ghcr.io/jianjun99/ai_dnd5e:{latest,1.10.0,…}`（多架构 amd64+arm64）
 - 存档：容器卷 `ai-dnd-data` → `/app/data`（characters.json / saves/ / settings.json）
 - 本地运行：`npm start`（端口 3000）；Node 在 `C:\Program Files\nodejs`（git bash 需 export PATH）
-- 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 17 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（17 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
+- 测试：**`npm run verify`**（一键：自动起服务 → eslint + tsc + 19 套件 + 冒烟 + 收尾）；手动等价：`npx eslint .` + `npx tsc --noEmit` + `node scripts/smoke-test.mjs` + `node scripts/test-all.mjs`（19 套件）；平衡模拟：`scripts/balance-sim.mjs`（改数值必跑）
 - 架构文档：`ARCHITECTURE.md`（Mermaid 图）；模组指南：`MODDING.md`
 
-## 当前版本：v1.9.4（已发布：PWA 离线 + 四个新特长 + 回放机器人（17 套件）+ CDP 根因修复）
+## 功能记录说明
+
+当前代码版本与任务状态见顶部摘要；下方保留历史发布记录和已有能力，不代表本轮待办。
 
 ## v1.9.1 发布内容（原「进行中」段落，转正）
 - **AI 协作入口**：根目录新增 `AGENTS.md`（地面规则正本 + 验证命令 + 硬约束速记 + 文档地图），
@@ -221,11 +375,11 @@
 
 ## 已实现功能清单（勿重复实现）
 - 角色创建：10 种族 / 12 职业 / 16 背景 / 属性（数组/4d6/点购）/ 法术 / 装备
-- 等级 1-10：XP 表、法术位表、PB 成长、4 级和 8 级 ASI、子职业（12 个，3 级觉醒）、
+- 等级 1-12：XP 表、法术位表、PB 成长、4 级和 8 级 ASI、子职业（12 个，3 级觉醒）、
   5 级额外攻击、武僧拳骰/野蛮人先知/游侠漫游/圣武士灵光/游荡者闪避/战士不屈
 - **交互式升级向导 (`levelup.js`)**：
   XP 达标即亮起金标徽章，支持投骰 Roll HP vs 稳妥均值、3 级 12 职业子职业选择（如冠军 19-20 暴击、战斗大师、塑能师、盗贼等）、
-  4/8 级特长与属性提升（Tough, Alert, Lucky, Healer, Savage Attacker）、新法术位解锁。
+  4/8 级特长与属性提升（选项来自服务端 FEAT_CHOICES，含 Observant/Speedy/Chef/Musician 与 Crusher/Slasher/Piercer 等）、新法术位解锁。
 - **逼真 3D 手办模型与步态动画 (`models3d.js`)**：
   复合几何体手办造型（战士阔剑盾牌、游侠兜帽箭袋弓矢、法师长袍水晶权杖、游荡者双刺、野蛮人战斧、NPC 与骷髅僵尸哥布林巨鼠地牢怪物、Boss 狂暴战甲）；
   关节步态循环（交替迈步、摆臂、垂直起伏、转向朝向平滑插值、驻留自然呼吸）。
@@ -239,8 +393,8 @@
   包含怪物图鉴（怪物背景、属性与累计击杀数）、远征战利品展柜、英杰荣誉榜。
 - **多轨音频混音器与统合设置弹窗 (`settings.js`)**：
   顶栏一键打开设置面板，整合主音量、环境音轨、程序合成音效、TTS 语音与 AI DM 选项。
-- 3 张地图（stairs 连通 crypt↔vault；hills 独立）：crypt(1-5) / drowned-vault(1-5) /
-  howling-hills(5-10，户外主题 'hills'，双渲染器配色已适配)
+- 6 张静态地图：crypt / drowned-vault / howling-hills / sewers / mill / roost；
+  stairs 连通 crypt↔drowned-vault；另有无尽深渊与每周程序试炼。地图推荐等级以各 map 定义为准。
 - 战斗：先攻/d20/重击/优势/法术/专注/死亡豁免/Boss 半血狂暴+拴绳(6格)/游荡怪物(22%/6步/上限2)
 - 掉落表（金币骰子+概率物品）、锁箱(pickDc/forceDc)、卷轴、商店（Marla/Perra/城镇三区）
 - Overworld：`#/overworld`（SVG 大地图 + Oakhaven 五城区：酒馆休息/传闻/招募同伴
@@ -279,11 +433,11 @@
 
 ## 测试体系
 - `node scripts/smoke-test.mjs`：端到端基础链路健康度探针（CI 每次推送必跑，自动侦测 3000/3100 端口）
-- `node scripts/test-all.mjs` / `npm test`：全套 17 大测试套件，包含 D&D 2024 规则单元测试、
+- `node scripts/test-all.mjs` / `npm test`：全套 18 大测试套件，包含 D&D 2024 规则单元测试、
   3D 手办步态测试（含火龙/蜘蛛/史莱姆/火元素/活动铠甲）、精英词缀与战利品稀有度单元测试、
   地图棋盘可见性与镜头数学单元测试、移动/寻路/视野集成测试、战斗/动作集成测试、
   战术对抗（借机攻击/夹击/推撞）、角色升级（1-12 级与 6 环法术位）/地牢装备换装/楼层下潜/拓展地图集成测试、
-  Headless Chrome CDP 端到端浏览器渲染与动作测试（2 套，含回合经济 HUD、出口光柱、镜头绑定）。
+  Headless Chrome CDP 端到端浏览器渲染与动作测试（3 套，含回合经济 HUD、出口光柱、镜头绑定与设备适配）。
 - e2e 测试必须给浏览器 `--user-data-dir` 独立档案目录：Windows 上浏览器是分离进程树，
   清理时按档案目录名 PowerShell 杀进程，否则残留进程占住 CDP 端口导致下一次运行超时。
 - e2e 里不要断言「走路中途」的镜头坐标：headless 下 rAF 帧率不稳，中途采样会随机失败。
@@ -369,4 +523,8 @@ v1.0.0 首发 → v1.2.0 连通地牢+模组+任务 → v1.3.0 UI 修复 → v1.
 → v1.9.1 AI 协作基建（AGENTS.md/CLAUDE.md 入口）+ dmgType→damageType 统一 + tsc 全仓覆盖（含 public/js）+ 活动铠甲 3D 渲染崩溃修复 + 4 个测试套件假绿修复
 → v1.9.2 视图模块拆分（play/panels·ribbon·delve-inventory，overworld/districts·road-encounter）+ 路遇落库修复 + 队友忠诚度（持久化心情 + 吐槽 + DM 台词）
 → v1.9.3 深渊楼层变异（精英横行/群涌暗潮/鎏金之层）+ 队友深层台词 + 殿堂深渊远征榜 + 仓库自带 MCP server（四只读工具）+ 存档 schema 版本化
-→ v1.9.4 PWA 离线缓存 + 新特长 Observant/Speedy/Chef/Musician + CDP 瞬挂根因修复 + 回放机器人（REST API 打完整冒险 + 游戏级不变量，17 套件）（当前）
+→ v1.9.4 PWA 离线缓存 + 新特长 Observant/Speedy/Chef/Musician + CDP 瞬挂根因修复 + 回放机器人（REST API 打完整冒险 + 游戏级不变量，17 套件）
+→ v1.9.5 事件契约 + run_replay MCP + 套装物品
+→ v1.9.6 / v1.9.7 同伴支线与沉浸模式 + 每周种子挑战 + Boss 绝境阶段与新怪
+→ v1.9.8 Crusher/Slasher/Piercer + Boss 专属机制 + 每周奖励
+→ v1.10.0 快速开始与教学 + 全程目标/下一步 + 状态与一次结算可靠性 + 引擎检定/路遇恢复 + 内容包校验/导入回滚 + 山谷哨门两路线与持久 NPC 记忆 + Docker 完整验证与 agent 交接（当前代码版本）

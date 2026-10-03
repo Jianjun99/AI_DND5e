@@ -1,0 +1,24 @@
+{
+  "format": "ai-dnd-pack",
+  "version": 1,
+  "pack": { "id": "first-relic", "name": "第一枚圣物", "author": "Example Author", "blurb": "取回圣物并回到营火；不需要 AI，也没有战斗。" },
+  "maps": [{
+    "id": "first-relic-room",
+    "name": "圣物练习室",
+    "blurb": "一张用于学习内容包的完整小地图。",
+    "objectiveText": "向东取回圣物，再回到西侧营火。",
+    "width": 9, "height": 5,
+    "playerStart": { "x": 1, "y": 2 },
+    "victory": { "type": "fetch_relic", "campfire": { "x": 1, "y": 2 } },
+    "rooms": [{ "id": "hall", "name": "练习室", "rect": [1, 1, 7, 3], "desc": "营火的光照着东侧的一枚圣物。" }],
+    "rows": ["#########", "#.......#", "#.......#", "#.......#", "#########"],
+    "entities": [
+      { "type": "object", "id": "campfire", "name": "营火", "x": 1, "y": 2, "icon": "🔥" },
+      { "type": "object", "id": "relic", "name": "练习圣物", "x": 6, "y": 2, "icon": "💎" },
+      { "type": "chest", "id": "sample_chest", "name": "纪念品箱", "x": 3, "y": 1, "loot": { "items": [{ "id": "sample_token", "qty": 1 }] } }
+    ],
+    "npcs": {}
+  }],
+  "monsters": [],
+  "gear": [{ "id": "sample_token", "name": "练习纪念牌", "type": "gear", "cost": 1, "desc": "证明你成功加载了第一份内容包。" }]
+}

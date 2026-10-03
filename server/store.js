@@ -51,6 +51,15 @@ function migrateSave(obj, kind) {
     version++;
   }
   obj.saveVersion = SAVE_VERSION;
+  // T3a: legacy end-mode delves predate the endSeq settle counter — settling reads them
+  // as `<id>#1` but nothing based the counter, so the next end after a respawn stamped 1
+  // again and was wrongly deduped against the old receipt. Baseline the counter on every
+  // read (migrations only add fields): the next real end increments from here, and
+  // re-deriving it per read means even a failed mirror write cannot lose the baseline.
+  if (kind === 'delve' && obj.endSeq === undefined &&
+      (obj.mode === 'victory' || obj.mode === 'retreat' || obj.mode === 'over')) {
+    obj.endSeq = 1;
+  }
   return obj;
 }
 
@@ -67,13 +76,45 @@ function saveCharacters(list) {
 
 // ---- game saves ----
 function getSave(id) { return migrateSave(readJson(path.join(SAVES_DIR, id + '.json'), null), 'delve'); }
-function saveGame(state) { state.saveVersion = SAVE_VERSION; writeJson(path.join(SAVES_DIR, state.id + '.json'), state); }
+function saveGame(state) {
+  // Every persisted change bumps rev — the client uses it to reject stale auxiliary
+  // responses (a slow describe/portrait/narration must never roll the board back, T2).
+  // Old saves have no rev and read as 0; the first write stamps 1.
+  state.rev = (Number(state.rev) || 0) + 1;
+  state.saveVersion = SAVE_VERSION;
+  writeJson(path.join(SAVES_DIR, state.id + '.json'), state);
+}
 function deleteSave(id) { try { fs.unlinkSync(path.join(SAVES_DIR, id + '.json')); } catch {} }
+
+// ---- per-save write lock ----
+// The contract (T2): every mutation of a save is a synchronous read-modify-write of the
+// LATEST file (getSave → mutate → saveGame, no awaits in between) and model/LLM waits
+// NEVER happen while holding a stale snapshot. withSaveLock makes that ordering explicit
+// and serializes the phases of concurrent requests on one save. It must never be held
+// across a long model request — split the work instead (mechanical phase → await model →
+// merge phase) so a slow describe can't freeze movement or roll the save back.
+const saveLocks = new Map();
+function withSaveLock(id, fn) {
+  const tail = saveLocks.get(id) || Promise.resolve();
+  const run = tail.then(() => fn());
+  const next = run.catch(() => {}); // keep the chain alive regardless of this job's outcome
+  saveLocks.set(id, next);
+  next.then(() => { if (saveLocks.get(id) === next) saveLocks.delete(id); }).catch(() => {});
+  return run;
+}
 function listSaves() {
   try {
     return fs.readdirSync(SAVES_DIR).filter(f => f.endsWith('.json')).map(f => {
       const s = readJson(path.join(SAVES_DIR, f), null);
-      return s ? { id: s.id, characterId: s.characterId, characterName: s.character.name, mapName: s.mapName, updatedAt: s.updatedAt } : null;
+      if (!s) return null;
+      // mode/endSeq/settled ride along for the guidance layer (T4) — additive, readers that
+      // only want the summary fields keep working.
+      return {
+        id: s.id, characterId: s.characterId, characterName: s.character.name, mapName: s.mapName,
+        mapId: s.mapId || null, mode: s.mode || null, endSeq: s.endSeq,
+        settled: (s.settled && s.settled.id) || null,
+        updatedAt: s.updatedAt
+      };
     }).filter(Boolean);
   } catch { return []; }
 }
@@ -116,7 +157,7 @@ module.exports = {
   DATA_DIR,
   SAVE_VERSION, migrateSave,
   getCharacters, saveCharacters,
-  getSave, saveGame, deleteSave, listSaves,
+  getSave, saveGame, deleteSave, listSaves, withSaveLock,
   getSettings, saveSettings,
   newId: (prefix) => prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
 };

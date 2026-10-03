@@ -1,0 +1,30 @@
+{
+  "id": "vale-gate", "name": "山谷哨门", "theme": "hills",
+  "blurb": "一枚通行印，或一场战斗：守门人会记住你怎样通过。",
+  "recommended": "Levels 1-3", "objectiveText": "和守门人商量通过哨门，取回东侧圣物，再回到营火。",
+  "width": 15, "height": 7, "tileSizeFt": 5,
+  "playerStart": { "x": 1, "y": 3 },
+  "victory": { "type": "fetch_relic", "campfire": { "x": 1, "y": 3 } },
+  "rows": ["###############", "#......#......#", "#......#......#", "#......D......#", "#......#......#", "#......#......#", "###############"],
+  "rooms": [
+    { "id": "approach", "name": "哨门外", "rect": [1, 1, 6, 5], "desc": "旧木箱靠着墙。守门人看了看箱子，又看了看紧闭的哨门。" },
+    { "id": "relic_hall", "name": "圣物小厅", "rect": [8, 1, 13, 5], "desc": "圣物就在尽头，回去时守门人还会记得你。" }
+  ],
+  "entities": [
+    { "type": "object", "id": "campfire", "name": "路旁营火", "x": 1, "y": 3, "icon": "🔥" },
+    { "type": "chest", "id": "seal_chest", "name": "旧木箱", "x": 3, "y": 4, "loot": { "items": [{ "id": "vale_seal", "qty": 1 }] } },
+    { "type": "npc", "id": "gate_keeper", "name": "守门人伊凡", "x": 5, "y": 2, "icon": "🧭" },
+    { "type": "door", "id": "vale_door", "name": "山谷哨门", "x": 7, "y": 3, "locked": true },
+    { "type": "monster", "id": "vale_guard", "kind": "bandit", "x": 9, "y": 3 },
+    { "type": "object", "id": "relic", "name": "山谷圣物", "x": 12, "y": 3, "icon": "💎" }
+  ],
+  "npcs": { "gate_keeper": { "persona": "你是谨慎但讲道理的山谷守门人伊凡。", "knowledge": "旧木箱里有一枚通行印。提交它可以和平通过，也可以选择和门后的守卫交战。", "canned": ["先看看旧木箱。通行印可以换一条不用动刀的路。"] } },
+  "scenes": [{
+    "id": "keeper_gate", "name": "哨门前的选择", "npcId": "gate_keeper", "doorId": "vale_door", "guardIds": ["vale_guard"],
+    "prompt": "你可以找到并交回通行印，和平通过；也可以选择交战，击败守卫后通行。",
+    "choices": [
+      { "id": "show_seal", "label": "交回通行印，和平通过", "condition": { "type": "has_item", "itemId": "vale_seal" }, "effect": { "type": "passage", "consumeItem": "vale_seal" }, "fact": "returned_seal", "response": "伊凡收下通行印，示意守卫让路。哨门打开了，没有人受伤。", "memory": "我记得你交回了通行印。你明明可以动刀，却给大家留了一条平安的路。" },
+      { "id": "fight", "label": "选择交战，用武力通过", "condition": { "type": "always" }, "effect": { "type": "combat" }, "fact": "forced_passage", "response": "战斗结束，守卫不再挡路。伊凡望着打开的门，仍对你保持戒备。", "memory": "我记得你选择了交战，用武力通过哨门。路是通了，但我还不能完全信任你。" }
+    ]
+  }]
+}

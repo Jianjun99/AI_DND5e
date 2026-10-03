@@ -1,30 +1,17 @@
 // tests/e2e/gameplay-refinements-cdp.test.mjs
-// Verifies Turn Economy HUD, Minimap Repositioning, Dungeon Cleared Exit Beacon, and 3D Walking Traversal
+// Verifies Turn Economy HUD, Minimap Repositioning, Dungeon Cleared Exit Beacon, 3D Walking Traversal,
+// and the prepare-page start options (map / difficulty / companion really apply — T1)
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { browserBinary, softwareWebGLFlags, requireWebGL, captureBrowserArtifacts } from './_browser-runtime.mjs';
 import { pollUntil, clickUntil } from './_cdp-helpers.mjs';
 
 const BASE_URL = process.env.BASE_URL || (process.env.PORT ? `http://localhost:${process.env.PORT}` : 'http://localhost:3000');
 const CDP_PORT = 9225;
 
-const BROWSER_PATHS = [
-  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium-browser',
-  '/usr/bin/chromium'
-];
-
-function findBrowserBinary() {
-  for (const p of BROWSER_PATHS) {
-    if (fs.existsSync(p)) return p;
-  }
-  return null;
-}
+const findBrowserBinary = browserBinary;
 
 let passed = 0;
 let failed = 0;
@@ -53,10 +40,6 @@ async function apiReq(method, path, body) {
 console.log('\n--- Running E2E Test: Turn Economy, Minimap, Exit Beacon & Walking Traversal ---');
 
 const browserBin = findBrowserBinary();
-if (!browserBin) {
-  console.log('⚠️ No Edge or Chrome binary found; skipping E2E browser test.');
-  process.exit(0);
-}
 
 // 1. Create delve character
 const char = await apiReq('POST', '/api/characters', {
@@ -102,7 +85,7 @@ const browserProc = spawn(browserBin, [
   // private profile: isolates the run from any browser the user has open and keeps the
   // spawned pid the real browser process so cleanup can kill the whole tree
   `--user-data-dir=${PROFILE_MARKER}`,
-  '--disable-gpu',
+  ...softwareWebGLFlags(),
   '--no-sandbox',
   '--disable-dev-shm-usage',
   '--no-first-run',
@@ -168,6 +151,7 @@ function cleanup() {
 try {
   await send('Page.enable');
   await send('Runtime.enable');
+  await requireWebGL(send);
 
   // poll for a condition instead of sleeping a fixed time — a cold browser boot can take
   // noticeably longer than a warm one, which made the fixed waits flaky
@@ -457,10 +441,13 @@ try {
 
   // Check 6: a slain creature must leave the 3D board (regression: corpses stayed rendered)
   console.log('  Testing that a slain monster leaves the 3D scene...');
-  const saveFile = path.join(process.cwd(), 'data', 'saves', `${delveId}.json`);
-  if (fs.existsSync(saveFile)) {
+  assert(!!process.env.DATA_DIR, 'Disk regressions require the server test DATA_DIR');
+  const saveFile = path.join(process.env.DATA_DIR, 'saves', `${delveId}.json`);
+  assert(fs.existsSync(saveFile), 'The test save must exist in DATA_DIR: ' + saveFile);
+  {
     const save = JSON.parse(fs.readFileSync(saveFile, 'utf8'));
     const victim = (save.entities || []).find(e => e.kind === 'monster' && e.alive !== false);
+    assert(!!victim, 'Corpse removal regression requires a living monster fixture');
     if (victim) {
       // reveal the victim's tile so the renderer is allowed to draw it, then count what
       // *should* be on the 3D board (only discovered tiles ever get a model)
@@ -505,21 +492,19 @@ try {
       assert(without.nodes === expectedAfter,
         `Its 3D model is removed from the scene (${withMonster.nodes} → ${without.nodes} models, ${expectedAfter} expected)`);
       assert(without.nodes < withMonster.nodes, `The corpse is gone rather than parked on the board (${withMonster.nodes} → ${without.nodes})`);
-    } else {
-      console.log('  (no monster in this delve to slay — skipping corpse removal check)');
     }
-  } else {
-    console.log(`  (save file not on disk — skipping corpse removal check: ${saveFile})`);
   }
 
   // Check 7: the level-up badge must agree with what /level-up will accept, even when the
   // hero levelled up in town and then continued an older delve (the reported bug).
   console.log('  Testing level-up badge agreement with the level-up endpoint...');
-  const charFile = path.join(process.cwd(), 'data', 'characters.json');
-  if (fs.existsSync(charFile) && fs.existsSync(saveFile)) {
+  const charFile = path.join(process.env.DATA_DIR, 'characters.json');
+  assert(fs.existsSync(charFile), 'The test roster must exist in DATA_DIR: ' + charFile);
+  {
     const rosterRaw = JSON.parse(fs.readFileSync(charFile, 'utf8'));
     const rosterList = Array.isArray(rosterRaw) ? rosterRaw : (rosterRaw.characters || []);
     const hero = rosterList.find(c => c.id === char.id);
+    assert(!!hero, 'Badge agreement regression requires its roster hero');
     const snapshot = JSON.parse(fs.readFileSync(saveFile, 'utf8'));
     if (hero) {
       // hero is level 3 with 1000 XP in town; the delve snapshot still thinks level 2 / 950 XP
@@ -567,8 +552,6 @@ try {
         'At 2700 XP the badge appears');
       assert(opts2.canLevelUp === true && opts2.nextLevel === 4, 'And the endpoint accepts exactly the same level-up');
     }
-  } else {
-    console.log('  (roster or save file not on disk — skipping badge agreement check)');
   }
 
   // Check 8: the tavern gambling table and the experimental-brew shelf render and respond
@@ -655,7 +638,320 @@ try {
   assert(brews.result.value.cards === 3, `Three experimental brews on the shelf (${brews.result.value.cards})`);
   assert(brews.result.value.shelf, 'The shelf is labelled and explains that effects are hidden');
 
+  // Check 9: the prepare page (#/play/new) must really apply the chosen map, difficulty and
+  // companion. The regression (T1): the page passed its options object into a four-positional
+  // api.startGame wrapper, so `bringAlly` received the object and difficulty/mapId were never
+  // sent — every embark came out crypt/normal/bram. Assert on the real network payload AND the
+  // persisted save, never just on the page's own state.
+  console.log('  Testing the prepare-page start options (map / difficulty / companion)...');
+  const openPreparePage = async () => {
+    await send('Runtime.evaluate', { expression: `location.hash = '#/play/new?char=${char.id}'; 1` });
+    await waitFor(`document.getElementById('beginBtn')`, 'the prepare page to mount');
+  };
+  // instrument fetch to capture the POST /api/game/start bodies (survives hash navigation)
+  await send('Runtime.evaluate', { expression: `(() => {
+    window.__t1StartCalls = [];
+    const orig = window.fetch;
+    window.fetch = function(input, init) {
+      try {
+        const url = typeof input === 'string' ? input : (input && input.url) || '';
+        if (url.includes('/api/game/start') && init && typeof init.body === 'string') {
+          window.__t1StartCalls.push(JSON.parse(init.body));
+        }
+      } catch {}
+      return orig.apply(this, arguments);
+    };
+    return 1;
+  })()`, returnByValue: true });
+  const descendAndWait = async () => {
+    await clickUntil(send,
+      `(() => { const b = document.getElementById('beginBtn'); if (b && !b.disabled) { b.click(); return true; } return false; })()`,
+      `(/^#\\/play\\/save_/.test(location.hash))`,
+      { timeout: 12000, description: 'the fresh delve to open after Descend' });
+    const hashVal = await send('Runtime.evaluate', { expression: 'location.hash', returnByValue: true });
+    return (((hashVal.result || {}).value) || '').match(/save_[\w-]+/)?.[0] || '';
+  };
+
+  // Scenario 1: non-default map, hard, solo
+  await openPreparePage();
+  const picks1 = await send('Runtime.evaluate', { expression: `(() => {
+    const hills = document.querySelector('input[name="mapPick"][value="howling-hills"]');
+    const hard = document.querySelector('input[name="difficulty"][value="hard"]');
+    const solo = document.querySelector('input[name="companionPick"][value="none"]');
+    if (!hills || !hard || !solo) return { ok: false, hills: !!hills, hard: !!hard, solo: !!solo };
+    hills.checked = true; hard.checked = true; solo.checked = true;
+    return { ok: true };
+  })()`, returnByValue: true });
+  assert(picks1.result.value.ok, 'The prepare page offers howling-hills / hard / solo options');
+  const soloSaveId = await descendAndWait();
+  const soloDelve = await apiReq('GET', `/api/game/${soloSaveId}`);
+  assert(soloDelve.state.mapId === 'howling-hills',
+    `The chosen map is the delve actually created (got ${soloDelve.state.mapId})`);
+  assert(soloDelve.state.difficulty === 'hard',
+    `The chosen difficulty is applied (got ${soloDelve.state.difficulty})`);
+  assert(!soloDelve.state.entities.some(e => e.kind === 'ally'),
+    'A solo expedition embarks without a companion');
+  const soloPayload = await send('Runtime.evaluate', { expression: `(window.__t1StartCalls[0] || {})`, returnByValue: true });
+  const sp = soloPayload.result.value;
+  assert(sp.characterId === char.id && sp.bringAlly === false && sp.difficulty === 'hard' && sp.mapId === 'howling-hills',
+    `The POST payload carries the explicit options (${JSON.stringify(sp)})`);
+
+  // Scenario 2: Valeria comes along; everything else left at its defaults
+  await openPreparePage();
+  const picks2 = await send('Runtime.evaluate', { expression: `(() => {
+    const v = document.querySelector('input[name="companionPick"][value="valeria"]');
+    if (!v) return { ok: false };
+    v.checked = true;
+    return {
+      ok: true,
+      defaultMap: (document.querySelector('input[name="mapPick"]:checked') || {}).value,
+      defaultDiff: (document.querySelector('input[name="difficulty"]:checked') || {}).value
+    };
+  })()`, returnByValue: true });
+  assert(picks2.result.value.ok, 'The prepare page offers Valeria as a companion');
+  const defaults = picks2.result.value;
+  assert(defaults.defaultDiff === 'normal', `Difficulty defaults to normal (${defaults.defaultDiff})`);
+  const allySaveId = await descendAndWait();
+  const allyDelve = await apiReq('GET', `/api/game/${allySaveId}`);
+  const ally = (allyDelve.state.entities || []).find(e => e.kind === 'ally');
+  assert(ally && ally.allyId === 'valeria',
+    `Choosing Valeria embarks her by id (got ${ally ? ally.allyId : 'no ally on the board'})`);
+  assert(allyDelve.state.mapId === defaults.defaultMap,
+    `Default destination still embarks (${allyDelve.state.mapId} as selected)`);
+  assert(allyDelve.state.difficulty === 'normal', 'Default difficulty still applies to the created delve');
+  const allyPayload = await send('Runtime.evaluate', { expression: `(window.__t1StartCalls[1] || {})`, returnByValue: true });
+  const ap2 = allyPayload.result.value;
+  assert(ap2.bringAlly === 'valeria' && ap2.difficulty === 'normal' && ap2.mapId === defaults.defaultMap,
+    `The second POST payload carries the companion id (${JSON.stringify(ap2)})`);
+
+  // Check 10: the settlement save-status flow (T3). The summary must show saving → saved,
+  // keep the return navigation locked until the server confirms the settle (against the
+  // mouse, the keyboard AND scripted clicks — T3a), recover from an injected save failure
+  // via the retry button, and treat a reopened summary as a read-only duplicate (same
+  // receipt, no second banking on the server).
+  console.log('  Testing the settlement save-status flow in the summary panel...');
+  const settleHero = await apiReq('POST', '/api/characters', {
+    name: 'Settlement Hero', species: 'human', className: 'fighter', background: 'soldier',
+    baseScores: { str: 16, dex: 14, con: 14, int: 10, wis: 12, cha: 8 },
+    bgPlus2: 'str', bgPlus1: 'con', skills: ['athletics', 'perception'],
+    fightingStyle: 'defense', armorOption: 'chain_mail', weaponOption: 'sword_board'
+  });
+  const settleDelve = await apiReq('POST', '/api/game/start', {
+    characterId: settleHero.id, bringAlly: false, difficulty: 'normal', mapId: 'crypt'
+  });
+  const settleSaveId = settleDelve.state.id;
+  // the hero starts at the dungeon entrance — a real retreat ends the delve immediately,
+  // with the engine stamping endSeq=1 (the stable, rev-independent settlement id)
+  const retreatRes = await apiReq('POST', `/api/game/${settleSaveId}/action`, { type: 'retreat' });
+  assert(retreatRes.state.mode === 'retreat', 'The delve really ended in a retreat');
+
+  // inject exactly one network failure for the first sync-delve the page sends, and
+  // record every settlement call the page makes (fetch wrappers compose with the T1 patch)
+  await send('Runtime.evaluate', { expression: `(() => {
+    window.__t3Calls = 0; window.__t3FailUsed = false;
+    const orig = window.fetch;
+    window.fetch = function(input, init) {
+      try {
+        const url = typeof input === 'string' ? input : (input && input.url) || '';
+        if (url.includes('/api/city/sync-delve')) {
+          window.__t3Calls++;
+          if (!window.__t3FailUsed) { window.__t3FailUsed = true; return Promise.reject(new TypeError('injected network failure')); }
+        }
+      } catch {}
+      return orig.apply(this, arguments);
+    };
+    return 1;
+  })()`, returnByValue: true });
+
+  await send('Runtime.evaluate', { expression: `location.hash = '#/play/${settleSaveId}'; 1` });
+  await waitFor(`document.getElementById('summaryModal')`, 'the summary to auto-open for the ended delve');
+  await waitFor(`(document.getElementById('summarySaveState') || {}).innerText && document.getElementById('summarySaveState').innerText.includes('Save failed')`,
+    'the injected failure to surface in the panel');
+  const lockedNav = await send('Runtime.evaluate', { expression: `(() => {
+    const navs = Array.from(document.querySelectorAll('#summaryModal .sumNavBtn'));
+    return { count: navs.length, locked: navs.filter(a => a.classList.contains('locked')).length };
+  })()`, returnByValue: true });
+  assert(lockedNav.result.value.count >= 2, `Return navigation exists (${lockedNav.result.value.count} links)`);
+  assert(lockedNav.result.value.locked === lockedNav.result.value.count, 'Every return link is locked while the settle failed');
+  const lockedState = await send('Runtime.evaluate', { expression: `(() => {
+    const a = document.querySelector('#summaryModal .sumNavBtn');
+    return { aria: a.getAttribute('aria-disabled'), tabindex: a.getAttribute('tabindex') };
+  })()`, returnByValue: true });
+  assert(lockedState.result.value.aria === 'true' && lockedState.result.value.tabindex === '-1',
+    `Locked links expose aria-disabled and leave the tab order (${JSON.stringify(lockedState.result.value)})`);
+
+  // T3a: the lock must hold against scripted clicks and real keyboard input —
+  // pointer-events:none only ever stopped the mouse
+  const scriptClick = await send('Runtime.evaluate', { expression: `(() => {
+    const before = location.hash;
+    document.querySelector('#summaryModal .sumNavBtn').click();
+    return { before, after: location.hash, open: !!document.getElementById('summaryModal') };
+  })()`, returnByValue: true });
+  assert(scriptClick.result.value.before === scriptClick.result.value.after && scriptClick.result.value.open,
+    `A scripted click on a locked link navigates nowhere (${scriptClick.result.value.after})`);
+  const keyTry = await send('Runtime.evaluate', { expression: `(() => {
+    const a = document.querySelector('#summaryModal .sumNavBtn');
+    a.focus();
+    return { focused: document.activeElement === a, hash: location.hash };
+  })()`, returnByValue: true });
+  assert(keyTry.result.value.focused, 'The locked link can be focused programmatically (for the keyboard probe)');
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r' });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+  await new Promise(r => setTimeout(r, 400)); // a broken lock would navigate within one frame
+  const keyResult = await send('Runtime.evaluate', { expression: `(() => ({
+    hash: location.hash, open: !!document.getElementById('summaryModal')
+  }))()`, returnByValue: true });
+  assert(keyResult.result.value.open && keyResult.result.value.hash.includes('/play/'),
+    `A real Enter keypress on a locked link does not leave the summary (${keyResult.result.value.hash})`);
+  const retryBtn = await send('Runtime.evaluate', { expression: `!!document.getElementById('summaryRetryBtn')`, returnByValue: true });
+  assert(retryBtn.result.value === true, 'The retry button is offered');
+
+  // retry: the second settlement passes and unlocks the panel
+  await clickUntil(send,
+    `(() => { const b = document.getElementById('summaryRetryBtn'); if (b) { b.click(); return true; } return false; })()`,
+    `(document.getElementById('summarySaveState') || {}).innerText && document.getElementById('summarySaveState').innerText.includes('Spoils banked')`,
+    { timeout: 10000, description: 'the retried settle to confirm' });
+  const unlockedNav = await send('Runtime.evaluate', { expression: `(() => {
+    const navs = Array.from(document.querySelectorAll('#summaryModal .sumNavBtn'));
+    return { locked: navs.filter(a => a.classList.contains('locked')).length, receipt: (document.getElementById('summarySaveState') || {}).innerText };
+  })()`, returnByValue: true });
+  assert(unlockedNav.result.value.locked === 0, 'The return links unlock once the settle is confirmed');
+  const unlockedState = await send('Runtime.evaluate', { expression: `(() => {
+    const a = document.querySelector('#summaryModal .sumNavBtn');
+    return { aria: a.getAttribute('aria-disabled'), tabindex: a.getAttribute('tabindex') };
+  })()`, returnByValue: true });
+  assert(unlockedState.result.value.aria === 'false' && unlockedState.result.value.tabindex === null,
+    `Unlocked links are aria-enabled and tabbable again (${JSON.stringify(unlockedState.result.value)})`);
+  assert(unlockedNav.result.value.receipt.includes('Receipt ' + settleSaveId + '#1'),
+    `The receipt id is shown (${unlockedNav.result.value.receipt.split('\\n')[0]})`);
+  const settledChar = await apiReq('GET', `/api/characters/${settleHero.id}`);
+  assert(settledChar.delvesCompleted === 1 && Array.isArray(settledChar.settlements) && settledChar.settlements[0].id === settleSaveId + '#1',
+    'The server banked the retreat exactly once with the stable receipt id');
+  // T4: the confirmed summary shows this delve's outcome and the next objective
+  const outcome = await send('Runtime.evaluate', { expression: `(() => ({
+    gains: (document.getElementById('summaryGains') || {}).innerText || '',
+    next: (document.getElementById('summaryNext') || {}).innerText || '',
+    details: !!document.querySelector('#summaryModal .summary-details')
+  }))()`, returnByValue: true });
+  assert(outcome.result.value.gains.length > 0 && (outcome.result.value.gains.includes('本次结算') || outcome.result.value.gains.includes('本局已入账')),
+    `The summary reports what this delve paid (${outcome.result.value.gains.slice(0, 40)})`);
+  assert(outcome.result.value.next.includes('下一目标'), `The summary names the next objective (${outcome.result.value.next.split('\\n')[0].slice(0, 60)})`);
+  assert(outcome.result.value.details, 'The raw statistics moved into the details fold');
+
+  // reopening the settled summary is read-only: duplicate receipt, no second banking
+  await send('Runtime.evaluate', { expression: `(() => { const b = document.getElementById('closeSummaryX'); if (b) b.click(); return 1; })()`, returnByValue: true });
+  await clickUntil(send,
+    `(() => { const b = document.querySelector('[data-act="retreat"]'); if (b && !b.disabled) { b.click(); return true; } return false; })()`,
+    `(document.getElementById('summarySaveState') || {}).innerText && document.getElementById('summarySaveState').innerText.includes('Already settled')`,
+    { timeout: 10000, description: 'the reopened summary to show the duplicate receipt' });
+  const reopenedChar = await apiReq('GET', `/api/characters/${settleHero.id}`);
+  assert(reopenedChar.delvesCompleted === 1 && reopenedChar.settlements.length === 1,
+    'The reopened summary banked nothing twice');
+  const callCount = await send('Runtime.evaluate', { expression: `window.__t3Calls`, returnByValue: true });
+  assert(callCount.result.value >= 3, `The page sent the failing settle, the retry and the reopen (${callCount.result.value} calls)`);
+
+  // and the confirmed panel really navigates: the unlocked return link leaves the summary
+  await clickUntil(send,
+    `(() => { const a = document.querySelector('#summaryModal .sumNavBtn'); if (a) { a.click(); return true; } return false; })()`,
+    `location.hash.includes('/overworld')`,
+    { timeout: 10000, description: 'the unlocked return link to navigate to the overworld' });
+  const navAfter = await send('Runtime.evaluate', { expression: `({ hash: location.hash, open: !!document.getElementById('summaryModal') })`, returnByValue: true });
+  assert(navAfter.result.value.hash.includes('/overworld') && !navAfter.result.value.open,
+    `The unlocked return link navigates for real (${navAfter.result.value.hash})`);
+
+  await apiReq('DELETE', `/api/game/${settleSaveId}`);
+  await apiReq('DELETE', `/api/characters/${settleHero.id}`);
+
+  // Check 11: T4 guidance — home shows where to continue and why, and the region map
+  // marks the story's recommended destination without auto-embarking.
+  console.log('  Testing home/region-map guidance (recommended destination + reason)...');
+  const guideHero = await apiReq('POST', '/api/characters', {
+    name: 'T4 Guide Hero', species: 'human', className: 'fighter', background: 'soldier',
+    baseScores: { str: 16, dex: 14, con: 14, int: 10, wis: 12, cha: 8 },
+    bgPlus2: 'str', bgPlus1: 'con', skills: ['athletics', 'perception'],
+    fightingStyle: 'defense', armorOption: 'chain_mail', weaponOption: 'sword_board'
+  });
+  await send('Runtime.evaluate', { expression: `location.hash = '#/'; 1` });
+  await waitFor(`document.querySelectorAll('.char-card').length > 0`, 'the home character cards');
+  const homeGuide = await send('Runtime.evaluate', { expression: `(() => {
+    const card = Array.from(document.querySelectorAll('.char-card')).find(c => c.textContent.includes('T4 Guide Hero'));
+    if (!card) return null;
+    const link = card.querySelector('a.btn.primary');
+    return {
+      objective: card.querySelector('.char-objective') ? card.querySelector('.char-objective').textContent : '',
+      primaryText: link ? link.textContent : '',
+      href: link ? link.getAttribute('href') : ''
+    };
+  })()`, returnByValue: true });
+  assert(!!homeGuide.result.value && /圣物|沉没墓穴/.test(homeGuide.result.value.objective),
+    `Home shows the current objective (${homeGuide.result.value && homeGuide.result.value.objective.slice(0, 40)})`);
+  assert(!!homeGuide.result.value && /准备出发/.test(homeGuide.result.value.primaryText) && homeGuide.result.value.href.includes('node=crypt'),
+    `Home's primary action prepares the recommended map (${homeGuide.result.value && homeGuide.result.value.href})`);
+
+  await send('Runtime.evaluate', { expression: `location.hash = '#/overworld?char=${guideHero.id}&node=crypt'; 1` });
+  await waitFor(`document.querySelector('.recommend-box')`, 'the recommendation box on the region map');
+  const rec = await send('Runtime.evaluate', { expression: `(() => {
+    const box = document.querySelector('.recommend-box');
+    const banner = document.querySelector('.guidance-banner-row');
+    const node = document.querySelector('.map-sidebar h2');
+    const embark = document.getElementById('embarkBtn');
+    return {
+      box: box ? box.textContent : '',
+      banner: banner ? banner.textContent : '',
+      nodeName: node ? node.textContent : '',
+      embark: embark ? embark.textContent : ''
+    };
+  })()`, returnByValue: true });
+  assert(rec.result.value.nodeName.includes('Sunless Crypt'), `The recommended node is preselected (${rec.result.value.nodeName})`);
+  assert(rec.result.value.box.includes('主线推荐'), `The destination explains itself (${rec.result.value.box.slice(0, 50)})`);
+  assert(rec.result.value.banner.includes('准备出发'), 'The story banner carries the primary action too');
+  const savesAfterGuide = await apiReq('GET', '/api/game');
+  assert(!savesAfterGuide.some(s => s.characterId === guideHero.id), 'Nothing auto-embarked — the player still presses Embark');
+  await apiReq('DELETE', `/api/characters/${guideHero.id}`);
+
+  // Check 12: T4a multi-save recovery — an older running delve outranks a newer settled
+  // one on the home card, and clicking the primary action really resumes that save.
+  console.log('  Testing multi-save continue priority on the home card...');
+  const multiHero = await apiReq('POST', '/api/characters', {
+    name: 'T4a Multi Hero', species: 'human', className: 'fighter', background: 'soldier',
+    baseScores: { str: 16, dex: 14, con: 14, int: 10, wis: 12, cha: 8 },
+    bgPlus2: 'str', bgPlus1: 'con', skills: ['athletics', 'perception'],
+    fightingStyle: 'defense', armorOption: 'chain_mail', weaponOption: 'sword_board'
+  });
+  const delveA = await apiReq('POST', '/api/game/start', { characterId: multiHero.id, bringAlly: false, difficulty: 'normal', mapId: 'crypt' });
+  const delveB = await apiReq('POST', '/api/game/start', { characterId: multiHero.id, bringAlly: false, difficulty: 'normal', mapId: 'crypt' });
+  // B ends and settles NEWER than the still-running A — the old pickLiveSave chose B by
+  // updatedAt alone and the home card recommended re-embarking instead of continuing A
+  const retreatB = await apiReq('POST', `/api/game/${delveB.state.id}/action`, { type: 'retreat' });
+  assert(retreatB.state.mode === 'retreat', 'the newer delve ended in a retreat');
+  const settleB = await apiReq('POST', '/api/city/sync-delve', { charId: multiHero.id, delveStateId: delveB.state.id });
+  assert(settleB.duplicate === false, 'the newer delve settled once');
+  await send('Runtime.evaluate', { expression: `location.hash = '#/'; 1` });
+  await waitFor(`document.querySelectorAll('.char-card').length > 0`, 'the home cards');
+  const multiCard = await send('Runtime.evaluate', { expression: `(() => {
+    const card = Array.from(document.querySelectorAll('.char-card')).find(c => c.textContent.includes('T4a Multi Hero'));
+    if (!card) return null;
+    const link = card.querySelector('a.btn.primary');
+    const statuses = Array.from(card.querySelectorAll('.chip')).map(x => x.textContent);
+    return { cta: link ? link.textContent : '', href: link ? link.getAttribute('href') : '', statuses: statuses.join('|') };
+  })()`, returnByValue: true });
+  assert(!!multiCard.result.value && multiCard.result.value.href.endsWith('#/play/' + delveA.state.id),
+    `The primary action resumes the older running delve (${multiCard.result.value && multiCard.result.value.href})`);
+  assert(!!multiCard.result.value && /继续冒险/.test(multiCard.result.value.cta),
+    `The primary action is a continue (${multiCard.result.value && multiCard.result.value.cta})`);
+  assert(!!multiCard.result.value && /已结算|进行中/.test(multiCard.result.value.statuses),
+    `Both saves keep their status chips (${multiCard.result.value && multiCard.result.value.statuses})`);
+  await clickUntil(send,
+    `(() => { const card = Array.from(document.querySelectorAll('.char-card')).find(c => c.textContent.includes('T4a Multi Hero')); const l = card && card.querySelector('a.btn.primary'); if (l) { l.click(); return true; } return false; })()`,
+    `location.hash.includes('${delveA.state.id}')`,
+    { timeout: 10000, description: 'the click to land on delve A' });
+  await waitFor(`document.getElementById('minimapContainer')`, 'the play view of delve A');
+  await apiReq('DELETE', `/api/game/${delveA.state.id}`);
+  await apiReq('DELETE', `/api/game/${delveB.state.id}`);
+  await apiReq('DELETE', `/api/characters/${multiHero.id}`);
+
 } catch (err) {
+  await captureBrowserArtifacts('gameplay-refinements-cdp.test.mjs', [CDP_PORT]);
   console.error('  ❌ E2E Browser Test Error:', err);
   failed++;
 } finally {

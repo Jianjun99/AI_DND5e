@@ -7,6 +7,7 @@ const potions = require('../game/potions');
 const gambling = require('../game/gambling');
 const forge = require('../game/forge');
 const campaignMod = require('../game/campaign');
+const guidanceMod = require('../game/guidance');
 const affixesMod = require('../game/affixes');
 
 const router = express.Router();
@@ -205,6 +206,11 @@ const MAP_NODES = [
     icon: '🐺',
     levelRange: 'Level 5-10',
     blurb: 'Wind-scoured moors where a bandit warband answers to something with too many teeth.'
+  },
+  {
+    id: 'vale-gate', name: '山谷哨门', region: 'The Sunlit Vale', type: 'dungeon',
+    mapId: 'vale-gate', safe: false, x: 41, y: 52, icon: '🧭', levelRange: 'Level 1-3',
+    blurb: '一枚通行印，或一场战斗：守门人会记住你怎样通过。自由冒险，不推进主线。'
   }
 ];
 
@@ -380,6 +386,8 @@ router.get('/info', (req, res) => {
       actByMap: Object.fromEntries(campaignMod.ACTS.flatMap(a => a.mapIds.map(m => [m, a.id]))),
       actNames: Object.fromEntries(campaignMod.ACTS.map(a => [a.id, a.name]))
     } : null,
+    // one primary action + reason for the region map / home (T4); null without a hero
+    guidance: char ? guidanceMod.journey(char, { liveSave: guidanceMod.pickLiveSave(char, store.listSaves()) }) : null,
     character: char ? {
       ...char,
       levelUp: engine.levelUpInfo(char),
@@ -452,6 +460,7 @@ router.post('/buy', (req, res) => {
   if (!char) return res.status(404).json({ error: 'Character not found' });
 
   const price = lookupItemPrice(itemId);
+  if (content.getGear(itemId)?.type === 'quest') return res.status(400).json({ error: '任务凭证需要在冒险中取得，不能购买。' });
   const totalCost = price * qty;
   if ((char.gold || 0) < totalCost) {
     return res.status(400).json({ error: `Not enough gold! Total cost is ${totalCost} GP (you have ${char.gold || 0} GP).` });
@@ -556,66 +565,110 @@ router.post('/claim-bounty', (req, res) => {
   res.json({ ok: true, char, bounty, message: `Bounty claimed! Earned +${bounty.rewardGold} GP and +${bounty.rewardXp} XP.` });
 });
 
-// POST /api/city/sync-delve
+// POST /api/city/sync-delve — settle one ENDED delve into the roster, exactly once (T3).
+//
+// Contract: the settlement identity is `<saveId>#<endSeq>` — `endSeq` is stamped by the
+// engine every time the delve enters an end mode (victory / retreat / over), so a second
+// death after a respawn settles again, but narration writes that only bump `rev` never
+// mint a new settlement. Legacy end-mode saves written before the counter existed are
+// baselined to endSeq=1 by the store migration on read (T3a), so their first settle is #1
+// and the next real end after a respawn becomes #2. The receipt lives on the ROSTER
+// character (`char.settlements`)
+// and is mirrored onto the delve save (`state.settled`): the roster copy is the authority
+// (written first; if that write fails nothing is persisted and the retry re-processes),
+// the mirror only proves the settle for read-only UIs. A replayed request returns the
+// same receipt with `duplicate: true` and touches nothing — no gold/XP/weekly/campaign/
+// delvesCompleted replay, and no old-snapshot overwrite of purchases made after settling.
+// The old no-save fallback (goldGained/xpGained/newItems from the request body) is gone:
+// it had no caller left and trusted client numbers as authoritative rewards.
+function mergeEncounterFacts(char, facts) {
+  const existing = Array.isArray(char.encounterFacts) ? char.encounterFacts : [];
+  const ids = new Set(existing.map(f => f.id));
+  const fresh = (Array.isArray(facts) ? facts : []).filter(f => {
+    if (!f || typeof f.id !== 'string' || typeof f.memory !== 'string' || typeof f.text !== 'string' || !Number.isFinite(f.ts) || ids.has(f.id)) return false;
+    ids.add(f.id); return true;
+  });
+  if (!fresh.length) return false;
+  char.encounterFacts = [...existing, ...fresh].sort((a, b) => a.ts - b.ts).slice(-100);
+  return true;
+}
+
 router.post('/sync-delve', (req, res) => {
-  const { charId, delveStateId, goldGained, xpGained, newItems } = req.body || {};
+  const { charId, delveStateId } = req.body || {};
   const char = getChar(charId);
   if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!delveStateId) return res.status(400).json({ error: 'Missing delveStateId — settlement settles a delve save.' });
 
-  let delve = null;
-  if (delveStateId) {
-    delve = store.getSave(delveStateId);
+  const delve = store.getSave(delveStateId);
+  if (!delve || !delve.id) return res.status(404).json({ error: 'Delve save not found' });
+  if (delve.characterId !== charId) return res.status(403).json({ error: 'This delve belongs to another hero.' });
+  if (!delve.character) return res.status(400).json({ error: 'Delve save is malformed — no hero snapshot to settle.' });
+  if (delve.mode !== 'victory' && delve.mode !== 'retreat' && delve.mode !== 'over') {
+    return res.status(400).json({ error: 'This delve has not ended yet — reach the exit, the campfire, or fall first.' });
   }
 
-  if (delve && delve.character) {
-    const dc = delve.character;
-    if (typeof dc.gold === 'number') char.gold = dc.gold;
-    if (typeof dc.xp === 'number') char.xp = dc.xp;
-    // delve-only prizes (gambling tokens) expire with the delve they were carried into
-    if (Array.isArray(dc.inventory)) char.inventory = dc.inventory.filter(i => !i.delveOnly);
-    if (typeof dc.level === 'number' && dc.level > char.level) char.level = dc.level;
-    // use the hero's ACTUAL remaining HP from the delve (the entity, not the
-    // untouched snapshot — otherwise retreating is a free full heal)
-    const delveHero = (delve.entities || []).find(e => e.kind === 'player');
-    const delveHp = delveHero ? delveHero.hp : undefined;
-    char.hp = (typeof delveHp === 'number') ? Math.min(char.hpMax, Math.max(1, delveHp)) : char.hp;
-    // companion morale rides back to the roster, keyed by ally id
-    const delveAlly = (delve.entities || []).find(e => e.kind === 'ally');
-    if (delveAlly && typeof delveAlly.loyalty === 'number') {
-      char.companionLoyalty = char.companionLoyalty || {};
-      char.companionLoyalty[delveAlly.allyId || 'bram'] = delveAlly.loyalty;
+  const settleId = `${delve.id}#${delve.endSeq || 1}`;
+  char.settlements = Array.isArray(char.settlements) ? char.settlements : [];
+
+  let receipt = char.settlements.find(r => r.id === settleId);
+  if (!receipt && delve.settled && delve.settled.id === settleId) receipt = delve.settled;
+  if (receipt) {
+    const healedFacts = mergeEncounterFacts(char, receipt.encounterFacts);
+    // self-heal whichever copy went missing or went stale (the mirror write failed after
+    // the roster was saved, the roster was restored from a backup without its receipts,
+    // or an OLDER mirror survived while a newer settle's mirror write failed) — this
+    // restores the dedupe record, it never replays rewards
+    if (!char.settlements.some(r => r.id === settleId)) {
+      char.settlements.push(receipt);
+      saveChar(char);
+    } else if (healedFacts) saveChar(char);
+    if (!delve.settled || delve.settled.id !== settleId) {
+      try { delve.settled = receipt; store.saveGame(delve); } catch {}
     }
-    // companion personal-quest flags ride back so offers happen once, ever
-    if (dc.companionQuests) char.companionQuests = { ...(char.companionQuests || {}), ...dc.companionQuests };
-    // weekly challenge: record victories for the current week on the roster
-    if (delve.weeklyLabel && delve.mode === 'victory') {
-      const cur = engine.weeklyInfo ? engine.weeklyInfo() : null;
-      const label = cur ? cur.label : delve.weeklyLabel;
-      if (delve.weeklyLabel === label) {
-        char.weekly = (char.weekly && char.weekly.label === label) ? char.weekly : { label, wins: 0, best: null };
-        char.weekly.wins += 1;
-        const wk = (delve.stats || {}).kills || 0, wr = (delve.stats || {}).rounds || 0;
-        if (!char.weekly.best || wk > char.weekly.best.kills || (wk === char.weekly.best.kills && wr < char.weekly.best.rounds)) char.weekly.best = { kills: wk, rounds: wr };
-      }
+    return res.json({ ok: true, char, receipt, duplicate: true, guidance: guidanceMod.journey(char, { liveSave: guidanceMod.pickLiveSave(char, store.listSaves()) }) });
+  }
+
+  // snapshot for the receipt's `gains` (T4: the summary shows what this delve actually paid)
+  const before = { gold: char.gold || 0, xp: char.xp || 0, level: char.level || 1 };
+
+  const dc = delve.character;
+  if (typeof dc.gold === 'number') char.gold = dc.gold;
+  if (typeof dc.xp === 'number') char.xp = dc.xp;
+  // delve-only prizes (gambling tokens) expire with the delve they were carried into
+  if (Array.isArray(dc.inventory)) char.inventory = dc.inventory.filter(i => !i.delveOnly);
+  if (typeof dc.level === 'number' && dc.level > char.level) char.level = dc.level;
+  // use the hero's ACTUAL remaining HP from the delve (the entity, not the
+  // untouched snapshot — otherwise retreating is a free full heal)
+  const delveHero = (delve.entities || []).find(e => e.kind === 'player');
+  const delveHp = delveHero ? delveHero.hp : undefined;
+  char.hp = (typeof delveHp === 'number') ? Math.min(char.hpMax, Math.max(1, delveHp)) : char.hp;
+  // companion morale rides back to the roster, keyed by ally id
+  const delveAlly = (delve.entities || []).find(e => e.kind === 'ally');
+  if (delveAlly && typeof delveAlly.loyalty === 'number') {
+    char.companionLoyalty = char.companionLoyalty || {};
+    char.companionLoyalty[delveAlly.allyId || 'bram'] = delveAlly.loyalty;
+  }
+  // companion personal-quest flags ride back so offers happen once, ever
+  if (dc.companionQuests) char.companionQuests = { ...(char.companionQuests || {}), ...dc.companionQuests };
+  const encounterFacts = (Array.isArray(delve.encounterFacts) ? delve.encounterFacts : []).filter(f => f?.saveId === delve.id);
+  mergeEncounterFacts(char, encounterFacts); // union engine facts; never overwrite with an old snapshot
+  // weekly challenge: record victories for the current week on the roster (once per settle)
+  let weeklyWin = false;
+  if (delve.weeklyLabel && delve.mode === 'victory') {
+    const cur = engine.weeklyInfo ? engine.weeklyInfo() : null;
+    const label = cur ? cur.label : delve.weeklyLabel;
+    if (delve.weeklyLabel === label) {
+      weeklyWin = true;
+      char.weekly = (char.weekly && char.weekly.label === label) ? char.weekly : { label, wins: 0, best: null };
+      char.weekly.wins += 1;
+      const wk = (delve.stats || {}).kills || 0, wr = (delve.stats || {}).rounds || 0;
+      if (!char.weekly.best || wk > char.weekly.best.kills || (wk === char.weekly.best.kills && wr < char.weekly.best.rounds)) char.weekly.best = { kills: wk, rounds: wr };
     }
-    // deepest endless depth rides back for the Hall of Heroes ranking (+ revives
-    // the endless_delver achievement, which previously had no writer)
-    if (typeof delve.endlessDepth === 'number' && delve.endlessDepth > (char.endlessDepth || 0)) {
-      char.endlessDepth = delve.endlessDepth;
-    }
-  } else {
-    if (typeof goldGained === 'number') char.gold = (char.gold || 0) + goldGained;
-    if (typeof xpGained === 'number') char.xp = (char.xp || 0) + xpGained;
-    if (Array.isArray(newItems)) {
-      char.inventory = char.inventory || [];
-      newItems.forEach(item => {
-        const id = typeof item === 'string' ? item : item.itemId;
-        const qty = item.qty || 1;
-        const ex = char.inventory.find(i => i.itemId === id);
-        if (ex) ex.qty += qty;
-        else char.inventory.push({ itemId: id, qty });
-      });
-    }
+  }
+  // deepest endless depth rides back for the Hall of Heroes ranking (+ revives
+  // the endless_delver achievement, which previously had no writer)
+  if (typeof delve.endlessDepth === 'number' && delve.endlessDepth > (char.endlessDepth || 0)) {
+    char.endlessDepth = delve.endlessDepth;
   }
 
   for (const [lvl, threshold] of Object.entries(engine.XP_THRESHOLDS)) {
@@ -629,41 +682,43 @@ router.post('/sync-delve', (req, res) => {
   }
 
   // Sync maps visited and bestiary
-  if (delve && delve.mapId) {
+  if (delve.mapId) {
     char.visitedMaps = char.visitedMaps || [];
     if (!char.visitedMaps.includes(delve.mapId)) char.visitedMaps.push(delve.mapId);
     if (delve.mapId === 'drowned-vault') char.deepestFloor = 'drowned-vault';
   }
-  if (delve && delve.character && delve.character.bestiary) {
+  if (dc.bestiary) {
     char.bestiary = char.bestiary || {};
-    Object.entries(delve.character.bestiary).forEach(([mId, count]) => {
+    Object.entries(dc.bestiary).forEach(([mId, count]) => {
       char.bestiary[mId] = Math.max(char.bestiary[mId] || 0, count);
     });
   }
   // elite variants seen (per affix) and the one-off first-kill rewards
-  if (delve && delve.character && delve.character.bestiaryElite) {
+  if (dc.bestiaryElite) {
     char.bestiaryElite = char.bestiaryElite || {};
-    Object.entries(delve.character.bestiaryElite).forEach(([mId, variants]) => {
+    Object.entries(dc.bestiaryElite).forEach(([mId, variants]) => {
       char.bestiaryElite[mId] = char.bestiaryElite[mId] || {};
       Object.entries(variants || {}).forEach(([affixId, count]) => {
         char.bestiaryElite[mId][affixId] = Math.max(char.bestiaryElite[mId][affixId] || 0, count);
       });
     });
   }
-  if (delve && delve.character && delve.character.bestiaryRewarded) {
-    char.bestiaryRewarded = { ...(delve.character.bestiaryRewarded || {}), ...(char.bestiaryRewarded || {}) };
+  if (dc.bestiaryRewarded) {
+    char.bestiaryRewarded = { ...(dc.bestiaryRewarded || {}), ...(char.bestiaryRewarded || {}) };
   }
   // forge currency earned in the delve
-  if (delve && delve.character && typeof delve.character.essence === 'number') {
-    char.essence = delve.character.essence;
+  if (typeof dc.essence === 'number') {
+    char.essence = dc.essence;
   }
 
   // Main campaign: a victorious delve advances the story (order-checked and idempotent)
-  if (delve && delve.mode === 'victory') {
+  let campaignAdvanced = false;
+  if (delve.mode === 'victory') {
     const before = campaignMod.ensure(char.campaign).stage;
     const adv = campaignMod.advance(char.campaign || campaignMod.newCampaign(), delve.mapId);
     char.campaign = adv.campaign;
     if (adv.advanced) {
+      campaignAdvanced = true;
       if (adv.reward) {
         char.gold = (char.gold || 0) + (adv.reward.gold || 0);
         char.xp = (char.xp || 0) + (adv.reward.xp || 0);
@@ -685,8 +740,37 @@ router.post('/sync-delve', (req, res) => {
   }
 
   char.delvesCompleted = (char.delvesCompleted || 0) + 1;
+
+  receipt = {
+    id: settleId,
+    ts: Date.now(),
+    mode: delve.mode,
+    mapId: delve.mapId || null,
+    mapName: delve.mapName || null,
+    gold: char.gold || 0,
+    xp: char.xp || 0,
+    level: char.level || 1,
+    delveNumber: char.delvesCompleted,
+    campaignAdvanced,
+    weeklyWin,
+    encounterFacts,
+    // what this delve actually paid, relative to the roster before settling (T4 summary)
+    gains: {
+      gold: (char.gold || 0) - before.gold,
+      xp: (char.xp || 0) - before.xp,
+      levels: (char.level || 1) - before.level
+    }
+  };
+  char.settlements.push(receipt);
+  if (char.settlements.length > 100) char.settlements = char.settlements.slice(-100);
+
+  // the roster write is the authority: if it fails, nothing was settled anywhere and the
+  // retry below re-processes from the untouched delve snapshot
   saveChar(char);
-  res.json({ ok: true, char });
+  // the save mirror is presentation only — a failed mirror write must not fail the settle
+  try { delve.settled = receipt; store.saveGame(delve); } catch {}
+
+  res.json({ ok: true, char, receipt, duplicate: false, guidance: guidanceMod.journey(char, { liveSave: guidanceMod.pickLiveSave(char, store.listSaves()) }) });
 });
 
 // GET /api/city/hall-of-heroes
@@ -978,6 +1062,8 @@ router.get('/campaign', async (req, res) => {
       })) : null
     })),
     epilogue: c.completedAt ? c.epilogue : null,
+    // the same next-step guidance the region map uses (T4)
+    guidance: guidanceMod.journey(char, { liveSave: guidanceMod.pickLiveSave(char, store.listSaves()) }),
     stats: {
       level: char.level,
       kills: Object.values(char.bestiary || {}).reduce((a, b) => a + b, 0),

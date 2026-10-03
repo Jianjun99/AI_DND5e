@@ -1,60 +1,40 @@
-// road-encounter.js — the random roadside encounter modal (wandering peddler,
-// goblin ambush, wayside shrine) rolled at a 35% chance when embarking from the
-// region map, extracted verbatim from overworld.js.
-//
-// Self-contained: it only touches its parameters plus shared helpers, so it is
-// exported directly instead of through a ctx factory. It mutates the passed-in
-// character object in place (gold / hp / xp / tempHp / blessed / inventory);
-// overworld.js hands it the live activeChar.
+// road-encounter.js — the roadside encounter modal (wandering peddler, goblin ambush,
+// wayside shrine). T7a lifecycle rules:
+//   - the modal NEVER triggers an encounter itself; callers pass the server's engine-built
+//     view (template + instanceId + resolution state). No encounter data → nothing to do.
+//   - restore mode: a resolved-but-unconsumed instance renders its stored result with the
+//     continue button, so a refresh / failed start can pick the choice back up without
+//     re-resolving or re-awarding anything.
+//   - async callbacks check `opts.alive()` before touching the DOM, so a response that
+//     lands after a hero switch / view change cannot act on the old page.
+//   - ambush option modifiers come from `enc.checks` (engine-computed, same figures the
+//     server rolls with). When absent the modal omits the number instead of guessing.
 
 import { api } from '../../api.js';
 import { esc, toast } from '../../app.js';
 import { rollAnimated } from '../../dice.js';
 
-export function showRoadEncounterModal(char, mapId, embarkCallback) {
-  let modal = document.getElementById('roadEncounterModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.className = 'modal-back';
-    modal.id = 'roadEncounterModal';
-    document.body.appendChild(modal);
+export async function showRoadEncounterModal(char, mapId, embarkCallback, encounterData, opts = {}) {
+  const alive = opts.alive || (() => true);
+  const enc = encounterData;
+  if (!enc) {
+    // never silently "continue past" a missing encounter — the caller's failure toast owns this
+    toast('路遇数据缺失，请重试。');
+    return;
   }
 
-  const encounters = [
-    {
-      id: 'peddler',
-      icon: '🧳',
-      title: 'Garrick the Wandering Peddler',
-      blurb: '"Ho there, brave traveler! Before you delve into the damp tombs, consider a draught or charm from my pack. Genuine goods, modest coin!"',
-      desc: 'A jovial halfling merchant with an overloaded pack mule stands by the sun-dappled roadside.',
-      wares: [
-        { id: 'potion_healing', name: 'Potion of Healing', price: 20, desc: 'Heals 2d4+2 hit points' },
-        { id: 'potion_greater', name: 'Potion of Greater Healing', price: 45, desc: 'Heals 4d4+4 hit points' },
-        { id: 'cloak_protection', name: 'Cloak of Protection', price: 65, desc: '+1 bonus to Armor Class' }
-      ]
-    },
-    {
-      id: 'ambush',
-      icon: '🏹',
-      title: 'Roadside Goblin Ambush',
-      blurb: '"Drop the coin purse, tall-legs, or we skewer your knees!"',
-      desc: 'Three snarling goblin brigands leap from the roadside brush, notched shortbows aimed right at your chest.',
-      options: ['fight', 'bribe', 'sneak']
-    },
-    {
-      id: 'shrine',
-      icon: '⛩️',
-      title: 'Shrine of the Dawnmother',
-      blurb: '"May the golden rays illuminate your descent into the shadowed depths."',
-      desc: 'An ancient carved marble waypoint at the crossroads bathed in radiant dawnlight. Soft hymns seem to whisper in the gentle breeze.',
-      options: ['pray', 'offer', 'proceed']
-    }
-  ];
+  // one modal at a time: replace any previous instance (same live encounter either way)
+  document.querySelectorAll('#roadEncounterModal').forEach(m => m.remove());
+  const modal = document.createElement('div');
+  modal.className = 'modal-back';
+  modal.id = 'roadEncounterModal';
+  document.body.appendChild(modal);
 
-  const enc = encounters[Math.floor(Math.random() * encounters.length)];
-  let resolved = false;
+  let resolved = !!enc.resolved;
+  const initialResult = resolved && enc.result && enc.result.text ? enc.result.text.replace(/\n/g, '<br>') : '';
 
   const render = (resHtml = '') => {
+    if (!alive() || !modal.isConnected) return;
     if (enc.id === 'peddler') {
       modal.innerHTML = `
         <div class="modal encounter-modal">
@@ -99,6 +79,7 @@ export function showRoadEncounterModal(char, mapId, embarkCallback) {
           try {
             btn.disabled = true;
             await api.cityBuy(char.id, itemId, 1);
+            if (!alive()) return;
             char.gold -= price;
             char.inventory = char.inventory || [];
             const ex = char.inventory.find(i => i.itemId === itemId);
@@ -106,24 +87,48 @@ export function showRoadEncounterModal(char, mapId, embarkCallback) {
             toast(`Purchased ${itemId} for ${price} GP from Garrick!`);
             render(`<span style="color:var(--green)">✓ Bought ${itemId}! Added to your inventory.</span>`);
           } catch (e) {
+            if (!alive()) return;
             toast(e.message);
+            btn.disabled = false;
           }
         });
       });
 
-      const continueBtn = document.getElementById('continueDelveBtn');
-      if (continueBtn) continueBtn.addEventListener('click', () => {
-        modal.remove();
-        embarkCallback();
-      });
+      wirePeddlerContinue();
+
+      function wirePeddlerContinue() {
+        const continueBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('continueDelveBtn'));
+        if (!continueBtn) return;
+        continueBtn.addEventListener('click', async () => {
+          if (continueBtn.disabled) return;
+          continueBtn.disabled = true;
+          if (!resolved) {
+            try {
+              await api.resolveRoadEncounter(char.id, 'leave', enc.instanceId);
+              if (!alive()) return;
+              resolved = true;
+            } catch (e) {
+              // resolve failed — keep the modal open so the choice can be retried (T7a)
+              if (!alive()) return;
+              toast(e.message);
+              render(`<b style="color:var(--red)">${esc(e.message)}</b>`);
+              return;
+            }
+          }
+          const ok = await embarkCallback();
+          if (ok === false) {
+            // start failed — encounter stays live; keep the modal so continue can retry
+            continueBtn.disabled = false;
+            return;
+          }
+          modal.remove();
+        });
+      }
 
     } else if (enc.id === 'ambush') {
-      const dexMod = Math.floor(((char.abilities?.dex || 10) - 10) / 2);
-      const strMod = Math.floor(((char.abilities?.str || 10) - 10) / 2);
-      const profBonus = Math.floor(((char.level || 1) - 1) / 4) + 2;
-      const stealthProf = (char.skills || []).includes('stealth');
-      const stealthMod = dexMod + (stealthProf ? profBonus : 0);
-      const fightMod = Math.max(strMod, dexMod) + profBonus;
+      const fightMod = enc.checks && enc.checks.fight ? enc.checks.fight.modifier : null;
+      const sneakMod = enc.checks && enc.checks.sneak ? enc.checks.sneak.modifier : null;
+      const fmtMod = m => (m >= 0 ? '+' + m : String(m));
 
       modal.innerHTML = `
         <div class="modal encounter-modal">
@@ -142,7 +147,7 @@ export function showRoadEncounterModal(char, mapId, embarkCallback) {
             <div class="encounter-options">
               <button class="encounter-option-btn" id="optFight">
                 <b>⚔️ Skirmish! (Attack Check DC 11)</b>
-                <span class="small muted">Draw your weapon and charge. Modifier: <b>${fightMod >= 0 ? '+'+fightMod : fightMod}</b>. Victory yields coins (+25 GP, +50 XP); defeat incurs an arrow wound.</span>
+                <span class="small muted">Draw your weapon and charge.${fightMod != null ? ` Modifier: <b>${fmtMod(fightMod)}</b>.` : ''} Victory yields coins (+25 GP, +50 XP); defeat incurs an arrow wound.</span>
               </button>
               <button class="encounter-option-btn" id="optBribe" ${(char.gold || 0) >= 10 ? '' : 'disabled'}>
                 <b>💰 Bribe Passage (10 GP)</b>
@@ -150,7 +155,7 @@ export function showRoadEncounterModal(char, mapId, embarkCallback) {
               </button>
               <button class="encounter-option-btn" id="optSneak">
                 <b>🏃 Slip Past (Stealth DC 12)</b>
-                <span class="small muted">Duck into the dense thicket. Modifier: <b>${stealthMod >= 0 ? '+'+stealthMod : stealthMod}</b>. Fail means fleeing under fire (-2 HP).</span>
+                <span class="small muted">Duck into the dense thicket.${sneakMod != null ? ` Modifier: <b>${fmtMod(sneakMod)}</b>.` : ''} Fail means fleeing under fire (-2 HP).</span>
               </button>
             </div>
           ` : ''}
@@ -164,56 +169,43 @@ export function showRoadEncounterModal(char, mapId, embarkCallback) {
       `;
 
       if (!resolved) {
-        document.getElementById('optFight').addEventListener('click', async () => {
-          resolved = true;
-          const roll = await rollAnimated(20, 'Ambush Skirmish');
-          const total = roll + fightMod;
-          if (total >= 11) {
-            char.gold = (char.gold || 0) + 25;
-            char.xp = (char.xp || 0) + 50;
-            api.roadEncounter(char.id, 'ambush_win').catch(() => {});
-            render(`<b style="color:var(--green)">Victory! (Roll ${roll}+${fightMod} = ${total} vs DC 11)</b><br>You strike down their leader and send the survivors running into the dark trees. You loot <b>+25 GP</b> from their pouches and earn <b>+50 XP</b>!`);
-          } else {
-            char.hp = Math.max(1, (char.hp || char.hpMax) - 3);
-            api.roadEncounter(char.id, 'ambush_wound').catch(() => {});
-            render(`<b style="color:var(--red)">Staggered! (Roll ${roll}+${fightMod} = ${total} vs DC 11)</b><br>The goblins shoot a volley as they scatter! You take a stinging arrow graze (<b>-3 HP</b>, current HP: ${char.hp}/${char.hpMax}) before driving them off.`);
+        const choose = (choice) => async () => {
+          /** @type {HTMLButtonElement} */ (document.getElementById(choice === 'fight' ? 'optFight' : choice === 'bribe' ? 'optBribe' : 'optSneak')).disabled = true;
+          try {
+            const res = await api.resolveRoadEncounter(char.id, choice, enc.instanceId);
+            if (!alive()) return;
+            resolved = true;
+            if (res.natural != null) {
+              await rollAnimated(20, choice === 'sneak' ? 'Stealth Check' : 'Ambush Skirmish', res.natural);
+            }
+            char.gold = res.gold != null ? res.gold : char.gold;
+            char.hp = res.hp != null ? res.hp : char.hp;
+            char.xp = res.xp != null ? res.xp : char.xp;
+            render(res.text.replace(/\n/g, '<br>'));
+          } catch (e) {
+            // failed resolve: re-render with the options live again for an explicit retry
+            if (!alive()) return;
+            toast(e.message);
+            render(`<b style="color:var(--red)">${esc(e.message)}</b>`);
           }
           wireContinue();
-        });
-
-        document.getElementById('optBribe').addEventListener('click', () => {
-          if ((char.gold || 0) < 10) return;
-          resolved = true;
-          char.gold -= 10;
-          api.roadEncounter(char.id, 'bribe').catch(() => {});
-          render(`<b style="color:var(--gold)">Coins Scattered! (-10 GP)</b><br>The goblins eagerly scramble in the mud for the glittering coins, squabbling amongst themselves as you slip safely past.`);
-          wireContinue();
-        });
-
-        document.getElementById('optSneak').addEventListener('click', async () => {
-          resolved = true;
-          const roll = await rollAnimated(20, 'Stealth Check');
-          const total = roll + stealthMod;
-          if (total >= 12) {
-            render(`<b style="color:var(--green)">Unseen! (Roll ${roll}+${stealthMod} = ${total} vs DC 12)</b><br>You slide through the tall ferns like a phantom. The goblins stare down an empty road while you slip quietly into the dungeon entrance!`);
-          } else {
-            char.hp = Math.max(1, (char.hp || char.hpMax) - 2);
-            api.roadEncounter(char.id, 'sneak_wound').catch(() => {});
-            render(`<b style="color:var(--red)">Spotted! (Roll ${roll}+${stealthMod} = ${total} vs DC 12)</b><br>A twig snaps loudly! A goblin shouts and looses an arrow that clips your shoulder (<b>-2 HP</b>, current HP: ${char.hp}/${char.hpMax}) as you dash for cover.`);
-          }
-          wireContinue();
-        });
+        };
+        document.getElementById('optFight').addEventListener('click', choose('fight'));
+        document.getElementById('optBribe').addEventListener('click', choose('bribe'));
+        document.getElementById('optSneak').addEventListener('click', choose('sneak'));
       }
 
       function wireContinue() {
-        const cBtn = document.getElementById('continueDelveBtn');
-        if (cBtn) {
-          cBtn.addEventListener('click', () => {
-            modal.remove();
-            embarkCallback();
-          });
-        }
+        const cBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('continueDelveBtn'));
+        if (cBtn) cBtn.addEventListener('click', async () => {
+          if (cBtn.disabled) return;
+          cBtn.disabled = true;
+          const ok = await embarkCallback();
+          if (ok === false) { cBtn.disabled = false; return; } // start failed — retry here
+          modal.remove();
+        });
       }
+      if (resolved) wireContinue();
 
     } else if (enc.id === 'shrine') {
       modal.innerHTML = `
@@ -255,42 +247,44 @@ export function showRoadEncounterModal(char, mapId, embarkCallback) {
       `;
 
       if (!resolved) {
-        document.getElementById('optPray').addEventListener('click', () => {
-          resolved = true;
-          char.tempHp = (char.tempHp || 0) + 5;
-          api.roadEncounter(char.id, 'shrine_pray').catch(() => {});
-          render(`<b style="color:var(--blue)">Dawnmother's Vitality!</b><br>A soothing solar warmth fills your chest. You feel invigorated and ready for battle. (<b>+5 Temp HP</b> added!)`);
+        const choose = (choice, apply) => async () => {
+          /** @type {HTMLButtonElement} */ (document.getElementById(choice === 'pray' ? 'optPray' : choice === 'offer' ? 'optOffer' : 'optProceed')).disabled = true;
+          try {
+            const res = await api.resolveRoadEncounter(char.id, choice, enc.instanceId);
+            if (!alive()) return;
+            resolved = true;
+            if (apply) apply(res);
+            render(res.text.replace(/\n/g, '<br>'));
+          } catch (e) {
+            if (!alive()) return;
+            toast(e.message);
+            render(`<b style="color:var(--red)">${esc(e.message)}</b>`);
+          }
           wireContinue();
-        });
-
-        document.getElementById('optOffer').addEventListener('click', () => {
-          if ((char.gold || 0) < 5) return;
-          resolved = true;
-          char.gold -= 5;
+        };
+        document.getElementById('optPray').addEventListener('click', choose('pray', (res) => {
+          char.tempHp = res.tempHp != null ? res.tempHp : (char.tempHp || 0) + 5;
+        }));
+        document.getElementById('optOffer').addEventListener('click', choose('offer', (res) => {
+          char.gold = res.gold != null ? res.gold : char.gold;
           char.blessed = true;
-          api.roadEncounter(char.id, 'shrine_offer').catch(() => {});
-          render(`<b style="color:var(--gold)">Divine Blessing Bestowed! (-5 GP)</b><br>The silver and gold coins gleam in the sacred bowl. A radiant aura settles upon your brow (<b>Heroic Inspiration</b> granted for the delve ahead!).`);
-          wireContinue();
-        });
-
-        document.getElementById('optProceed').addEventListener('click', () => {
-          resolved = true;
-          render(`<b style="color:var(--muted)">Steady March.</b><br>You salute the sun crest and march purposefully toward the waiting dungeon.`);
-          wireContinue();
-        });
+        }));
+        document.getElementById('optProceed').addEventListener('click', choose('proceed', null));
       }
 
       function wireContinue() {
-        const cBtn = document.getElementById('continueDelveBtn');
-        if (cBtn) {
-          cBtn.addEventListener('click', () => {
-            modal.remove();
-            embarkCallback();
-          });
-        }
+        const cBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('continueDelveBtn'));
+        if (cBtn) cBtn.addEventListener('click', async () => {
+          if (cBtn.disabled) return;
+          cBtn.disabled = true;
+          const ok = await embarkCallback();
+          if (ok === false) { cBtn.disabled = false; return; }
+          modal.remove();
+        });
       }
+      if (resolved) wireContinue();
     }
   };
 
-  render();
+  render(initialResult);
 }

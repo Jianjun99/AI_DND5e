@@ -1,6 +1,7 @@
 // scripts/verify.mjs — one-command full verification for humans and AI agents.
 //
-// Boots the game server on a free port, then runs eslint → tsc → all 13 test
+// On the host, dispatches to the dedicated Docker image. In that image, boots
+// the game server on a free port, then runs eslint → tsc → every test
 // suites → the smoke test against that server, and tears the server down in a
 // finally block. Exit code 0 means everything passed.
 //
@@ -9,13 +10,34 @@
 // code bugs but are not. `npm run verify` removes that trap entirely.
 //
 // Usage:  npm run verify          (or: node scripts/verify.mjs)
-//         PORT=3200 npm run verify   (force a specific port)
 
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertTestContainer } from './test-container.mjs';
+
+if (process.env.AI_DND_TEST_CONTAINER !== '1') {
+  await import('./docker-verify.mjs');
+  process.exit(process.exitCode ?? 1);
+}
+assertTestContainer();
+
+// Also reject a second npm run verify launched via docker exec in this same
+// container. The outer Docker name lock covers separate agents/worktrees.
+const lockFile = '/tmp/ai-dnd-verify.lock';
+let lockFd;
+try { lockFd = fs.openSync(lockFile, 'wx'); }
+catch (error) {
+  if (error.code !== 'EEXIST') throw error;
+  console.error('Full verification is already running in this test container.');
+  process.exit(73);
+}
+process.on('exit', () => {
+  fs.closeSync(lockFd);
+  fs.unlinkSync(lockFile);
+});
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -24,7 +46,7 @@ const WIN = process.platform === 'win32';
 const step = (name) => console.log(`\n=== verify: ${name} ===`);
 
 /** Run a command, tee its output to our console while capturing it for
- *  data/last-verify.log. shell is required for npm/npx on Windows (they are
+ *  VERIFY_ARTIFACT_DIR/last-verify.log. shell is required for npm/npx on Windows (they are
  *  .cmd shims), but MUST stay off for direct node spawns — shell splits
  *  `C:\Program Files\...node.exe` on the space. */
 function run(cmd, args, { env = {}, shell = false } = {}) {
@@ -97,21 +119,33 @@ try {
   if (!healthy) throw new Error(`server never became healthy on ${BASE}`);
   console.log(`server healthy at ${BASE}`);
 
-  step('test-all (17 suites, incl. 3 headless-browser e2e)');
+  step('test-all (all suites, required Chromium + WebGL2 e2e)');
   results.push(['test-all', await run(process.execPath, ['scripts/test-all.mjs'], { env: { PORT: String(port) } })]);
 
   step('smoke test');
   results.push(['smoke', await run(process.execPath, ['scripts/smoke-test.mjs'], { env: { PORT: String(port) } })]);
+  if (Number(process.env.VERIFY_REPLAY_RUNS) > 0) {
+    step('additional delve replay');
+    results.push(['replay', await run(process.execPath,
+      ['scripts/replay-bot.mjs', '--runs', process.env.VERIFY_REPLAY_RUNS], { env: { PORT: String(port) } })]);
+  }
+  if (Number(process.env.VERIFY_BALANCE_RUNS) > 0) {
+    step('balance simulation');
+    results.push(['balance', await run(process.execPath, ['scripts/balance-sim.mjs', process.env.VERIFY_BALANCE_RUNS])]);
+  }
 } catch (err) {
   console.error(`\nverify aborted: ${err.message}`);
   results.push(['boot', { code: 1, output: String(err.message) }]);
 } finally {
   killTree(server);
-  // persist the full transcript for the MCP recent_failures tool (data/ is gitignored)
+  // Logs are separate from the temporary test data and the player's data/.
   try {
     const log = results.map(([name, r]) => `=== ${name} (exit ${r.code}) ===\n${r.output}`).join('\n\n');
-    fs.writeFileSync(path.join(ROOT, 'data', 'last-verify.log'), `verify run ${new Date().toISOString()} — port ${port}\n\n${log}\n`);
-  } catch { /* data/ missing in fresh checkouts — non-fatal */ }
+    fs.writeFileSync(path.join(process.env.VERIFY_ARTIFACT_DIR, 'last-verify.log'), `verify run ${new Date().toISOString()} — port ${port}\n\n${log}\n`);
+  } catch (error) {
+    console.error('Failed to preserve verification log:', error.message);
+    results.push(['artifacts', { code: 1, output: error.message }]);
+  }
 }
 
 console.log('\n=== verify summary ===');

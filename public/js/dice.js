@@ -18,9 +18,9 @@ export function hideDice() {
   if (overlay) { overlay.remove(); overlay = null; }
 }
 
-// convenience: animate then resolve
-export function rollAnimated(sides, label) {
-  const result = 1 + Math.floor(Math.random() * sides);
+// convenience: animate then resolve (fixedResult accepts predetermined server rolls)
+export function rollAnimated(sides, label, fixedResult = null) {
+  const result = fixedResult != null ? fixedResult : (1 + Math.floor(Math.random() * sides));
   showDice(sides, result, label);
   return new Promise(resolve => setTimeout(() => resolve(result), 850));
 }

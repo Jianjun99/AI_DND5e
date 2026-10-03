@@ -59,21 +59,62 @@ async function waitHealthy() {
   if (char.acBase !== 19) throw new Error(`Expected AC 19 (chain mail 16 + shield 2 + Defense style 1), got ${char.acBase}`);
   console.log(`✔ character created: ${char.name} — ${char.hpMax} HP, ${char.acBase} AC`);
 
-  // road-encounter outcomes persist to the roster and ride into the delve as boons
-  const roadGoldBefore = (await req('GET', `/api/characters/${char.id}`)).gold;
-  const offered = await req('POST', `/api/characters/${char.id}/road-encounter`, { outcome: 'shrine_offer' });
-  await req('POST', `/api/characters/${char.id}/road-encounter`, { outcome: 'shrine_pray' });
-  if (offered.gold !== roadGoldBefore - 5 || !(offered.pendingRoadBoons || []).includes('shrine_blessed')) {
-    throw new Error('Road-encounter outcome did not persist to the roster');
+  // road-encounter lifecycle (T7a): one live instance per character until a delve start
+  // consumes it — trigger reuses the pending instance, resolve records the choice, and the
+  // boons apply exactly once at the real start. The blessed path is asserted here; the
+  // tempHp path is covered by tests/integration/server-checks.test.mjs.
+  // Unwanted instances are discarded by resolving them (ambush discards are resolved by
+  // FIGHT and the loop keeps rolling until at least one ambush WIN has been seen AND a
+  // shrine appears AFTER it), so the "ambush victory (+25 GP) → shrine offering" gold
+  // chain is exercised deterministically on every run.
+  let shrineEnc = null;
+  let ambushWinSeen = false;
+  let guard = 0;
+  while (!shrineEnc && guard++ < 60) {
+    const t = await req('POST', `/api/characters/${char.id}/road-encounter`, { action: 'trigger', force: true });
+    const enc = t.encounter;
+    if (enc && enc.id === 'shrine' && !enc.resolved) {
+      if (ambushWinSeen) { shrineEnc = enc; break; }
+      // a shrine before any ambush win cannot serve as the baseline case — discard it
+      await req('POST', `/api/characters/${char.id}/road-encounter`, { choice: 'proceed', encounterId: enc.instanceId });
+    } else if (enc && !enc.resolved) {
+      if (enc.id === 'ambush') {
+        const fight = await req('POST', `/api/characters/${char.id}/road-encounter`, { choice: 'fight', encounterId: enc.instanceId });
+        if (fight.outcome === 'ambush_win') ambushWinSeen = true;
+      } else {
+        await req('POST', `/api/characters/${char.id}/road-encounter`, { choice: 'leave', encounterId: enc.instanceId });
+      }
+    }
+    // consume whatever is live (the lifecycle keeps resolved instances until a start does)
+    const d = await req('POST', '/api/game/start', { characterId: char.id, bringAlly: false });
+    await req('DELETE', `/api/game/${d.state.id}`);
+  }
+  if (!shrineEnc) throw new Error('Shrine road encounter never offered after 60 trigger cycles');
+  if (!ambushWinSeen) throw new Error('Ambush-win → shrine chain was not exercised (deterministic coverage missing)');
+  // reuse: re-triggering returns the SAME live instance (no re-roll, same instanceId)
+  const again = await req('POST', `/api/characters/${char.id}/road-encounter`, { action: 'trigger', force: true });
+  if (!again.encounter || again.encounter.instanceId !== shrineEnc.instanceId) {
+    throw new Error('Pending road encounter was not reused by a second trigger');
+  }
+  // authoritative baseline taken AFTER the ambush wins (+25 GP each) — the offer itself
+  // must cost exactly 5 GP from whatever the roster holds right now
+  const goldBeforeOffer = (await req('GET', `/api/characters/${char.id}`)).gold;
+  const offered = await req('POST', `/api/characters/${char.id}/road-encounter`, { choice: 'offer', encounterId: shrineEnc.instanceId });
+  if (offered.gold !== goldBeforeOffer - 5 || !(offered.pendingRoadBoons || []).includes('shrine_blessed')) {
+    throw new Error(`Road-encounter offering did not persist: expected ${goldBeforeOffer - 5} gp, got ${offered.gold}`);
+  }
+  // status restores the resolved instance (same id, result kept) without consuming it
+  const st = await req('POST', `/api/characters/${char.id}/road-encounter`, { action: 'status' });
+  if (!st.currentRoadEncounter || !st.currentRoadEncounter.resolved || st.currentRoadEncounter.instanceId !== shrineEnc.instanceId) {
+    throw new Error('Resolved road encounter not restorable via status');
   }
 
   const game = await req('POST', '/api/game/start', { characterId: char.id, bringAlly: false });
   const sid = game.state.id;
   const player = game.state.entities.find(e => e.kind === 'player');
   if (player.x !== 4 || player.y !== 4) throw new Error(`Expected start (4,4), got (${player.x},${player.y})`);
-  if (player.tempHp !== 5) throw new Error(`Expected shrine temp HP 5 at delve start, got ${player.tempHp}`);
   if (!(player.buffs || []).some(b => b.id === 'blessed')) throw new Error('Shrine blessing buff missing at delve start');
-  console.log(`✔ delve started: ${sid} (road-encounter boons applied: +5 temp HP, blessed)`);
+  console.log(`✔ delve started: ${sid} (road-encounter lifecycle: reused instance, resolved once, blessed boon applied)`);
 
   // Marla's shop: player starts within 3 tiles of her stall
   const goldBefore = game.state.character.gold;

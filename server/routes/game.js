@@ -9,16 +9,42 @@ const contentMod = require('../game/content');
 const gambling = require('../game/gambling');
 const potions = require('../game/potions');
 const campaignMod = require('../game/campaign');
+const guidanceMod = require('../game/guidance');
 
 const router = express.Router();
 
 // ---------------- helpers ----------------
 function findCharacter(id) { return store.getCharacters().find(c => c.id === id); }
 
+// ---- write-ownership contract (T2) ----
+// Every log entry appended while handling an action is stamped with that action's id, so
+// the DM's narration can be merged into the LATEST save later (the mechanical save already
+// happened before the model call) without touching anything else and without duplicating.
+function stampActionLogs(state, fromIndex, actionId) {
+  for (let i = Math.max(0, fromIndex); i < state.log.length; i++) {
+    if (!state.log[i].aid) state.log[i].aid = actionId;
+  }
+}
+
+// Merge one action's narration into the latest save: drop the canned lines that belong to
+// this action, append the DM prose once (aid dedupe keeps retries/replays from doubling).
+// Never writes back the caller's snapshot — only the log of the freshly-read state.
+function applyNarration(latest, actionId, logStartIndex, text) {
+  latest.log = latest.log.filter((l, i) => {
+    const own = l.aid ? l.aid === actionId : i >= logStartIndex;
+    return !(own && l.kind === 'dm_canned');
+  });
+  if (!latest.log.some(l => l.aid === actionId && l.kind === 'dm')) {
+    latest.log.push({ kind: 'dm', text, ts: Date.now(), aid: actionId });
+  }
+}
+
 function sanitize(state) {
   const view = JSON.parse(JSON.stringify(state));
   view.objects = view.objects.filter(o => !(o.type === 'trap' && !o.revealed && !o.triggered));
   view.map.entities = undefined; // originals no longer needed client-side
+  view.map.scenes = undefined; // expose current legal choices, never author effect definitions
+  view.scenes = engine.sceneViews(state);
   view.visible = engine.computeVision(state);
   // The level-up badge must reflect the roster hero, not this delve's snapshot: a hero who
   // levelled up in town and then continued an older delve would otherwise see a badge the
@@ -35,18 +61,27 @@ function sanitize(state) {
     actId: step ? step.id : null,
     actName: step ? step.name : null
   };
+  // deterministic in-delve guidance (T4): objective pill, return-to-camp prompt and the
+  // combat economy line — computed server-side from the live state, no LLM involved
+  view.guidance = guidanceMod.delve({ ...view, map: state.map }); // derive before hiding author-only scene definitions
   return view;
 }
 
-async function narrate(state, events, logStartIndex) {
+// Narrate the narratable events of one action. The model call happens OUTSIDE the save
+// lock with a prompt-context snapshot; the produced text is then merged into the LATEST
+// save (only this action's log lines change) and persisted — so narration survives
+// GET/refresh/reconnect and concurrent mechanical actions are never rolled back (T2).
+async function narrate(state, events, logStartIndex, actionId) {
   const narratable = events.filter(e => e.narrate);
   if (!narratable.length) return;
   const text = await dm.narrateEvents(state, narratable);
-  if (text) {
-    // drop the canned scene line for this action if the DM voiced it instead
-    state.log = state.log.filter((l, i) => !(i >= logStartIndex && l.kind === 'dm_canned'));
-    engine.addLog(state, 'dm', text);
-  }
+  if (!text) return; // LLM off/unreachable/slow-empty — the canned lines stand, mechanics untouched
+  await store.withSaveLock(state.id, () => {
+    const latest = store.getSave(state.id);
+    if (!latest) return;
+    applyNarration(latest, actionId, logStartIndex, text);
+    store.saveGame(latest);
+  });
 }
 
 // rolled instances (brews, tokens) vanish once the last one is used
@@ -73,7 +108,7 @@ function requireAlive(state, events) {
   return true;
 }
 
-const NEEDS_CONSCIOUS = ['move', 'attack', 'cast', 'dash', 'dodge', 'disengage', 'shove', 'useItem', 'interact', 'classAction', 'freeform', 'chat', 'rest', 'quest', 'retreat', 'skillCheckObject'];
+const NEEDS_CONSCIOUS = ['move', 'attack', 'cast', 'dash', 'dodge', 'disengage', 'shove', 'useItem', 'interact', 'classAction', 'freeform', 'chat', 'rest', 'quest', 'retreat', 'skillCheckObject', 'sceneChoice'];
 function requireConscious(state, events) {
   const p = state.entities.find(e => e.kind === 'player');
   if (p && p.conditions.includes('unconscious')) {
@@ -90,6 +125,18 @@ router.post('/start', async (req, res) => {
   let mapId = body.mapId;
   const bringAlly = body.bringAlly;
   const char = findCharacter(characterId);
+  if (!char) return res.status(404).json({ error: 'Character not found' });
+  // T7a: an unresolved road encounter must not be silently skipped by a direct start —
+  // the trigger endpoint hands the same live instance back, and the player resolves it
+  // before departing. Bots/old clients never trigger an encounter, so they are
+  // unaffected; a resolved-but-unconsumed instance passes through and is consumed once
+  // (boons applied, instance cleared) further down.
+  if (char && char.currentRoadEncounter && !char.currentRoadEncounter.resolved) {
+    return res.status(409).json({
+      error: 'Road encounter unresolved — choose an option before departing.',
+      encounter: engine.roadEncounterView(char.currentRoadEncounter, char)
+    });
+  }
   const allyOption = (typeof bringAlly === 'string' && bringAlly === 'none') ? false : (bringAlly || false);
   // the weekly challenge: a boss-floor procedural delve from one seed per ISO week
   let weekly = null;
@@ -101,6 +148,9 @@ router.post('/start', async (req, res) => {
   }
   if (mapId === 'endless_1') {
     contentMod.injectMap(endless.generateFloor(1));
+  }
+  if (!contentMod.getMap(mapId)) {
+    return res.status(400).json({ error: 'Unknown or invalid map: ' + (mapId ?? '(default)'), diagnostics: contentMod.diagnostics() });
   }
   // gambled delve-only prizes ride along, and any curse bought at the table lands here
   const carryItems = (char.pendingDelveItems || []).slice();
@@ -133,13 +183,14 @@ router.post('/start', async (req, res) => {
       events.push({ type: 'boon', narrate: true, text: '黎明母亲的祝福落在你眉间——本次冒险中攻击检定获得 +1d4。' });
     }
   });
-  if (carryItems.length || pendingCurses.length || roadBoons.length) {
+  if (carryItems.length || pendingCurses.length || roadBoons.length || char.currentRoadEncounter) {
     const chars = store.getCharacters();
     const idx = chars.findIndex(c => c.id === char.id);
     if (idx >= 0) {
       chars[idx].pendingDelveItems = [];
       chars[idx].pendingCurses = [];
       chars[idx].pendingRoadBoons = [];
+      chars[idx].currentRoadEncounter = null;
       store.saveCharacters(chars);
     }
   }
@@ -149,9 +200,12 @@ router.post('/start', async (req, res) => {
   };
   events.push(intro);
   engine.addLog(state, 'dm_canned', intro.text);
+  const startActionId = store.newId('act');
+  stampActionLogs(state, state.log.length - 1, startActionId);
   store.saveGame(state);
-  await narrate(state, events, state.log.length - 1);
-  res.json({ state: sanitize(state), events });
+  await narrate(state, events, state.log.length - 1, startActionId);
+  // respond from the persisted save so the narration merged above is already in it
+  res.json({ state: sanitize(store.getSave(state.id) || state), events });
 });
 
 router.get('/:id', (req, res) => {
@@ -165,21 +219,51 @@ router.delete('/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// Read-only deterministic previews (T7a): the client's check modal shows these numbers
+// instead of computing its own. Strictly read-only — no save write, no rev bump, no RNG,
+// no buff/resource consumption (it only mirrors what the resolve action WILL roll with).
+router.post('/:id/preview', (req, res) => {
+  const state = store.getSave(req.params.id);
+  if (!state) return res.status(404).json({ error: 'Save not found' });
+  const body = req.body || {};
+  if (body.type === 'skillCheckObject') {
+    const obj = (state.objects || []).find(o => o.id === body.objectId);
+    if (!obj) return res.status(404).json({ error: 'Object not found' });
+    return res.json({ ok: true, preview: engine.previewSkillCheckObject(state, obj) });
+  }
+  return res.status(400).json({ error: 'Unknown preview type' });
+});
+
 router.get('/', (req, res) => {
   res.json(store.listSaves());
 });
 
 // main action endpoint
+// T2 write contract: the mechanical section below is a SYNCHRONOUS read-modify-write of
+// the LATEST save (getSave → mutate → saveGame with no awaits in between — atomic in the
+// event loop). Every model call is queued into `pending`, runs OUTSIDE any save lock with
+// the saved snapshot as prompt context, and afterwards merges ONLY its own fields into a
+// freshly-read state. Never add an await between the getSave and the saveGame below —
+// that gap is exactly the stale-snapshot rollback bug (a slow describe used to rewind the
+// player's position). The per-save lock serializes the async merge phases and must never
+// be held across a model request.
 router.post('/:id/action', async (req, res) => {
-  const state = store.getSave(req.params.id);
-  if (!state) return res.status(404).json({ error: 'Save not found' });
-  engine.beginRng(state); // seeded delves (weekly challenge) resume their deterministic stream
   const action = req.body || {};
-  const events = [];
-  const logStart = state.log.length;
+  const actionId = store.newId('act');
+  const pending = []; // { run: async model call, apply: (latest) => writes only its own fields }
   let chatReply = null;
   let appearance = null;
   let portrait = null;
+  let restRecapEntry = null;
+  let freeformFlavorText = null;
+  let recapEntry = null;
+  let questTextResult = null;
+
+  const state = store.getSave(req.params.id);
+  if (!state) return res.status(404).json({ error: 'Save not found' });
+  engine.beginRng(state); // seeded delves (weekly challenge) resume their deterministic stream
+  const events = [];
+  const logStart = state.log.length;
   let handled = true;
 
   try {
@@ -192,7 +276,7 @@ router.post('/:id/action', async (req, res) => {
           break;
         }
         case 'attack': {
-          const target = state.entities.find(e => e.id === action.targetId && e.kind === 'monster' && e.alive);
+          const target = state.entities.find(e => e.id === action.targetId && e.kind === 'monster' && e.alive && !e.fled);
           const objTarget = (!target) ? state.objects.find(o => o.id === action.targetId && (o.type === 'barrel' || o.type === 'spores') && !o.exploded && !o.burst) : null;
           if (!target && !objTarget) { events.push({ type: 'error', text: 'Choose a target first.' }); break; }
           if (target && state.mode === 'explore') {
@@ -352,6 +436,10 @@ router.post('/:id/action', async (req, res) => {
           engine.shoveTarget(state, action.targetId, events);
           break;
         }
+        case 'sceneChoice': {
+          engine.chooseScene(state, action.sceneId, action.choiceId, events);
+          break;
+        }
         case 'interact': {
           // pre-generate the next endless floor if the stairs lead deeper
           const stairsObj = state.objects.find(o => o.id === action.objectId && o.type === 'stairs' && o.to && o.to.mapId === '__endless_next__');
@@ -453,12 +541,18 @@ router.post('/:id/action', async (req, res) => {
         case 'rest': {
           if (action.kind === 'long') {
             engine.longRest(state, events);
-            // write a journal entry after a successful long rest (fallback text if the LLM is off)
+            // write a journal entry after a successful long rest (fallback text if the LLM is off);
+            // the model call queues out of the mechanical commit and merges its own journal line
             if (state.mode !== 'combat' && events.every(e => e.type !== 'error')) {
-              state.journal = state.journal || [];
-              const entry = await dm.writeRecap(state);
-              state.journal.push({ ts: Date.now(), text: entry });
-              engine.addLog(state, 'system', '📖 A new entry finds its way into your journal.');
+              pending.push({
+                run: async () => { restRecapEntry = await dm.writeRecap(state); },
+                apply: (latest) => {
+                  if (!restRecapEntry) return;
+                  latest.journal = latest.journal || [];
+                  latest.journal.push({ ts: Date.now(), text: restRecapEntry });
+                  engine.addLog(latest, 'system', '📖 A new entry finds its way into your journal.');
+                }
+              });
             }
           } else engine.shortRest(state, events);
           break;
@@ -470,8 +564,12 @@ router.post('/:id/action', async (req, res) => {
           const result = referee.resolveFreeform(state, text);
           events.push(...result.events);
           if (!result.handled) {
-            const flavor = await dm.freeformFlavor(state, text);
-            engine.addLog(state, 'dm', flavor);
+            pending.push({
+              run: async () => { freeformFlavorText = await dm.freeformFlavor(state, text); },
+              apply: (latest) => {
+                if (freeformFlavorText) engine.addLog(latest, 'dm', freeformFlavorText);
+              }
+            });
           }
           break;
         }
@@ -482,14 +580,38 @@ router.post('/:id/action', async (req, res) => {
           if (!npcEnt) { events.push({ type: 'error', text: 'That NPC is not here.' }); break; }
           if (engine.manhattan(npcEnt, engine.playerEntity(state)) > 5) { events.push({ type: 'error', text: 'Move closer to speak with them.' }); break; }
           engine.addLog(state, 'player', `${text}  (to ${npcEnt.name})`);
+          const memoryAtRequest = engine.sceneMemory(state, npcId);
+          const phaseAtRequest = engine.sceneViews(state).find(s => s.npcId === npcId)?.phase;
           if (npcId === 'morthek' && !state.flags.morthek_potion) {
             state.flags.morthek_potion = true;
             const inv = state.character.inventory.find(x => x.itemId === 'potion_healing');
             if (inv) inv.qty++; else state.character.inventory.push({ itemId: 'potion_healing', qty: 1 });
             engine.addLog(state, 'mech', 'Morthek presses a Potion of Healing into your hands.');
           }
-          chatReply = await dm.npcChat(state, npcId, text);
-          engine.addLog(state, 'npc', `${npcEnt.name}: "${chatReply}"`);
+          pending.push({
+            run: async () => { chatReply = await dm.npcChat(state, npcId, text); },
+            apply: (latest) => {
+              // T2a: merge ONLY this action's exchange onto the LATEST history, tagged with
+              // this action's id. Never copy the prompt snapshot's whole history — a slow
+              // held reply must not erase a faster concurrent chat that already landed.
+              // Out-of-order completions append in completion order; the 24-entry cap
+              // matches dm.npcChat's own truncation.
+              if (chatReply != null) {
+                // A delayed reply cannot quote the previous branch after a newer choice.
+                const currentMemory = engine.sceneMemory(latest, npcId);
+                const currentPhase = engine.sceneViews(latest).find(s => s.npcId === npcId)?.phase;
+                if (currentMemory !== memoryAtRequest || currentPhase !== phaseAtRequest) chatReply = currentPhase === 'fighting' ? '这次战斗还没有结束，先完成战斗再谈通行。' : currentMemory || latest.map.npcs[npcId]?.canned?.[0] || '…';
+                latest.npcChat = latest.npcChat || {};
+                const hist = latest.npcChat[npcId] = latest.npcChat[npcId] || [];
+                if (!hist.some(m => m.aid === actionId)) {
+                  hist.push({ role: 'user', content: text, aid: actionId });
+                  hist.push({ role: 'assistant', content: chatReply, aid: actionId });
+                  if (hist.length > 24) hist.splice(0, hist.length - 24);
+                }
+                engine.addLog(latest, 'npc', `${npcEnt.name}: "${chatReply}"`);
+              }
+            }
+          });
           break;
         }
         case 'respawn': {
@@ -508,10 +630,17 @@ router.post('/:id/action', async (req, res) => {
           if (!ent) { events.push({ type: 'error', text: 'Nothing to describe.' }); break; }
           const key = ent.kind === 'monster' ? ent.monsterId : ent.npcId;
           state.appearances = state.appearances || {};
-          if (!state.appearances[key]) {
-            state.appearances[key] = await dm.describeEntity(state, ent);
-          }
-          appearance = state.appearances[key];
+          if (state.appearances[key]) { appearance = state.appearances[key]; break; }
+          // the model call queues out of the mechanical commit; only this cache entry is
+          // written back, onto the LATEST save — never the snapshot taken before the wait
+          pending.push({
+            run: async () => { appearance = await dm.describeEntity(state, ent); },
+            apply: (latest) => {
+              latest.appearances = latest.appearances || {};
+              if (!latest.appearances[key] && appearance) latest.appearances[key] = appearance;
+              appearance = latest.appearances[key] || appearance;
+            }
+          });
           break;
         }
         case 'recap': {
@@ -522,20 +651,28 @@ router.post('/:id/action', async (req, res) => {
             events.push({ type: 'error', text: 'You can only write in your journal at the campfire.' });
             break;
           }
-          state.journal = state.journal || [];
-          const entry = await dm.writeRecap(state);
-          state.journal.push({ ts: Date.now(), text: entry });
-          const ev = { type: 'journal', narrate: false, text: entry, data: { entry } };
-          events.push(ev);
-          engine.addLog(state, 'system', '📖 You scratch a new entry into your journal.');
+          pending.push({
+            run: async () => { recapEntry = await dm.writeRecap(state); },
+            apply: (latest) => {
+              if (!recapEntry) return;
+              latest.journal = latest.journal || [];
+              latest.journal.push({ ts: Date.now(), text: recapEntry });
+              events.push({ type: 'journal', narrate: false, text: recapEntry, data: { entry: recapEntry } });
+              engine.addLog(latest, 'system', '📖 You scratch a new entry into your journal.');
+            }
+          });
           break;
         }
         case 'portrait': {
           const pent = state.entities.find(e => e.id === action.targetId && (e.kind === 'monster' || e.kind === 'npc'));
           if (!pent) { events.push({ type: 'error', text: 'Nothing to portray.' }); break; }
-          try {
-            portrait = await portraits.ensurePortrait(state, pent);
-          } catch { portrait = null; }
+          // portraits cache to the portraits dir on disk, not to the save — nothing to merge
+          pending.push({
+            run: async () => {
+              try { portrait = await portraits.ensurePortrait(state, pent); } catch { portrait = null; }
+            },
+            apply: () => {}
+          });
           break;
         }
         case 'quest': {
@@ -552,10 +689,21 @@ router.post('/:id/action', async (req, res) => {
           }
           const quest = engine.rollSideQuest(state);
           if (!quest) { events.push({ type: 'info', text: 'No one at camp has work to offer tonight.' }); break; }
-          const llmText = await dm.questText(state, quest);
-          if (llmText) quest.text = llmText;
-          events.push({ type: 'quest_offer', narrate: true, text: quest.text, data: { quest } });
+          const questEv = { type: 'quest_offer', narrate: true, text: quest.text, data: { quest } };
+          events.push(questEv);
           engine.addLog(state, 'system', `📜 New side quest: ${quest.shortText} (${quest.reward.gold} gp, ${quest.reward.xp} XP)`);
+          // the LLM only rewords the hook; the objective itself was already committed above
+          pending.push({
+            run: async () => {
+              questTextResult = await dm.questText(state, quest);
+              if (questTextResult) { quest.text = questTextResult; questEv.text = questTextResult; }
+            },
+            apply: (latest) => {
+              if (questTextResult && latest.quests && latest.quests.active && latest.quests.active.id === quest.id) {
+                latest.quests.active.text = questTextResult;
+              }
+            }
+          });
           break;
         }
         case 'retreat': {
@@ -569,6 +717,7 @@ router.post('/:id/action', async (req, res) => {
             break;
           }
           state.mode = 'retreat';
+          state.endSeq = (state.endSeq || 0) + 1; // settleable end marker (T3)
           state.flags = state.flags || {};
           state.flags.retreated = true;
           const ev = {
@@ -586,9 +735,11 @@ router.post('/:id/action', async (req, res) => {
           const p = engine.playerEntity(state);
           if (engine.manhattan(p, obj) > 1) { events.push({ type: 'error', text: 'Move closer first.' }); break; }
           if (obj.type === 'trap') {
-            engine.disarmTrap(state, obj, action.rollTotal || 10, events);
+            engine.disarmTrap(state, obj, events);
           } else if (obj.type === 'chest') {
-            engine.unlockChest(state, obj, action.method || 'pick', action.rollTotal || 10, events);
+            engine.unlockChest(state, obj, action.method || 'pick', events);
+          } else {
+            events.push({ type: 'error', text: 'Object cannot be checked.' });
           }
           break;
         }
@@ -603,11 +754,31 @@ router.post('/:id/action', async (req, res) => {
   }
 
   if (state.mode !== 'over' && state.mode !== 'victory' && state.mode !== 'retreat') engine.checkCombatEnd(state, events);
+  engine.progressScenes(state, events);
   engine.persistRng(state);
   state.updatedAt = Date.now();
-  store.saveGame(state);
-  if (handled) await narrate(state, events, logStart);
-  res.json({ state: sanitize(state), events, chatReply, appearance, portrait });
+  stampActionLogs(state, logStart, actionId);
+  store.saveGame(state); // mechanical commit — happens BEFORE any model wait
+
+  // phase 2: the queued model calls run outside every save lock, on the saved snapshot
+  for (const job of pending) {
+    try { await job.run(); } catch (e) {
+      console.error(e);
+      events.push({ type: 'error', text: 'The DM is silent for a moment — the adventure goes on.' });
+    }
+  }
+  // phase 3: merge only the aux fields into the LATEST save (concurrent moves survive)
+  await store.withSaveLock(state.id, () => {
+    const latest = store.getSave(state.id);
+    if (!latest) return;
+    for (const job of pending) job.apply(latest);
+    store.saveGame(latest);
+  });
+
+  if (handled) await narrate(state, events, logStart, actionId);
+  // respond from the persisted save so narration and aux merges are already part of it
+  const finalState = store.getSave(req.params.id) || state;
+  res.json({ state: sanitize(finalState), events, chatReply, appearance, portrait });
 });
 
 // Marla's shop — buy supplies with gold while near the entrance camp
@@ -674,6 +845,7 @@ function respawnAtCamp(state, events) {
     const ally = state.entities.find(e => e.kind === 'ally');
     if (ally) { ally.alive = true; ally.hp = ally.hpMax; ally.x = p.x + 1; ally.y = p.y; }
   }
+  engine.resetSceneAttempts(state);
   const rescuer = (state.flags.ally && (state.entities.find(e => e.kind === 'ally') || {}).name) || 'a mysterious watcher';
   const ev = { type: 'respawn', narrate: true, text: `Cold water. Torchlight. ${state.character.name} wakes at the camp, aching but alive — dragged back by ${rescuer}, the dungeon's monsters having returned to their posts. Half your strength remains (${p.hp}/${p.hpMax} HP).` };
   events.push(ev); engine.addLog(state, 'system', ev.text);

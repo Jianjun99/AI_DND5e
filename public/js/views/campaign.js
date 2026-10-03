@@ -85,6 +85,11 @@ export async function campaignView(main, charId) {
         <p class="muted small" style="margin-top:10px;">主线结束了，但地牢还在：无尽深渊、所有地图与图鉴收集都不受影响。</p>
       </div>
     ` : `
+      ${data.guidance && data.guidance.primary ? `
+      <div class="card guidance-banner-row" style="margin-top:14px; border-color:var(--gold-dim);">
+        <a class="btn primary" href="${guidanceHref(hero.id, data.guidance.primary)}">▶ ${esc(data.guidance.primary.text)}</a>
+        ${data.guidance.primary.reason ? `<span class="muted small">${esc(data.guidance.primary.reason)}</span>` : ''}
+      </div>` : ''}
       <div class="card" style="margin-top:14px;">
         <h3 style="margin-top:0;">🎬 进度记录</h3>
         ${(data.log || []).length ? `
@@ -98,4 +103,12 @@ export async function campaignView(main, charId) {
       </div>
     `}
   `;
+}
+
+// Guidance actions are server data — the campaign view maps them to hash routes.
+function guidanceHref(charId, action) {
+  if (!action) return `#/overworld?char=${charId}`;
+  if (action.kind === 'resume' && action.saveId) return `#/play/${action.saveId}`;
+  if (action.mapId) return `#/overworld?char=${charId}&node=${encodeURIComponent(action.mapId)}`;
+  return `#/overworld?char=${charId}`;
 }

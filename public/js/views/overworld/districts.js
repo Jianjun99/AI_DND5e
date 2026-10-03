@@ -469,6 +469,17 @@ export function createDistricts(ctx) {
         <p class="sub">The official provincial notice board of Oakhaven. Brave adventurers take contracts here to purge foul dungeon threats.</p>
       </div>
 
+      ${(cityData && cityData.weekly) ? `
+        <div class="card" style="margin-bottom:14px; border-color:var(--gold-dim); background:var(--bg2);">
+          <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
+            <h3 style="margin:0;">🏅 每周试炼 · Weekly Trial — ${esc(cityData.weekly.label)}</h3>
+            <span class="chip blue">Depth ${cityData.weekly.depth}</span>
+          </div>
+          <p class="muted small" style="margin:8px 0;">全体英雄共享同一个本周种子——同样的地牢、同样的怪物。击败 Depth Guardian 即登上周榜。固定难度 normal，不可重掷。</p>
+          ${(activeChar.weekly && activeChar.weekly.label === cityData.weekly.label) ? `<div class="small" style="color:var(--green); margin-bottom:8px;">✔ 本周已胜 ${activeChar.weekly.wins} 次（最佳击杀 ${activeChar.weekly.best ? activeChar.weekly.best.kills : '-'}）</div>` : ''}
+          <button class="btn primary" id="weeklyEmbarkBtn" ${activeChar ? '' : 'disabled'}>⚔ 接受本周试炼</button>
+        </div>` : ''}
+
       <div class="bounty-grid grid cols3">
         ${bounties.map(b => {
           const isClaimed = claimed.includes(b.id);
@@ -519,7 +530,7 @@ export function createDistricts(ctx) {
       `;
     }
 
-    const { bestiary = [], trophies = [], champions = [], bestiaryProgress = null, campaign = null, endlessRunners = [] } = hallData;
+    const { bestiary = [], trophies = [], champions = [], bestiaryProgress = null, campaign = null, endlessRunners = [], weeklyRunners = [], weeklyLabel = null } = hallData;
     const crFilter = hallFilter.cr || 'all';
     const sortBy = hallFilter.sort || 'cr';
     const shown = bestiary
@@ -550,6 +561,16 @@ export function createDistricts(ctx) {
                 ${a.icon} ${esc(a.name.replace(/^第.幕 · /, ''))}
               </span>`).join('<span class="campaign-arrow">→</span>')}
           </div>
+        </div>` : ''}
+
+      ${(weeklyRunners && weeklyRunners.length) ? `
+        <div class="card" style="margin-bottom:14px; border-color:var(--gold-dim); background:var(--bg2);">
+          <h3 style="margin:0 0 6px;">🏅 每周试炼榜 · ${esc(weeklyLabel)}</h3>
+          ${weeklyRunners.map((r, i) => `
+            <div class="stat-line">
+              <span>${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏅'} ${esc(r.name)} <span class="muted small">Lv ${r.level} ${esc(r.className)}</span></span>
+              <span style="color:var(--gold); font-weight:600;">✔ ${r.wins} 胜 · 最佳击杀 ${r.best ? r.best.kills : '-'}</span>
+            </div>`).join('')}
         </div>` : ''}
 
       ${(endlessRunners && endlessRunners.length) ? `
@@ -982,7 +1003,7 @@ export function createDistricts(ctx) {
       weeklyBtn.disabled = true;
       try {
         sfx.play('quest');
-        const res = await api.startGame(me.id, false, 'normal', 'weekly');
+        const res = await api.startGame(me.id, { bringAlly: false, difficulty: 'normal', mapId: 'weekly' });
         toast('⚔ 本周试炼开始：' + (res.state.weeklyLabel || 'weekly'));
         ctx.rerenderPanel(main);
         location.hash = '#/play/' + res.state.id;

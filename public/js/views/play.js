@@ -5,6 +5,7 @@ import { createMapRenderer } from '../map.js';
 import { createMap3D } from '../map3d.js';
 import { openSettingsModal } from './settings.js';
 import { createPanels } from './play/panels.js';
+import { createDelveTutorial } from './play/tutorial.js';
 import { createDelveInventory } from './play/delve-inventory.js';
 import { renderInitiativeRibbon } from './play/ribbon.js';
 import { showDice } from '../dice.js';
@@ -20,11 +21,37 @@ let game = null;
 let selectedTarget = null;
 /** @type {{ id: string, name: string } | null} */ let activeNpc = null;
 let appearanceShown = null;
+let appearanceLoading = null; // monsterId/npcId whose describe is waiting on the DM right now
+// portrait cache is keyed by creature id and lives OUTSIDE the game object: an adopted
+// state (server snapshot) never carries client-side caches, so keeping it on `game` would
+// wipe the rendered portrait on every poll/act (T2 aux-display fix)
+const portraitCache = {};
 let summaryShown = false;
 let questObjectiveFolded = false;
-let busy = false;
+// last tile whose shared-object selection we cycled (click path in handleTileClick);
+// module-level like the rest of the click state, reset by the next different tile
+const tilePick = { key: '', idx: 0 };
+// one token per playView mount — async callbacks drop their result when a newer view took
+// over, so a response for save A can never land in a page that already shows save B (T2a)
+let viewToken = 0;
+
+// T2/T2a: the single gate for adopting a whole server state. Rejects a different save's
+// snapshot and anything older than what is already on screen; the auxiliary result itself
+// (appearance text, portrait) displays regardless. Equal rev is fine (a fresh GET of the
+// same save). The initial load of a view assigns `game` directly — that is the
+// initialization boundary, everything after it must go through here.
+function adoptState(next) {
+  if (!next || !game) return false;
+  if (next.id !== game.id) return false;
+  if ((next.rev || 0) < ((game && game.rev) || 0)) return false;
+  game = next;
+  return true;
+}
 
 export async function playView(main, saveRef) {
+  const token = ++viewToken;
+  let viewAlive = true; // async callbacks stop adopting once the view ended (T2a)
+  let busy = false; // an old view's pending choice cannot lock/unlock another hero's view
   // Start a fresh delve: show the setup modal (map + difficulty + companion)
   if (saveRef === 'new') {
     const charId = new URLSearchParams(location.hash.split('?')[1] || '').get('char');
@@ -73,19 +100,31 @@ export async function playView(main, saveRef) {
           <button class="btn primary big" id="beginBtn" style="width:100%;">⚔ Descend</button>
         </div>
       </div>`;
-    document.getElementById('beginBtn').addEventListener('click', async () => {
+    const beginBtn = /** @type {HTMLButtonElement} */ (document.getElementById('beginBtn'));
+    beginBtn.addEventListener('click', async () => {
+      if (beginBtn.disabled) return;
       const mapId = (/** @type {HTMLInputElement} */ (document.querySelector('input[name="mapPick"]:checked') || {})).value || 'crypt';
-      const difficulty = (/** @type {HTMLInputElement} */ (document.querySelector('input[name="difficulty"]:checked') || {})).value || 'normal';
+      const difficulty = /** @type {'easy' | 'normal' | 'hard'} */ ((/** @type {HTMLInputElement} */ (document.querySelector('input[name="difficulty"]:checked') || {})).value || 'normal');
       const companionChoice = (/** @type {HTMLInputElement} */ (document.querySelector('input[name="companionPick"]:checked') || {})).value || 'bram';
-      const bringAlly = companionChoice === 'none' ? false : companionChoice;
+      const bringAlly = /** @type {false | 'bram' | 'valeria' | 'aldous'} */ (companionChoice === 'none' ? false : companionChoice);
+      beginBtn.disabled = true;
+      beginBtn.textContent = '⚔ Descending…';
       try {
         const { state } = await api.startGame(charId, { bringAlly, difficulty, mapId });
         location.hash = `#/play/${state.id}`;
-      } catch (e) { toast(e.message); }
+      } catch (e) {
+        toast(e.message);
+        beginBtn.disabled = false;
+        beginBtn.textContent = '⚔ Descend';
+      }
     });
     return () => {};
   }
   const data = await api.getGame(saveRef);
+  // initialization boundary: the only place a whole state is assigned without the rev/id
+  // gate — a newer view may have mounted while this GET was in flight, in which case we
+  // stand down and leave the board alone (T2a)
+  if (token !== viewToken) return () => {};
   game = data.state;
   const mapTheme = (game.map && game.map.theme) || (game.mapId && game.mapId.includes('vault') ? 'vault' : game.mapId && game.mapId.includes('hills') ? 'hills' : 'crypt');
   if (game.mode === 'combat') {
@@ -222,6 +261,27 @@ export async function playView(main, saveRef) {
     return mons.length === 0;
   }
 
+  // T4a: the retreat button must not claim completion — standing on the campfire tile with
+  // the goal is what fires the victory (story advance); a retreat only settles current spoils.
+  function retreatButtonLabel() {
+    if (game.mode === 'retreat' || game.mode === 'victory') return '🏆 View Summary / Return to Town';
+    if (game.guidance && game.guidance.stage === 'objective') return '🏃 提前撤退（走回营火才算完成）';
+    if (isAreaCleared(game)) return '🏃 主动撤退（只结算已有收获）';
+    return '🏰 Retreat to Oakhaven';
+  }
+  // the exit beacon highlights a safe way out; with the goal in hand the way forward is the
+  // campfire, so the beacon yields to the objective guidance
+  function retreatBeacon() {
+    return game.mode !== 'retreat' && game.mode !== 'victory'
+      && isAreaCleared(game) && !(game.guidance && game.guidance.stage === 'objective');
+  }
+
+  // The objective line shown in the side panel: the server guidance wins (T4), the local
+  // fallback keeps the panel useful if an older payload ever lacks it.
+  function delveObjectiveText() {
+    return (game.guidance && game.guidance.objective) || charObjective(game);
+  }
+
   let currentHoverTile = null;
   function updateHoverCues(tile) {
     currentHoverTile = tile;
@@ -253,12 +313,22 @@ export async function playView(main, saveRef) {
       modePill.className = 'guidance-mode-pill';
       modePill.textContent = '🏆 Victorious';
       movePill.textContent = '👣 Complete';
-    } else if (cleared) {
+    } else if (game.guidance && game.guidance.stage === 'objective') {
+      // goal in hand but still explore: the victory fires on the campfire tile, not before
       modePill.className = 'guidance-mode-pill';
       modePill.style.background = 'rgba(201, 169, 89, 0.25)';
       modePill.style.color = 'var(--gold)';
       modePill.style.borderColor = 'var(--gold)';
-      modePill.textContent = '🏆 Delve Cleared!';
+      modePill.textContent = '✅ 目标已到手';
+      const sp = player()?.speedFt || game.character?.speedFt || 30;
+      movePill.textContent = `👣 ${sp} ft (${Math.floor(sp / 5)} tiles)`;
+    } else if (cleared) {
+      // cleared ≠ victory — the goal may still be pending, so don't claim the delve is done
+      modePill.className = 'guidance-mode-pill';
+      modePill.style.background = 'rgba(201, 169, 89, 0.25)';
+      modePill.style.color = 'var(--gold)';
+      modePill.style.borderColor = 'var(--gold)';
+      modePill.textContent = '🛡️ 区域安全';
       const sp = player()?.speedFt || game.character?.speedFt || 30;
       movePill.textContent = `👣 ${sp} ft (${Math.floor(sp / 5)} tiles)`;
     } else {
@@ -273,7 +343,12 @@ export async function playView(main, saveRef) {
 
     if (objPill) {
       const mainStep = campaignObjective(game);
-      if (cleared && game.mode !== 'over') {
+      const guide = game.guidance || null;
+      if (guide && guide.objective) {
+        // the server's deterministic objective line leads (T4): it knows goal-vs-cleared
+        // and the return-to-camp prompt without re-deriving map rules in the client
+        objPill.textContent = guide.objective;
+      } else if (cleared && game.mode !== 'over') {
         objPill.innerHTML = `🌟 <b>Delve Cleared:</b> Head to Campfire / Entrance to Return to Town`;
       } else if (mainStep) {
         // the main story takes precedence over the local dungeon objective
@@ -285,7 +360,9 @@ export async function playView(main, saveRef) {
 
     if (!tile) {
       hoverIcon.textContent = '💡';
-      if (cleared && game.mode !== 'combat' && game.mode !== 'over') {
+      if (game.guidance && game.guidance.hint) {
+        hoverText.textContent = game.guidance.hint;
+      } else if (cleared && game.mode !== 'combat' && game.mode !== 'over') {
         hoverIcon.textContent = '🌟';
         hoverText.innerHTML = '<b>Delve Cleared!</b> All monsters slain. Follow the golden beacon light back to the Campfire or click <b>"Return to Oakhaven"</b>.';
       } else if (game.mode === 'combat') {
@@ -548,7 +625,11 @@ export async function playView(main, saveRef) {
     playerTile: () => { const p = player(); return p ? { x: p.x + 0.5, z: p.y + 0.5 } : null; },
     levelUp: () => (game && game.levelUp) || null,
     badgeShown: () => !!document.getElementById('btnDelveLevelUp'),
-    modelState: () => (renderer3d && renderer3d.modelState ? renderer3d.modelState() : null)
+    modelState: () => (renderer3d && renderer3d.modelState ? renderer3d.modelState() : null),
+    rev: () => (game && game.rev) || null,
+    portraits: () => Object.assign({}, portraitCache),
+    appearance: () => appearanceShown,
+    loadingAppearance: () => appearanceLoading
   };
 
   const onKey = (e) => {
@@ -565,6 +646,7 @@ export async function playView(main, saveRef) {
       return;
     }
     if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
+    if (document.getElementById('sceneModal')) return;
     if (e.key === 'v' || e.key === 'V') { e.preventDefault(); toggleImmersive(); return; }
     const dirs = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] };
     const d = dirs[e.key];
@@ -622,12 +704,18 @@ export async function playView(main, saveRef) {
     const key = ent.kind === 'monster' ? ent.monsterId : ent.npcId;
     game.appearances = game.appearances || {};
     if (game.appearances[key]) { appearanceShown = game.appearances[key]; update(); } else {
+      appearanceLoading = key; // waiting feedback while the DM studies the creature
+      update();
       try {
         const res = await api.gameAction(game.id, { type: 'describe', targetId: ent.id });
-        game = res.state;
-        appearanceShown = res.appearance || null;
+        adoptState(res.state); // a move during the wait is newer — never adopt the older snapshot
+        appearanceLoading = null;
+        appearanceShown = res.appearance || (game.appearances || {})[key] || null;
         update();
-      } catch { /* appearance is optional flavor */ }
+      } catch {
+        appearanceLoading = null;
+        update();
+      } /* appearance is optional flavor */
     }
     fetchPortrait(ent);
   }
@@ -635,16 +723,17 @@ export async function playView(main, saveRef) {
   // Fetch (and cache server-side) a painted portrait: AI image → SD WebUI → procedural sigil
   async function fetchPortrait(ent) {
     const key = ent.kind === 'monster' ? ent.monsterId : ent.npcId;
-    game.portraits = game.portraits || {};
-    if (game.portraits[key]) { update(); return; }
+    if (portraitCache[key]) { update(); return; }
     try {
       const res = await api.gameAction(game.id, { type: 'portrait', targetId: ent.id });
-      game = res.state;
+      adoptState(res.state);
       if (res.portrait && res.portrait.url) {
-        game.portraits[key] = res.portrait;
+        portraitCache[key] = res.portrait;
         update();
       }
-    } catch { /* portraits are optional flavor */ }
+    } catch (e) {
+      console.error('portrait fetch failed:', e); /* portraits are optional flavor */
+    }
   }
 
   // Marla's shop
@@ -660,6 +749,9 @@ export async function playView(main, saveRef) {
     },
     onSummaryRespawn: () => { summaryShown = false; act({ type: 'respawn' }); }
   });
+
+  // T5 first-delve coach: observes server state/events only — see views/play/tutorial.js
+  const tutorial = createDelveTutorial();
 
   const SFX_MAP = {
     attack: 'attack', attack_in: 'attack', spell_hit: 'spell', cast_flavor: 'spell', save: 'dice',
@@ -719,13 +811,15 @@ export async function playView(main, saveRef) {
   }
 
   async function act(action) {
-    if (busy) return;
+    if (!viewAlive || token !== viewToken || busy) return;
     busy = true;
     const logLen = game.log.length;
     const prevMode = game.mode;
     try {
       const res = await api.gameAction(game.id, action);
-      game = res.state;
+      if (!viewAlive || token !== viewToken) return res;
+      adoptState(res.state); // T2: reject a stale whole-state snapshot, events still apply
+      tutorial.observe(game, res.events, action); // T5 coach watches the server's answer
       // Ambient soundscape dynamic response to combat enter/exit
       const mapTheme = (game.map && game.map.theme) || (game.mapId && game.mapId.includes('vault') ? 'vault' : game.mapId && game.mapId.includes('hills') ? 'hills' : 'crypt');
       if (prevMode !== 'combat' && game.mode === 'combat') {
@@ -780,6 +874,8 @@ export async function playView(main, saveRef) {
       if (res.events.some(e => e.type === 'chat_open')) {
         const ev = res.events.find(e => e.type === 'chat_open');
         activeNpc = { id: ev.data.npcId, name: ev.data.name };
+        const sceneId = ev.data.sceneId || (game.scenes || []).find(scene => scene.npcId === ev.data.npcId)?.id;
+        if (sceneId) panels.openScene(sceneId);
       }
       if (res.events.some(e => e.type === 'journal')) toast('📖 Journal updated');
       if (res.chatReply) toast('The NPC answers…');
@@ -795,13 +891,13 @@ export async function playView(main, saveRef) {
       update();
       return res;
     } catch (e) {
-      toast(e.message);
+      if (viewAlive && token === viewToken) toast(e.message);
     } finally { busy = false; }
   }
 
   function handleTileClick(x, y) {
     if (busy || game.mode === 'over' || game.mode === 'victory') return;
-    const ent = game.entities.find(e => e.x === x && e.y === y && e.alive !== false);
+    const ent = game.entities.find(e => e.x === x && e.y === y && e.alive !== false && !e.fled);
     const vis = new Set(game.visible || []);
     if (ent && ent.kind === 'monster' && vis.has(x + ',' + y)) {
       selectedTarget = ent;
@@ -818,7 +914,21 @@ export async function playView(main, saveRef) {
       act({ type: 'freeform', text: 'talk to ' + ent.name });
       return;
     }
-    const obj = (game.objects || []).find(o => o.x === x && o.y === y && o.type !== 'npcMarker');
+    // Several interactables can share one tile (the crypt's Sunless Altar and the Relic
+    // both sit on 12,22). `find` used to shadow every later object forever, so the relic
+    // — the stage-0 objective — was unclickable in the UI. Repeated clicks on the same
+    // tile now cycle through its objects so both stay reachable; targeting only, the
+    // server still adjudicates by objectId.
+    const atTile = (game.objects || []).filter(o => o.x === x && o.y === y && o.type !== 'npcMarker');
+    let obj = atTile[0];
+    if (atTile.length > 1) {
+      const key = x + ',' + y;
+      tilePick.idx = tilePick.key === key ? (tilePick.idx + 1) % atTile.length : 0;
+      tilePick.key = key;
+      obj = atTile[tilePick.idx];
+    } else {
+      tilePick.key = '';
+    }
     if (obj) {
       const p = player();
       const dist = Math.abs(p.x - x) + Math.abs(p.y - y);
@@ -848,7 +958,9 @@ export async function playView(main, saveRef) {
   function update() {
     activeRender(game);
     renderSide();
+    panels.refreshScene();
     updateInitiativeRibbon();
+    tutorial.observe(game); // T5 coach: state-driven steps (mode transitions, settle mirror)
     const invModal = document.getElementById('delveInventoryModal');
     if (invModal) {
       delveInv.renderDelveInventoryModal(invModal);
@@ -952,10 +1064,21 @@ export async function playView(main, saveRef) {
         </div>
       </div>
 
+      ${(game.scenes || []).map(scene => `<div class="card"><h3>${esc(scene.name)}</h3><p class="small">${esc(scene.phase === 'resolved' ? scene.outcome : scene.prompt)}</p><button class="btn small" style="width:100%;white-space:normal;" data-scene-open="${esc(scene.id)}">${scene.phase === 'resolved' ? '听听守门人记得什么' : '查看遭遇选项'}</button></div>`).join('')}
+
       ${(() => {
         const pk = selectedTarget ? (selectedTarget.monsterId || selectedTarget.npcId) : null;
-        const port = pk ? (game.portraits || {})[pk] : null;
-        if (!port) return '';
+        const port = pk ? portraitCache[pk] : null;
+        if (!port) {
+          // the DM is studying this creature right now — show the wait (T2)
+          if (pk && appearanceLoading === pk) {
+            return `<div class="card" style="border-color:var(--gold-dim); text-align:center;">
+              <div class="spinner" style="margin:10px auto 6px;"></div>
+              <p class="small muted" style="margin:2px 0 6px;">The DM studies the creature…</p>
+            </div>`;
+          }
+          return '';
+        }
         return `
       <div class="card" style="border-color:var(--gold-dim); text-align:center;">
         <img src="${port.url}" alt="portrait" style="width:100%; max-width:180px; border-radius:8px;" onerror="this.style.display='none'">
@@ -966,8 +1089,8 @@ export async function playView(main, saveRef) {
       ${p.conditions.includes('unconscious') ? `
       <div class="card" style="border-color:#6b3a35;">
         <h3 style="color:#d98a80;">💀 Dying</h3>
-        <p class="small">Success&nbsp;&nbsp;${'●'.repeat((p.deathSaves || {}).succ || 0)}${'○'.repeat(3 - ((p.deathSaves || {}).succ || 0))}</p>
-        <p class="small">Failures&nbsp;&nbsp;${'●'.repeat((p.deathSaves || {}).fail || 0)}${'○'.repeat(3 - ((p.deathSaves || {}).fail || 0))}</p>
+        <p class="small">Success&nbsp;&nbsp;${'●'.repeat(Math.min(3, Math.max(0, (p.deathSaves || {}).succ || 0)))}${'○'.repeat(3 - Math.min(3, Math.max(0, (p.deathSaves || {}).succ || 0)))}</p>
+        <p class="small">Failures&nbsp;&nbsp;${'●'.repeat(Math.min(3, Math.max(0, (p.deathSaves || {}).fail || 0)))}${'○'.repeat(3 - Math.min(3, Math.max(0, (p.deathSaves || {}).fail || 0)))}</p>
         <p class="small muted" style="margin-top:4px;">Death saves roll automatically at the start of your turn. 3 successes stabilize you; 3 failures…</p>
       </div>` : ''}
 
@@ -986,7 +1109,7 @@ export async function playView(main, saveRef) {
           <button class="btn" data-act="longrest">🔥 Long Rest</button>
           <button class="btn" data-act="potion">🧪 Potion (${potCount})</button>
           ${atCampfire() ? `<button class="btn" data-act="recap" style="grid-column:1 / -1;">✍ Write journal entry</button>` : ''}
-          ${(atCampfire() || atEntrance() || game.mode === 'retreat' || game.mode === 'victory' || isAreaCleared(game)) ? `<button class="btn primary ${isAreaCleared(game) ? 'cleared-beacon-btn' : ''}" data-act="retreat" style="grid-column:1 / -1; background:linear-gradient(180deg, #3d5a42, #29422e); border-color:#508059;">${game.mode === 'retreat' || game.mode === 'victory' ? '🏆 View Summary / Return to Town' : (isAreaCleared(game) ? '🏆 Area Cleared! Return to Oakhaven' : '🏰 Retreat to Oakhaven')}</button>` : `<button class="btn" data-act="retreat" style="grid-column:1 / -1;">🏰 Retreat to Oakhaven</button>`}
+          ${(atCampfire() || atEntrance() || game.mode === 'retreat' || game.mode === 'victory' || isAreaCleared(game)) ? `<button class="btn primary ${retreatBeacon() ? 'cleared-beacon-btn' : ''}" data-act="retreat" style="grid-column:1 / -1; background:linear-gradient(180deg, #3d5a42, #29422e); border-color:#508059;" title="${game.mode === 'retreat' || game.mode === 'victory' ? 'Open the settle summary' : '主动撤退只结算已有收获，主线不推进；走回营火完成目标才算胜利'}">${retreatButtonLabel()}</button>` : `<button class="btn" data-act="retreat" style="grid-column:1 / -1;">🏰 Retreat to Oakhaven</button>`}
           <button class="btn" data-act="journal" style="grid-column:1 / -1;">📖 Journal${(game.journal || []).length ? ` (${game.journal.length})` : ''}</button>
         </div>
         <div style="margin-top:8px;">${classActions()}</div>
@@ -1003,13 +1126,13 @@ export async function playView(main, saveRef) {
           </button>
         </div>
         ${questObjectiveFolded ? `
-          <div class="small muted" style="margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(charObjective(game))}">
-            🎯 ${esc(charObjective(game))}
+          <div class="small muted" style="margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(delveObjectiveText())}">
+            🎯 ${esc(delveObjectiveText())}
           </div>
         ` : `
           <div style="margin-top:8px;">
             <div style="font-size:12px; font-weight:600; color:var(--gold); margin-bottom:3px;">🎯 Dungeon Objective</div>
-            <p class="small muted" style="margin:0 0 8px;">${esc(charObjective(game))}</p>
+            <p class="small muted" style="margin:0 0 8px;">${esc(delveObjectiveText())}</p>
             ${game.quests && game.quests.active ? `
               <div style="border-top:1px dashed var(--border); padding-top:6px; margin-top:6px;">
                 <div style="font-size:12px; font-weight:600; color:var(--parchment); margin-bottom:2px;">📜 ${esc(game.quests.active.shortText)}</div>
@@ -1193,6 +1316,7 @@ export async function playView(main, saveRef) {
             ⚡ Reaction: ${reactionUsed ? 'Spent' : 'Ready'}
           </span>
         </div>
+        ${game.guidance && game.guidance.combat ? `<div class="guidance-combat-line" title="哪些行动可用、为什么不可用（服务端按当前状态判定）">${esc(game.guidance.combat.notes)}</div>` : ''}
 
         ${renderQuickSlots(myTurn)}
 
@@ -1253,6 +1377,12 @@ export async function playView(main, saveRef) {
   }
 
   function wireSide(myTurn) {
+    document.querySelectorAll('[data-scene-open]').forEach(button => button.addEventListener('click', () => {
+      const scene = (game.scenes || []).find(s => s.id === /** @type {HTMLElement} */ (button).dataset.sceneOpen);
+      if (!scene) return;
+      activeNpc = { id: scene.npcId, name: game.entities.find(e => e.npcId === scene.npcId)?.name || scene.name };
+      panels.openScene(scene.id);
+    }));
     document.querySelectorAll('[data-quickslot]').forEach(b => b.addEventListener('click', () => {
       const idx = parseInt(/** @type {HTMLElement} */ (b).dataset.quickslot, 10);
       useQuickSlot(idx);
@@ -1269,7 +1399,7 @@ export async function playView(main, saveRef) {
         else toast('No potions left — Marla sells more.');
       }
       if (a === 'search') act({ type: 'freeform', text: 'search the area carefully' });
-      if (a === 'respawn') act({ type: 'respawn' });
+      if (a === 'respawn') { summaryShown = false; act({ type: 'respawn' }); }
       if (a === 'journal') panels.openJournal();
       if (a === 'recap') act({ type: 'recap' });
       if (a === 'askwork') act({ type: 'quest' });
@@ -1318,11 +1448,13 @@ export async function playView(main, saveRef) {
     if (btnLvl) {
       btnLvl.onclick = () => {
         openLevelUpModal(game.character.id, async (upd) => {
+          if (!viewAlive) return;
           game.character = upd;
-          // re-read the server's level-up verdict so the badge reflects the new level
+          // re-read the server's level-up verdict so the badge reflects the new level —
+          // through adoptState: an older snapshot must not roll the board back (T2a)
           try {
             const fresh = await api.getGame(game.id);
-            game = fresh.state;
+            adoptState(fresh.state);
           } catch {}
           update();
           toast(`⚡ Level Up applied: Level ${upd.level}!`);
@@ -1379,20 +1511,26 @@ export async function playView(main, saveRef) {
 
   update();
   renderLog();
+  tutorial.maybeStart(game); // T5: attach the first-delve coach (no-op once done/skipped)
 
   // poll while enemies might be acting (cheap: only in combat, 4s)
   const pollTimer = setInterval(async () => {
-    if (busy || !game) return;
+    if (busy || !game || !viewAlive) return;
     try {
       const data = await api.getGame(game.id);
-      if (JSON.stringify(data.state.entities.map(e => [e.x, e.y, e.hp])) !== JSON.stringify(game.entities.map(e => [e.x, e.y, e.hp]))) {
-        game = data.state; update();
-      }
+      if (!viewAlive) return; // the view ended while this GET was in flight
+      // rev changes on every persisted write — mechanics AND slow narration merges — so
+      // the DM's late prose shows up here even when no entity has moved (T2).
+      // adoptState, never a bare assign: a stale GET that lands after newer actions must
+      // not roll the board back (T2a — the exact bug the review reproduced)
+      if (data.state && adoptState(data.state)) update();
     } catch {}
   }, 4000);
 
   return () => {
+    viewAlive = false;
     clearInterval(pollTimer);
+    tutorial.destroy(); // T5 coach goes down with the view (progress persists in localStorage)
     document.removeEventListener('keydown', onKey);
     tts.stop();
     sfx.stopAmbient();

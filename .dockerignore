@@ -3,3 +3,11 @@ data
 *.log
 .git
 .gitignore
+artifacts
+scratch
+.env
+.env.*
+.codex
+.agents
+.aws
+.zcode

@@ -1,179 +1,204 @@
-// content.js — the content registry: core game data + user content packs.
-// Packs are folders containing pack.json + maps/*.json + monsters.json + gear.json.
-// They live either in <repo>/content (shipped with the game) or <data>/content (installed at runtime).
+// Two phases: register all definitions, then resolve references across packs.
 const fs = require('fs');
 const path = require('path');
+const checks = require('./content-validation');
 
-const SHARED = path.join(__dirname, '..', '..', 'shared');
-const SHIPPED_PACKS = path.join(__dirname, '..', '..', 'content');
-const USER_PACKS = path.join(process.env.DATA_DIR || path.join(__dirname, '..', '..', 'data'), 'content');
-
-const loadJson = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
-
+const ROOT = path.join(__dirname, '..', '..');
+const SHARED = path.join(ROOT, 'shared');
+const SHIPPED_PACKS = path.join(ROOT, 'content');
+const USER_PACKS = path.join(process.env.DATA_DIR || path.join(ROOT, 'data'), 'content');
 let REG = null;
 
-function validateMap(map, packName, warnings) {
-  const errs = [];
-  if (!map.id || !/^[a-z0-9_-]+$/.test(map.id)) errs.push('map needs an id (lowercase letters, numbers, _ or -)');
-  if (!map.name) errs.push('map needs a name');
-  if (!Array.isArray(map.rows) || !map.rows.length) errs.push('map needs rows (array of strings)');
-  else {
-    const w = map.rows[0].length;
-    map.rows.forEach((r, i) => { if (r.length !== w) errs.push(`row ${i} length ${r.length} != ${w}`); });
-    if (!map.width) map.width = w;
-    if (!map.height) map.height = map.rows.length;
-  }
-  if (!map.playerStart) errs.push('map needs playerStart {x,y}');
-  if (!map.victory || !map.victory.campfire) errs.push('map needs victory.campfire {x,y}');
-  ['x', 'y'].forEach(k => {
-    if (map.playerStart && typeof map.playerStart[k] !== 'number') errs.push(`playerStart.${k} must be a number`);
-    if (map.victory && map.victory.campfire && typeof map.victory.campfire[k] !== 'number') errs.push(`victory.campfire.${k} must be a number`);
-  });
-  if (!Array.isArray(map.entities)) map.entities = [];
-  map.entities.forEach((e, i) => {
-    if (typeof e.x !== 'number' || typeof e.y !== 'number') errs.push(`entity ${i} needs numeric x,y`);
-    if (e.type === 'monster' && !e.kind) errs.push(`monster entity ${i} needs kind`);
-  });
-  errs.forEach(e => warnings.push(`[${packName}] map "${map.id || '?'}": ${e}`));
-  return errs.length === 0 ? map : null;
-}
+const source = (pack, file, field = '') => ({ packId: pack.id, packName: pack.name, file: file.replace(/\\/g, '/'), field });
+const formatDiagnostic = d => '[' + d.packName + '] ' + d.severity + ' (' + d.code + ') ' + d.file + (d.field ? ':' + d.field : '') + ': ' + d.message;
+const summary = p => ({ id: p.id, name: p.name, author: p.author, blurb: p.blurb, installed: !!p.installed, maps: p.maps, monsters: p.monsters, gear: p.gear });
 
-function validateMonster(m, packName, warnings) {
-  const errs = [];
-  if (!m.id) errs.push('monster needs an id');
-  if (!m.name) errs.push(`monster ${m.id || '?'} needs a name`);
-  if (typeof m.ac !== 'number') errs.push(`monster ${m.id || '?'} needs numeric ac`);
-  if (!m.hp || !/^\d+d\d+([+-]\d+)?$/.test(m.hp)) errs.push(`monster ${m.id || '?'} needs hp like "2d6+1"`);
-  if (!m.abilities) errs.push(`monster ${m.id || '?'} needs abilities {str,dex,con,int,wis,cha}`);
-  if (!Array.isArray(m.attacks) || !m.attacks.length) errs.push(`monster ${m.id || '?'} needs at least one attack`);
-  m.attacks = m.attacks || [];
-  m.attacks.forEach(a => {
-    if (typeof a.bonus !== 'number' || !a.damage) errs.push(`monster ${m.id || '?'} attack "${a.name || '?'}" needs numeric bonus and damage`);
-  });
-  if (typeof m.xp !== 'number') errs.push(`monster ${m.id || '?'} needs numeric xp`);
-  errs.forEach(e => warnings.push(`[${packName}] monster "${m.id || '?'}": ${e}`));
-  return errs.length === 0 ? m : null;
-}
-
-function validateGear(g, packName, warnings) {
-  const errs = [];
-  if (!g.id || !g.name) errs.push(`gear ${g.id || '?'} needs id and name`);
-  errs.forEach(e => warnings.push(`[${packName}] gear "${g.id || '?'}": ${e}`));
-  return errs.length === 0 ? g : null;
-}
-
-function scan() {
+/** @param {{cache?: boolean, userRoot?: string, replaceId?: string, bundle?: any, bundleDir?: string}} options */
+function scan(options = {}) {
   const reg = {
-    maps: {}, monsters: {}, gear: {},
-    packs: [], // [{id, name, author, blurb, dir, maps:[], monsters:[], gear:[]}]
-    warnings: []
+    maps: Object.create(null), monsters: Object.create(null), gear: Object.create(null),
+    sources: { maps: Object.create(null), monsters: Object.create(null), gear: Object.create(null) },
+    packs: [], diagnostics: [], warnings: []
+  };
+  const read = (file, src) => {
+    try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+    catch (error) { checks.diagnostic(reg.diagnostics, src, '', 'Cannot read JSON: ' + error.message, 'invalid-json'); return undefined; }
+  };
+  const directory = (dir, src) => {
+    try { return fs.readdirSync(dir, { withFileTypes: true }); }
+    catch (error) { checks.diagnostic(reg.diagnostics, src, '', 'Cannot read directory: ' + error.message, 'invalid-directory'); return []; }
+  };
+  const register = (kind, value, src, pack) => {
+    const def = checks.validateDefinition(kind, value, src, reg.diagnostics);
+    if (!def) return;
+    if (reg[kind][def.id]) {
+      const winner = reg.sources[kind][def.id];
+      checks.diagnostic(reg.diagnostics, src, src.field ? src.field + '.id' : 'id',
+        kind + ' ID ' + def.id + ' is ignored; effective definition is from ' + winner.packName + ' (' + winner.file + ').',
+        'duplicate-definition', 'warning', { winner });
+      return;
+    }
+    reg[kind][def.id] = def; reg.sources[kind][def.id] = src; pack[kind].push(def.id);
+  };
+  const definitions = (document, kind, src, pack) => {
+    if (document === undefined) return;
+    if (!checks.object(document) || (document[kind] !== undefined && !Array.isArray(document[kind]))) {
+      checks.diagnostic(reg.diagnostics, src, kind, 'Expected an object containing a ' + kind + ' array.'); return;
+    }
+    (document[kind] || []).forEach((def, i) => register(kind, def, { ...src, field: kind + '[' + i + ']' }, pack));
+  };
+  const addPack = (manifest, dir, installed, folderId, bundle = null) => {
+    const provisional = { id: folderId, name: folderId };
+    if (!checks.object(manifest) || !checks.validId(manifest.id || folderId)) {
+      checks.diagnostic(reg.diagnostics, source(provisional, 'pack.json'), 'id', 'Pack needs a valid ID.', 'invalid-id'); return;
+    }
+    const pack = {
+      id: manifest.id || folderId, name: manifest.name || manifest.id || folderId,
+      author: manifest.author || 'Unknown', blurb: manifest.blurb || '', dir, installed,
+      maps: [], monsters: [], gear: []
+    };
+    for (const field of ['name', 'author', 'blurb']) {
+      if (manifest[field] !== undefined && typeof manifest[field] !== 'string') {
+        checks.diagnostic(reg.diagnostics, source(pack, 'pack.json'), field, 'Expected a string.'); return;
+      }
+    }
+    if (reg.packs.some(p => p.id === pack.id)) {
+      checks.diagnostic(reg.diagnostics, source(pack, 'pack.json'), 'id', 'Pack ID already exists; this folder is ignored.', 'duplicate-pack', 'warning'); return;
+    }
+    reg.packs.push(pack);
+    if (bundle) {
+      bundle.maps.forEach(map => register('maps', map, source(pack, 'maps/' + (checks.validId(map?.id) ? map.id : '?') + '.json'), pack));
+      definitions({ monsters: bundle.monsters }, 'monsters', source(pack, 'monsters.json'), pack);
+      definitions({ gear: bundle.gear }, 'gear', source(pack, 'gear.json'), pack);
+      return;
+    }
+    const mapsDir = path.join(dir, 'maps');
+    if (fs.existsSync(mapsDir)) directory(mapsDir, source(pack, 'maps')).filter(entry => entry.name.endsWith('.json')).map(entry => entry.name).sort().forEach(file => {
+      const src = source(pack, 'maps/' + file);
+      const value = read(path.join(mapsDir, file), src);
+      if (value !== undefined) register('maps', value, src, pack);
+    });
+    for (const kind of ['monsters', 'gear']) {
+      const preferred = path.join(dir, kind + '.json');
+      const file = fs.existsSync(preferred) ? preferred : path.join(dir, 'monsters-gear.json');
+      if (fs.existsSync(file)) {
+        const src = source(pack, path.basename(file));
+        definitions(read(file, src), kind, src, pack);
+      }
+    }
   };
 
-  // ---- core content (shared/) ----
-  reg.maps['crypt'] = loadJson(path.join(SHARED, 'maps', 'crypt.json'));
-  const coreMonsters = loadJson(path.join(SHARED, 'monsters.json'));
-  coreMonsters.monsters.forEach(m => { reg.monsters[m.id] = m; });
-  const coreGear = loadJson(path.join(SHARED, 'equipment.json'));
-  coreGear.gear.forEach(g => { reg.gear[g.id] = g; });
-  reg.packs.push({ id: 'core', name: 'Core Game', author: 'AI Dungeon', blurb: 'The Sunless Crypt and the base bestiary.', builtin: true, maps: ['crypt'], monsters: coreMonsters.monsters.map(m => m.id), gear: [] });
-
-  // ---- pack folders ----
-  const packRoots = [
-    { dir: SHIPPED_PACKS, installed: false },
-    { dir: USER_PACKS, installed: true }
-  ];
-  packRoots.forEach(({ dir, installed }) => {
-    if (!fs.existsSync(dir)) return;
-    let entries = [];
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-    entries.filter(d => d.isDirectory()).forEach(dirent => {
-      const packDir = path.join(dir, dirent.name);
-      const manifestPath = path.join(packDir, 'pack.json');
-      if (!fs.existsSync(manifestPath)) return;
-      try {
-        const manifest = loadJson(manifestPath);
-        const packId = manifest.id || dirent.name;
-        const pack = {
-          id: packId, name: manifest.name || packId, author: manifest.author || 'Unknown',
-          blurb: manifest.blurb || '', dir: packDir, installed,
-          maps: [], monsters: [], gear: []
-        };
-        // maps
-        const mapsDir = path.join(packDir, 'maps');
-        if (fs.existsSync(mapsDir)) {
-          fs.readdirSync(mapsDir).filter(f => f.endsWith('.json')).forEach(f => {
-            try {
-              const map = validateMap(loadJson(path.join(mapsDir, f)), pack.name, reg.warnings);
-              if (map) {
-                if (reg.maps[map.id]) reg.warnings.push(`[${pack.name}] map id "${map.id}" already exists — pack version ignored`);
-                else { reg.maps[map.id] = map; pack.maps.push(map.id); }
-              }
-            } catch (e) { reg.warnings.push(`[${pack.name}] bad map file ${f}: ${e.message}`); }
-          });
-        }
-        // monsters
-        const monPath = path.join(packDir, 'monsters.json');
-        const monAlt = path.join(packDir, 'monsters-gear.json');
-        const monFile = fs.existsSync(monPath) ? monPath : (fs.existsSync(monAlt) ? monAlt : null);
-        if (monFile) {
-          try {
-            (loadJson(monFile).monsters || []).forEach(m => {
-              const ok = validateMonster(m, pack.name, reg.warnings);
-              if (ok) {
-                if (reg.monsters[m.id]) reg.warnings.push(`[${pack.name}] monster id "${m.id}" already exists — pack version ignored`);
-                else { reg.monsters[m.id] = m; pack.monsters.push(m.id); }
-              }
-            });
-          } catch (e) { reg.warnings.push(`[${pack.name}] bad monsters file: ${e.message}`); }
-        }
-        // gear
-        const gearPath = path.join(packDir, 'gear.json');
-        const gearAlt = path.join(packDir, 'monsters-gear.json');
-        const gearFile = fs.existsSync(gearPath) ? gearPath : (fs.existsSync(gearAlt) ? gearAlt : null);
-        if (gearFile) {
-          try {
-            (loadJson(gearFile).gear || []).forEach(g => {
-              const ok = validateGear(g, pack.name, reg.warnings);
-              if (ok) {
-                if (reg.gear[g.id]) reg.warnings.push(`[${pack.name}] gear id "${g.id}" already exists — pack version ignored`);
-                else { reg.gear[g.id] = g; pack.gear.push(g.id); }
-              }
-            });
-          } catch (e) { reg.warnings.push(`[${pack.name}] bad gear file: ${e.message}`); }
-        }
-        reg.packs.push(pack);
-      } catch (e) {
-        reg.warnings.push(`pack ${dirent.name}: unreadable pack.json (${e.message})`);
+  const core = { id: 'core', name: 'Core Game', author: 'AI Dungeon', blurb: 'The Sunless Crypt and the base bestiary.', builtin: true, maps: [], monsters: [], gear: [] };
+  reg.packs.push(core);
+  const coreMapSource = source(core, 'shared/maps/crypt.json');
+  const coreMap = read(path.join(SHARED, 'maps', 'crypt.json'), coreMapSource);
+  if (coreMap !== undefined) register('maps', coreMap, coreMapSource, core);
+  definitions(read(path.join(SHARED, 'monsters.json'), source(core, 'shared/monsters.json')), 'monsters', source(core, 'shared/monsters.json'), core);
+  const equipment = read(path.join(SHARED, 'equipment.json'), source(core, 'shared/equipment.json'));
+  definitions(equipment, 'gear', source(core, 'shared/equipment.json'), core);
+  const spells = read(path.join(SHARED, 'spells.json'), source(core, 'shared/spells.json'));
+  const tables = {
+    itemIds: new Set([...(equipment?.weapons || []), ...(equipment?.armor || [])].map(item => item.id)),
+    weaponIds: new Set((equipment?.weapons || []).map(item => item.id)),
+    armorIds: new Set((equipment?.armor || []).map(item => item.id)),
+    spellIds: new Set((spells?.spells || []).map(spell => spell.id))
+  };
+  for (const { dir, installed } of [{ dir: SHIPPED_PACKS, installed: false }, { dir: options.userRoot || USER_PACKS, installed: true }]) {
+    if (!fs.existsSync(dir)) continue;
+    const entries = directory(dir, source({ id: 'registry', name: 'Content registry' }, dir)).filter(entry => entry.isDirectory()).map(entry => ({ name: entry.name, virtual: false }));
+    if (installed && options.bundle) entries.push({ name: path.basename(options.bundleDir || options.bundle.pack.id), virtual: true });
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      if (entry.virtual) {
+        addPack(options.bundle.pack, options.bundleDir || path.join(USER_PACKS, options.bundle.pack.id), true, entry.name, options.bundle);
+        continue;
       }
-    });
-  });
+      const packDir = path.join(dir, entry.name), manifestFile = path.join(packDir, 'pack.json');
+      if (!fs.existsSync(manifestFile)) continue;
+      const manifest = read(manifestFile, source({ id: entry.name, name: entry.name }, 'pack.json'));
+      if (manifest === undefined) continue;
+      if (installed && options.replaceId && (manifest?.id || entry.name) === options.replaceId) continue;
+      addPack(manifest, packDir, installed, entry.name);
+    }
+  }
+  if (options.bundle && !fs.existsSync(options.userRoot || USER_PACKS)) addPack(options.bundle.pack, path.join(USER_PACKS, options.bundle.pack.id), true, options.bundle.pack.id, options.bundle);
 
-  REG = reg;
+  // Cascading invalid references are removed too; cycles between valid maps survive.
+  let removed;
+  do {
+    removed = false;
+    for (const kind of ['gear', 'monsters', 'maps']) {
+      for (const def of Object.values(reg[kind])) {
+        if (!checks.validateReferences(kind, def, reg.sources[kind][def.id], reg, tables, reg.diagnostics)) {
+          delete reg[kind][def.id]; removed = true;
+        }
+      }
+    }
+  } while (removed);
+  Object.values(reg.maps).forEach(map => checks.checkReachability(map, reg.sources.maps[map.id], reg.diagnostics));
+  reg.packs.forEach(pack => { for (const kind of ['maps', 'monsters', 'gear']) pack[kind] = pack[kind].filter(id => reg[kind][id]); });
+  reg.warnings = reg.diagnostics.map(formatDiagnostic);
+  if (options.cache !== false) REG = reg;
   return reg;
+}
+
+function validateBundle(value) {
+  const diagnostics = [];
+  const src = source({ id: checks.validId(value?.pack?.id) ? value.pack.id : '?', name: value?.pack?.name || '?' }, 'bundle.json');
+  const error = (field, message) => checks.diagnostic(diagnostics, src, field, message);
+  if (!checks.object(value) || value.format !== 'ai-dnd-pack') error('format', 'Expected ai-dnd-pack.');
+  if (!checks.object(value?.pack) || !checks.validId(value.pack.id) || value.pack.id === 'core') error('pack.id', 'A valid non-core pack ID is required.');
+  for (const field of ['name', 'author', 'blurb']) if (value?.pack?.[field] !== undefined && typeof value.pack[field] !== 'string') error('pack.' + field, 'Expected a string.');
+  if (value?.version !== undefined && value.version !== 1) error('version', 'Supported bundle version: 1.');
+  for (const kind of ['maps', 'monsters', 'gear']) {
+    if (value?.[kind] !== undefined && !Array.isArray(value[kind])) error(kind, 'Expected an array.');
+    if (Array.isArray(value?.[kind])) {
+      const ids = new Set();
+      value[kind].forEach((def, i) => {
+        if (checks.validId(def?.id) && ids.has(def.id)) error(kind + '[' + i + '].id', 'Definition ID is repeated inside the bundle.');
+        ids.add(def?.id);
+      });
+    }
+  }
+  const result = () => ({ ok: !diagnostics.some(d => d.severity === 'error'), diagnostics, warnings: diagnostics.map(formatDiagnostic) });
+  if (diagnostics.length) return result();
+  const bundle = structuredClone(value);
+  for (const kind of ['maps', 'monsters', 'gear']) bundle[kind] ??= [];
+  const baseline = scan({ cache: false });
+  if (baseline.packs.some(p => p.id === bundle.pack.id && !p.installed)) {
+    error('pack.id', 'Shipped packs cannot be replaced by an import.'); return result();
+  }
+  const previous = baseline.packs.find(p => p.id === bundle.pack.id && p.installed);
+  const prospective = scan({ cache: false, bundle, replaceId: bundle.pack.id, bundleDir: previous?.dir });
+  const key = d => JSON.stringify([d.packId, d.file, d.field, d.code, d.message]);
+  const priorErrors = new Set(baseline.diagnostics.filter(d => d.severity === 'error' && d.packId !== bundle.pack.id).map(key));
+  diagnostics.push(...prospective.diagnostics.filter(d => d.packId === bundle.pack.id || (d.severity === 'error' && !priorErrors.has(key(d)))));
+  return { ...result(), pack: summary(prospective.packs.find(p => p.id === bundle.pack.id)) };
 }
 
 function ensure() { if (!REG) scan(); return REG; }
 function reload() { return scan(); }
-
-function getMap(id) { const r = ensure(); return r.maps[id] || r.maps['crypt'] || null; }
-function injectMap(mapDef) { const r = ensure(); r.maps[mapDef.id] = mapDef; }
-function defaultMapId() { const r = ensure(); return r.maps['crypt'] ? 'crypt' : Object.keys(r.maps)[0]; }
+function defaultMapId() { const r = ensure(); return r.maps.crypt ? 'crypt' : Object.keys(r.maps)[0]; }
+function getMap(id) {
+  const r = ensure();
+  if (id === undefined || id === null) id = defaultMapId();
+  return typeof id === 'string' ? r.maps[id] || null : null;
+}
+function injectMap(mapDef) { ensure().maps[mapDef.id] = mapDef; }
 function listMaps() {
   const r = ensure();
-  const packOf = (mapId) => (r.packs.find(p => p.maps.includes(mapId)) || {}).name || 'Core';
   return Object.values(r.maps).map(m => ({
     id: m.id, name: m.name, blurb: m.blurb || (m.rooms || [])[0]?.desc || '',
-    objectiveText: m.objectiveText || '', recommended: m.recommended || '', pack: packOf(m.id)
+    objectiveText: m.objectiveText || '', recommended: m.recommended || '',
+    pack: (r.packs.find(p => p.maps.includes(m.id)) || {}).name || 'Core'
   }));
 }
 function getMonster(id) { return ensure().monsters[id] || null; }
 function listMonsters() { return Object.values(ensure().monsters); }
 function getGear(id) { return ensure().gear[id] || null; }
 function listGear() { return Object.values(ensure().gear); }
-function listPacks() {
-  const r = ensure();
-  return r.packs.map(p => ({ id: p.id, name: p.name, author: p.author, blurb: p.blurb, installed: !!p.installed, maps: p.maps, monsters: p.monsters, gear: p.gear }));
-}
+function listPacks() { return ensure().packs.map(summary); }
 function warnings() { return ensure().warnings; }
+function diagnostics() { return ensure().diagnostics; }
 
-module.exports = { scan, reload, getMap, injectMap, defaultMapId, listMaps, getMonster, listMonsters, getGear, listGear, listPacks, warnings };
+module.exports = { scan, reload, getMap, injectMap, defaultMapId, listMaps, getMonster, listMonsters, getGear, listGear, listPacks, warnings, diagnostics, validateBundle };

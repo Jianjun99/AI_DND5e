@@ -2,6 +2,7 @@
 // Covers the two rules the tactical view keeps getting wrong: slain/fled creatures must
 // leave the board, and the camera must glide towards the hero instead of snapping.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -39,13 +40,14 @@ console.log('\n--- Running Unit Tests: Map Board Visibility & Camera ---');
 
 // The helpers are dependency-free; copy to a .mjs so Node treats them as ES modules.
 const src = fs.readFileSync(path.join(__dirname, '../../public/js/entity-visibility.js'), 'utf8');
-const tmpFile = path.join(__dirname, '.entity-visibility.node.tmp.mjs');
+const tmpDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-dnd-board-'));
+const tmpFile = path.join(tmpDirectory, 'entity-visibility.mjs');
 fs.writeFileSync(tmpFile, src);
 let mod;
 try {
   mod = await import(pathToFileURL(tmpFile).href);
 } finally {
-  try { fs.unlinkSync(tmpFile); } catch {}
+  fs.rmSync(tmpDirectory, { recursive: true, force: true });
 }
 const { isEntityOnBoard, boardEntities, stepCameraTowards, clampToMap } = mod;
 

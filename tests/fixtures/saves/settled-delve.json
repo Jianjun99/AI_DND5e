@@ -1,0 +1,39 @@
+{
+  "id": "save_settled_01",
+  "characterId": "char_legacy_01",
+  "mapId": "crypt",
+  "mapName": "The Sunless Crypt",
+  "mode": "victory",
+  "difficulty": "normal",
+  "updatedAt": 1700000100000,
+  "rev": 7,
+  "endSeq": 1,
+  "settled": {
+    "id": "save_settled_01#1",
+    "ts": 1700000100000,
+    "mode": "victory",
+    "mapId": "crypt",
+    "mapName": "The Sunless Crypt",
+    "gold": 310,
+    "xp": 350,
+    "level": 2,
+    "delveNumber": 1,
+    "campaignAdvanced": true,
+    "weeklyWin": false
+  },
+  "map": { "id": "crypt", "name": "The Sunless Crypt", "width": 34, "height": 24, "rows": ["##################################"] },
+  "entities": [
+    { "id": "player", "kind": "player", "name": "Old Hero", "x": 4, "y": 4, "hp": 31, "hpMax": 38, "ac": 18, "speedFt": 30, "alive": true, "conditions": [], "buffs": [] }
+  ],
+  "objects": [
+    { "type": "campfire", "id": "campfire", "name": "Camp", "x": 4, "y": 3, "icon": "🔥" }
+  ],
+  "discovered": ["4,4", "5,4"],
+  "quests": { "active": null, "completed": [] },
+  "stats": { "dmgDealt": 55, "dmgTaken": 12, "kills": 3, "goldFound": 40, "rounds": 5 },
+  "log": [
+    { "kind": "system", "text": "VICTORY! Old Hero escapes The Sunless Crypt into daylight.", "ts": 1700000100000 }
+  ],
+  "world": {},
+  "flags": { "victory": true }
+}

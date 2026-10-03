@@ -15,3 +15,6 @@ Thumbs.db
 # Scratch and temporary scripts
 scratch/
 
+# Dedicated Docker verification output (never contains player data)
+artifacts/
+

@@ -1,6 +1,8 @@
 # AGENTS.md — AI 协作入口
 
 本文件是 AI 编码工具（ZCode / Claude Code / Cursor / Codex…）的默认加载入口。
+首次接手先读 `START_HERE.md`（项目目标 / 阅读顺序 / 运行与交付），本轮任务队列见
+`tasks/README.md`，项目拥有者的交接操作与提示词见 `docs/AGENT_HANDOFF.md`。
 项目状态与待办见 `PROJECT_STATE.md`（有详细规格的待办在 `tasks/`），架构手册见
 `ARCHITECTURE.md`，模组格式见 `MODDING.md`，发版流程见 `docs/RELEASE.md`。
 
@@ -12,8 +14,8 @@
 3. **服务端是唯一事实来源**——客户端禁止复制引擎的数据表（重复的 XP 表造成过一次发布 bug）。
 4. **含模板字符串的文件禁用 bash heredoc / `node -e` 包反引号**——用 Edit 工具直接改，
    或用 Write 写 .cjs 补丁文件（单引号字符串 + join）。这是本项目最大的 AI 踩坑来源。
-5. **每次改完跑完整验证**：`npm run verify`（自动起服务跑 eslint + tsc + 17 套件 + 冒烟），
-   全绿才算完成。改了战斗/掉落/赌桌/魔药等数值表，还必跑 `node scripts/balance-sim.mjs`
+5. **每次改完跑完整验证**：`npm run verify`（专用 Docker 容器内跑 eslint + tsc + 全部套件 + 冒烟），
+   全绿才算完成。改了战斗/掉落/赌桌/魔药等数值表，使用 `npm run verify -- --balance-runs=50` 在同一容器内加跑 balance-sim
    并在总结里报告胜率变化。
 6. **测试不依赖 RNG 具体值**（注入 rng / 穷举 / 宽松区间）；e2e 不断言走路中途的坐标
    （rAF 帧率不稳），断言最终收敛状态。自定义 test runner 必须计数并打印失败——
@@ -21,25 +23,18 @@
 
 ## 完整验证命令
 
-**一条命令**（自动起服务 → eslint → tsc → 17 套件 → 冒烟 → 收尾杀进程，端口自动挑空闲的）：
+**一条命令**（自动构建专用测试镜像 → 容器内起服务 → eslint → tsc → 全部套件 → 冒烟 → 移除容器）：
 
 ```bash
 npm run verify
 ```
 
-手动等价流程（调试单个环节时用；直接跑套件不起服务会 ECONNREFUSED，那不是代码 bug）：
-
-```bash
-export PATH="/c/Program Files/nodejs:$PATH"   # git bash 找 node
-PORT=3100 node server/index.js &              # 先起服务——套件连这个端口
-npx eslint .
-npx tsc --noEmit
-PORT=3100 node scripts/test-all.mjs           # 17 套件（含 3 个 headless CDP e2e）
-PORT=3100 node scripts/smoke-test.mjs
-```
-
-- e2e 需要 Edge/Chrome 与空闲 CDP 端口（9224/9225）；Windows 下浏览器是分离进程树，
-  残留进程按 `--user-data-dir` 档案目录名用 PowerShell `Stop-Process` 杀，别只 kill pid。
+- Docker Desktop 使用 Linux containers；固定 2 CPU / 4 GiB RAM，所有 agent 共享固定容器名
+  `ai-dnd-verify` 的互斥锁。占用返回 73，等待后再运行，不删除其他 agent 的容器。
+- 独立容器测试数据、真实 AI 关闭、外网关闭；只挂载本轮日志目录，不挂载玩家 data/、模型配置或生产卷。
+- 必须跑完整 `npm run verify`；缺 Chromium/WebGL2、数据文件或环境不支持均失败，不能跳过后报全绿。
+- 成功、失败、超时都移除本轮容器，保留正确退出码及 `artifacts/verify/` 的日志、失败截图。
+- Windows 特有问题先报告，禁止自行回退宿主机启动浏览器。细节和诊断见 [Docker 测试指南](docs/DOCKER_TESTING.md)。
 
 ## MCP 接入（可选）
 
@@ -51,7 +46,7 @@ node mcp/server.mjs
 
 工具：`run_verify`（完整验证）/ `run_replay`（回放机器人打完整冒险）/ `run_balance_sim`（bot 胜率模拟）/
 `query_rules`（查引擎数据表：species/classes/feats/weapons/armor/gear/spells/monsters/…）/
-`recent_failures`（最近一次 verify 的失败行，来自 data/last-verify.log）。
+`recent_failures`（最近一次容器 verify 的失败行，来自 artifacts/verify/）。
 客户端配置：command=`node`，args=`["mcp/server.mjs"]`，cwd=仓库根。
 边界：只读 + 跑既有脚本，**没有**任何写存档/改状态的工具。
 - 客户端改动必须在真实浏览器里看过（CDP 截图 / DOM dump）——引擎与集成测试抓不到渲染/模板 bug。

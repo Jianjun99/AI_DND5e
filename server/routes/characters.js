@@ -1,26 +1,42 @@
 const express = require('express');
 const store = require('../store');
 const engine = require('../game/engine');
+const guidance = require('../game/guidance');
 const portraits = require('../portraits');
+const presets = require('../game/presets');
 
 const router = express.Router();
 
 router.get('/', (req, res) => {
-  const chars = store.getCharacters().map(c => ({
+  const chars = store.getCharacters();
+  const saves = store.listSaves();
+  res.json(chars.map(c => ({
     id: c.id, name: c.name, species: c.species, className: c.className, background: c.background,
     level: c.level, xp: c.xp, hpMax: c.hpMax, acBase: c.acBase, gold: c.gold,
     createdAt: c.createdAt,
     portraitUrl: portraits.characterPortraitUrl(c.id),
-    levelUp: engine.levelUpInfo(c)
-  }));
-  res.json(chars);
+    levelUp: engine.levelUpInfo(c),
+    // where to continue and why (T4) — home renders this, no client-side rules
+    guidance: guidance.journey(c, { liveSave: guidance.pickLiveSave(c, saves) })
+  })));
 });
 
 router.post('/', async (req, res) => {
   const draft = req.body || {};
-  if (!draft.name || !String(draft.name).trim()) return res.status(400).json({ error: 'Name is required' });
+  // T5 quick start: the client sends presetId (+ optional name); the preset's
+  // engine.buildCharacter draft comes from server/game/presets.js. When both a preset and
+  // raw draft fields arrive, the preset wins — the client never authors rules data.
+  let base = draft;
+  let name = String(draft.name || '').trim();
+  if (draft.presetId) {
+    const preset = presets.getPreset(draft.presetId);
+    if (!preset) return res.status(400).json({ error: 'Unknown presetId' });
+    base = presets.draftFor(draft.presetId);
+    if (!name) name = preset.defaultName;
+  }
+  if (!name) return res.status(400).json({ error: 'Name is required' });
   try {
-    const char = engine.buildCharacter({ ...draft, name: String(draft.name).trim().slice(0, 40) });
+    const char = engine.buildCharacter({ ...base, name: name.slice(0, 40) });
     char.id = store.newId('char');
     char.createdAt = Date.now();
     try {
@@ -30,6 +46,9 @@ router.post('/', async (req, res) => {
     const chars = store.getCharacters();
     chars.push(char);
     store.saveCharacters(chars);
+    // guidance rides along (same shape as GET /) so the quick-start flow can jump straight
+    // to the recommended prepare entrance without deriving story state client-side
+    char.guidance = guidance.journey(char, { liveSave: null });
     res.json(char);
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -64,34 +83,57 @@ router.put('/:id', (req, res) => {
 });
 
 // Road-encounter outcomes (wandering peddler / goblin ambush / wayside shrine).
-// The client rolls the flavor check and shows the prose; the server applies the
-// fixed outcome so the gold / XP / wounds actually persist. Delve-scoped boons
+// The server is the referee for trigger and resolution (T7). Delve-scoped boons
 // ride along as pendingRoadBoons and are applied by POST /api/game/start.
-const ROAD_ENCOUNTER_OUTCOMES = {
-  ambush_win: (char) => { char.gold = (char.gold || 0) + 25; char.xp = (char.xp || 0) + 50; },
-  ambush_wound: (char) => { char.hp = Math.max(1, (char.hp || char.hpMax) - 3); },
-  bribe: (char) => { char.gold = Math.max(0, (char.gold || 0) - 10); },
-  sneak_wound: (char) => { char.hp = Math.max(1, (char.hp || char.hpMax) - 2); },
-  shrine_pray: (char) => {
-    char.pendingRoadBoons = char.pendingRoadBoons || [];
-    char.pendingRoadBoons.push('shrine_temp_hp');
-  },
-  shrine_offer: (char) => {
-    char.gold = Math.max(0, (char.gold || 0) - 5);
-    char.pendingRoadBoons = char.pendingRoadBoons || [];
-    char.pendingRoadBoons.push('shrine_blessed');
-  }
-};
-
 router.post('/:id/road-encounter', (req, res) => {
   const chars = store.getCharacters();
   const char = chars.find(c => c.id === req.params.id);
   if (!char) return res.status(404).json({ error: 'Character not found' });
-  const apply = ROAD_ENCOUNTER_OUTCOMES[req.body && req.body.outcome];
-  if (!apply) return res.status(400).json({ error: 'Unknown road-encounter outcome' });
-  apply(char);
-  store.saveCharacters(chars);
-  res.json({ ok: true, gold: char.gold, hp: char.hp, xp: char.xp, pendingRoadBoons: char.pendingRoadBoons || [] });
+
+  // 1. Trigger an encounter. A live instance (unresolved, or resolved but not yet
+  // consumed by a delve start) is returned as-is by the engine — same instanceId, no
+  // re-roll, no RNG consumed (T7a).
+  if (req.body && (req.body.action === 'trigger' || req.body.trigger)) {
+    const encounter = engine.triggerRoadEncounter(char, { force: req.body.force });
+    store.saveCharacters(chars);
+    return res.json({ ok: true, encounter });
+  }
+
+  // 2. Query status — the same engine-built view (template + instanceId + resolution),
+  // no RNG, used by the prepare page to restore an in-flight encounter after a refresh.
+  if (req.body && req.body.action === 'status') {
+    return res.json({ ok: true, currentRoadEncounter: engine.roadEncounterView(char.currentRoadEncounter, char) });
+  }
+
+  // 3. Resolve choice (or legacy outcome parameter)
+  const choice = req.body && (req.body.choice || req.body.action || req.body.outcome);
+  if (!choice) {
+    return res.status(400).json({ error: 'Missing road-encounter choice' });
+  }
+
+  try {
+    const result = engine.resolveRoadEncounter(char, choice, { encounterId: req.body && req.body.encounterId });
+    store.saveCharacters(chars);
+    res.json({
+      ok: true,
+      gold: char.gold,
+      hp: char.hp,
+      xp: char.xp,
+      tempHp: char.tempHp || 0,
+      blessed: !!char.blessed,
+      pendingRoadBoons: char.pendingRoadBoons || [],
+      natural: result.natural,
+      modifier: result.modifier,
+      total: result.total,
+      dc: result.dc,
+      outcome: result.outcome,
+      success: result.success,
+      text: result.text,
+      alreadyResolved: !!result.alreadyResolved
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 router.post('/:id/equip', (req, res) => {

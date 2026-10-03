@@ -11,6 +11,7 @@ export default [
       'node_modules/**',
       'public/vendor/**',
       'data/**',
+      'artifacts/**',
       'scratch/**',
       'scripts/_tmp/**',
       '*.min.js'

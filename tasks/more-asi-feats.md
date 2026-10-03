@@ -1,12 +1,12 @@
 # Task: 更多 ASI 特长（feats）
 
-> ✅ **部分实现**（v1.9.4 批次）：Observant / Speedy / Chef / Musician 四个已落地（安全钩子位 + 测试）；Crusher / Slasher / Piercer 需要挂 playerAttack 命中流，留作后续。
+> ✅ **已实现，历史规格**：v1.9.4 落地 Observant / Speedy / Chef / Musician；v1.9.8 落地 Crusher / Slasher / Piercer，含实际引擎机制与测试。下文保留原任务背景，不要重复开发。新待办见 tasks/README.md。
 
 ## 背景
 
 升级向导（4/8 级 ASI）现有 5 个特长：Tough / Alert / Lucky / Healer / Savage Attacker。
-定义在两处：**引擎** `server/game/engine.js` 的 `FEATS` 表（数值与机制）+
-**升级向导** `public/js/views/levelup.js` 的选项列表（展示与挑选）。
+原任务讨论的规则定义在**引擎** `server/game/engine.js`；当前升级候选由
+`server/routes/characters.js` 的 `FEAT_CHOICES` 返回，升级向导从 API 展示，不维护独立候选表。
 规则参照 D&D 2024 PHB；加什么由实现者从下面候选里挑 3-5 个。
 
 ## 目标

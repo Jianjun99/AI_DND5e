@@ -69,31 +69,35 @@ function queryRules(args) {
 }
 
 function recentFailures() {
-  const logPath = path.join(ROOT, 'data', 'last-verify.log');
+  const latestPath = path.join(ROOT, 'artifacts', 'verify', 'latest.json');
+  const latest = fs.existsSync(latestPath) ? JSON.parse(fs.readFileSync(latestPath, 'utf8')) : null;
+  const logPath = latest ? path.join(latest.directory, 'last-verify.log') : '';
   if (!fs.existsSync(logPath)) {
-    return { text: 'No verify log yet — run the run_verify tool (or npm run verify) once.' };
+    const hostLog = latest ? path.join(latest.directory, 'host.log') : '';
+    return { text: fs.existsSync(hostLog) ? fs.readFileSync(hostLog, 'utf8').slice(-MAX_TOOL_TEXT)
+      : 'No verify log yet — run the run_verify tool (or npm run verify) once.' };
   }
   const raw = fs.readFileSync(logPath, 'utf8');
   const lines = raw.split('\n');
   const interesting = lines.filter((l) => /✘|❌|FAIL|failed|ECONNREFUSED|aborted|Error/i.test(l));
   const body = interesting.length ? interesting.slice(-60).join('\n') : lines.slice(-30).join('\n');
-  return { text: `(data/last-verify.log, ${lines.length} lines, ${interesting.length} flagged)\n` + body.slice(-MAX_TOOL_TEXT) };
+  return { text: `(${logPath}, ${lines.length} lines, ${interesting.length} flagged)\n` + body.slice(-MAX_TOOL_TEXT) };
 }
 
 const TOOLS = [
   {
     name: 'run_verify',
-    description: 'Run the full repo verification (npm run verify: boots a server, eslint + tsc + all test suites + smoke). Takes several minutes.',
+    description: 'Run npm run verify through the dedicated Docker test container (2 CPU / 4 GiB, singleton, isolated data, Chromium/WebGL2 required). Takes several minutes.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false }
   },
   {
     name: 'run_replay',
-    description: 'Run the delve replay bot (scripts/replay-bot.mjs): plays complete delves over the REST API and checks gameplay-level invariants. The deep regression net for engine changes.',
+    description: 'Run full Docker verification plus extra delve replays against its isolated test server. Shares the full-run lock; never connects to the host game server.',
     inputSchema: { type: 'object', properties: { runs: { type: 'number', description: 'delve count (default 4)' } }, additionalProperties: false }
   },
   {
     name: 'run_balance_sim',
-    description: 'Run scripts/balance-sim.mjs (bot battles) and return the win-rate table. Run this whenever you change combat/loot/gambling numbers.',
+    description: 'Run full Docker verification plus balance-sim bot battles and return the win-rate table. Run this whenever combat/loot/gambling numbers change.',
     inputSchema: { type: 'object', properties: { runs: { type: 'number', description: 'simulation count (default 50)' } }, additionalProperties: false }
   },
   {
@@ -108,26 +112,26 @@ const TOOLS = [
   },
   {
     name: 'recent_failures',
-    description: 'Show flagged failure lines from the last verification log (data/last-verify.log).',
+    description: 'Show flagged failure lines from the latest Docker verification artifacts.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false }
   }
 ];
 
 function callTool(name, args) {
-  if (name === 'run_verify') return runCapture(process.execPath, ['scripts/verify.mjs']).then((r) => ({
+  if (name === 'run_verify') return runCapture(process.execPath, ['scripts/verify.mjs'], 40 * 60 * 1000).then((r) => ({
     isError: r.code !== 0,
     text: `(exit ${r.code})\n${r.text}`
   }));
   if (name === 'run_replay') {
-    const runs = Math.max(1, Math.min(20, Number(args && args.runs) || 4));
-    return runCapture(process.execPath, ['scripts/replay-bot.mjs', '--runs', String(runs)], 20 * 60 * 1000).then((r) => ({
+    const runs = Math.max(1, Math.min(20, Math.floor(Number(args && args.runs) || 4)));
+    return runCapture(process.execPath, ['scripts/verify.mjs', '--replay-runs=' + runs], 40 * 60 * 1000).then((r) => ({
       isError: r.code !== 0,
       text: `(exit ${r.code}, delves=${runs})\n${r.text}`
     }));
   }
   if (name === 'run_balance_sim') {
-    const runs = Math.max(1, Math.min(500, Number(args && args.runs) || 50));
-    return runCapture(process.execPath, ['scripts/balance-sim.mjs', String(runs)]).then((r) => ({
+    const runs = Math.max(1, Math.min(500, Math.floor(Number(args && args.runs) || 50)));
+    return runCapture(process.execPath, ['scripts/verify.mjs', '--balance-runs=' + runs], 40 * 60 * 1000).then((r) => ({
       isError: r.code !== 0,
       text: `(exit ${r.code}, runs=${runs})\n${r.text}`
     }));

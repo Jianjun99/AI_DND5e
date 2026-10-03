@@ -1,5 +1,6 @@
 // tests/unit/models3d.test.mjs — 3D Procedural Miniature Models & Animation Unit Tests
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -61,8 +62,10 @@ console.log('\n--- Running Unit Tests: 3D Procedural Miniatures & Walk Animation
 
 // Load models3d.js dynamically with 'three' dependency
 const rawCode = fs.readFileSync(path.join(__dirname, '../../public/js/models3d.js'), 'utf8');
-const nodeCode = rawCode.replace(/from\s+['"]\/vendor\/three\.module\.js['"]/g, "from 'three'");
-const tmpFile = path.join(__dirname, '.models3d.node.tmp.mjs');
+const nodeCode = rawCode.replace(/from\s+['"]\/vendor\/three\.module\.js['"]/g,
+  'from ' + JSON.stringify(import.meta.resolve('three')));
+const tmpDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-dnd-models3d-'));
+const tmpFile = path.join(tmpDirectory, 'models3d.mjs');
 fs.writeFileSync(tmpFile, nodeCode);
 
 let createCharacterModel, updateModelAnimation;
@@ -71,7 +74,7 @@ try {
   createCharacterModel = mod.createCharacterModel;
   updateModelAnimation = mod.updateModelAnimation;
 } finally {
-  try { fs.unlinkSync(tmpFile); } catch {}
+  fs.rmSync(tmpDirectory, { recursive: true, force: true });
 }
 
 // 1. Hero Archetypes

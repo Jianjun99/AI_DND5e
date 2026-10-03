@@ -40,6 +40,8 @@ app.get('/api/rules', (req, res) => {
     shop: engine.SHOP_ITEMS,
     difficulty: engine.DIFFICULTY,
     allies: engine.ALLIES,
+    // T5 quick-start presets: client-facing metadata only — the build drafts stay server-side
+    presets: require('./game/presets').listPresets(),
     gear: require('./game/content').listGear()
   });
 });

@@ -10,13 +10,13 @@
   "recommended": "Levels 4-7",
   "playerStart": {
     "x": 3,
-    "y": 13
+    "y": 14
   },
   "victory": {
     "type": "slay_boss",
     "campfire": {
       "x": 3,
-      "y": 13
+      "y": 14
     }
   },
   "wandering": [
@@ -102,10 +102,10 @@
   "entities": [
     {
       "type": "object",
-      "id": "mill_camp",
+      "id": "campfire",
       "name": "Delver’s Camp",
       "x": 3,
-      "y": 13,
+      "y": 14,
       "icon": "🔥",
       "desc": "A quiet corner."
     },
@@ -190,7 +190,7 @@
       "id": "ml_c2",
       "name": "Yard Crate",
       "x": 22,
-      "y": 10,
+      "y": 11,
       "icon": "🧰",
       "loot": {
         "gold": "3d10",
@@ -213,14 +213,14 @@
       "kind": "ogre",
       "id": "ml_ogre",
       "x": 16,
-      "y": 13
+      "y": 14
     },
     {
       "type": "monster",
       "kind": "cultist",
       "id": "ml_cu2",
       "x": 13,
-      "y": 13
+      "y": 14
     },
     {
       "type": "chest",
@@ -247,7 +247,7 @@
       "kind": "tomb_warden",
       "id": "ml_boss",
       "x": 22,
-      "y": 13,
+      "y": 14,
       "boss": true,
       "name": "Mill Guardian"
     }

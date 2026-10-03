@@ -55,6 +55,22 @@ try {
     assert(out.custom === true, 'fields preserved');
   });
 
+  test('Legacy end-mode delves without endSeq gain the #1 baseline on read (T3a)', () => {
+    const ended = { id: 'save_old_dead', mode: 'over', characterId: 'c1' };
+    const out = store.migrateSave(ended, 'delve');
+    assert(out.endSeq === 1, `a legacy ended delve baselines endSeq=1 (got ${out.endSeq})`);
+    for (const mode of ['victory', 'retreat']) {
+      const other = store.migrateSave({ id: 'save_old_' + mode, mode, characterId: 'c1' }, 'delve');
+      assert(other.endSeq === 1, `a legacy ${mode} delve baselines endSeq=1`);
+    }
+    const running = store.migrateSave({ id: 'save_running', mode: 'explore', characterId: 'c1' }, 'delve');
+    assert(running.endSeq === undefined, 'a running delve is not stamped — its first end must be #1');
+    const counted = store.migrateSave({ id: 'save_counted', mode: 'retreat', endSeq: 3, characterId: 'c1' }, 'delve');
+    assert(counted.endSeq === 3, 'an existing counter is never touched');
+    const character = store.migrateSave({ id: 'char_x', mode: 'over' }, 'character');
+    assert(character.endSeq === undefined, 'the baseline only applies to delve saves');
+  });
+
   test('saveGame stamps saveVersion and getSave migrates a hand-written legacy file', () => {
     const state = { id: 'save_test_1', characterId: 'c1', mapId: 'crypt', hp: 5 };
     store.saveGame(state);

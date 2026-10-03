@@ -10,7 +10,7 @@
   "recommended": "Levels 3-6",
   "playerStart": {
     "x": 3,
-    "y": 7
+    "y": 8
   },
   "victory": {
     "type": "slay_boss",
@@ -88,7 +88,7 @@
   "entities": [
     {
       "type": "object",
-      "id": "sw_camp",
+      "id": "campfire",
       "name": "Makeshift Camp",
       "x": 3,
       "y": 2,
@@ -150,7 +150,7 @@
       "type": "chest",
       "id": "sw_c1",
       "name": "Rusted Strongbox",
-      "x": 22,
+      "x": 21,
       "y": 11,
       "icon": "🧰",
       "locked": true,

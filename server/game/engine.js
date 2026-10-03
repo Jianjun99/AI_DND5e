@@ -277,7 +277,10 @@ function buildCharacter(draft) {
   else if (draft.bgPlus1 === draft.bgPlus2) abilities[draft.bgPlus1] += 1;
 
   const profBonus = 2;
-  const sc = cls.spellcasting ? finalizeSpells(cls, cls.spellcasting, draft, abilities, profBonus, 1) : null;
+  // the origin feat comes from the background, never from the draft (no creator path sets
+  // draft.feat) — without this the three magic-initiate feats silently lost their bonus
+  // cantrips and free spell at build time (found by the T5 preset checks)
+  const sc = cls.spellcasting ? finalizeSpells(cls, cls.spellcasting, { ...draft, feat: bg.feat }, abilities, profBonus, 1) : null;
 
   const skills = [...new Set([...(bg.skills || []), ...(draft.skills || [])])];
   const featDef = FEATS[bg.feat] || {};
@@ -481,6 +484,48 @@ function skillMod(char, skill) {
   if (char.skills.includes(skill)) { m += char.profBonus; if (char.expertise.includes(skill)) m += char.profBonus; }
   return m;
 }
+
+// T7a: deterministic, read-only preview for the client's check modal. Mirrors the exact
+// modifier math unlockChest/disarmTrap will roll with (skillMod incl. expertise, plus the
+// tools proficiency when the skill itself isn't proficient) and reports state-dependent
+// extras as NOTES, never as fake constants. No RNG, no buff consumption, no mutation —
+// the actual natural/modifier/total/dc/outcome still come from the resolve event.
+function previewSkillCheckObject(state, obj) {
+  const char = state.character;
+  const p = playerEntity(state);
+  const hasTools = (char.inventory || []).some(i => i.itemId === 'thieves_tools' || i.itemId === 'tool_thieves');
+  const toolsMod = (skill) => (hasTools && !char.skills.includes(skill) ? (char.profBonus || 2) : 0);
+  const notes = [];
+  if (getBuff(p, 'guidance')) notes.push('指引 +1d4（掷骰时消耗）');
+  const insp = getBuff(p, 'inspiration');
+  if (insp) notes.push(`灵感 +1d${insp.dice || 6}（掷骰时消耗）`);
+  if ((char.uses && char.uses.lucky_reroll || 0) > 0) notes.push('幸运重掷可用（仅失败时自动触发）');
+  if (char.className === 'rogue') notes.push('盗贼：失败后可再试一次（预览为基础加值）');
+  const method = (id, label, skill, dc, toolProf, requiresTools) => ({
+    id, label, skill, dc,
+    modifier: skillMod(char, skill) + (toolProf ? toolsMod(skill) : 0),
+    requiresTools: !!requiresTools,
+    hasTools,
+    rogueRetry: char.className === 'rogue'
+  });
+
+  if (obj.type === 'trap') {
+    return {
+      kind: 'trap', objectId: obj.id,
+      methods: [method('disarm', 'Disarm Mechanism', 'sleight_of_hand', obj.dc || 12, true, true)],
+      notes
+    };
+  }
+  return {
+    kind: 'chest', objectId: obj.id,
+    methods: [
+      method('pick', 'Pick Tumbler Lock', 'sleight_of_hand', obj.pickDc || 12, true, true),
+      method('force', 'Pry / Shatter Lock', 'athletics', obj.forceDc || 14, false, false)
+    ],
+    notes
+  };
+}
+
 function passivePerception(char) {
   const observant = ((char.unlockedFeats || []).includes('observant') || char.feat === 'observant') ? 5 : 0;
   return 10 + skillMod(char, 'perception') + observant;
@@ -510,7 +555,7 @@ function isDifficult(state, x, y) {
   return false;
 }
 function entityAt(state, x, y, includeDead = false) {
-  return state.entities.find(e => e.x === x && e.y === y && (includeDead || e.alive !== false));
+  return state.entities.find(e => e.x === x && e.y === y && (includeDead || (e.alive !== false && !e.fled)));
 }
 function roomAt(state, x, y) {
   return (state.map.rooms || []).find(r => x >= r.rect[0] && x <= r.rect[2] && y >= r.rect[1] && y <= r.rect[3]) || null;
@@ -590,13 +635,14 @@ function generateMapState(mapDef, difficulty) {
         chief: !!e.chief, conditions: [], buffs: [], alive: true, aware: false, fled: false,
         sx: e.x, sy: e.y
       };
-      if (!def.boss && (e.isElite || rand() < (mapDef.eliteChance || 0.18))) {
+      mon.boss = e.boss === undefined ? !!def.boss : e.boss;
+      if (!mon.boss && (e.isElite || rand() < (mapDef.eliteChance || 0.18))) {
         affixes.applyMonsterAffix(mon);
       }
       ents.push(mon);
     } else if (e.type === 'npc') {
       ents.push({ id: 'npc_' + e.id, kind: 'npc', npcId: e.id, name: e.name, x: e.x, y: e.y, icon: e.icon || '🗣️', alive: true });
-      objects.push({ ...e, type: 'npcMarker' });
+      objects.push({ ...e, type: 'npcMarker', npcId: e.id });
     } else if (e.type === 'trap') {
       objects.push({ ...e, revealed: false, disarmed: false, triggered: false });
     } else if (e.type === 'barrel') {
@@ -639,6 +685,7 @@ function loadWorldMap(state, mapId) {
   const travelers = state.entities.filter(e => e.kind === 'player' || e.kind === 'ally');
   state.entities = [...travelers, ...gen.ents];
   state.objects = gen.objects;
+  restoreScenePassages(state);
   state.discovered = gen.discovered || [];
   mapFlagKeys(state.flags).forEach(k => delete state.flags[k]);
   Object.entries(gen.flags || {}).forEach(([k, v]) => { state.flags[k] = v; });
@@ -648,8 +695,9 @@ function loadWorldMap(state, mapId) {
 }
 
 function startGame(character, options = {}) {
-  beginSeed(options.seed != null ? (options.seed >>> 0) : null); // weekly challenge: deterministic stream
   const mapDef = content.getMap(options.mapId);
+  if (!mapDef) throw new Error('Unknown or invalid map: ' + (options.mapId ?? '(default)'));
+  beginSeed(options.seed != null ? (options.seed >>> 0) : null); // weekly challenge: deterministic stream
   const difficulty = DIFFICULTY[options.difficulty] ? options.difficulty : 'normal';
   const state = {
     id: 'save_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
@@ -720,7 +768,10 @@ function startGame(character, options = {}) {
 // Travel between connected maps via stairs. Per-map progress (chests, doors,
 // slain monsters, explored fog) is snapshotted and restored.
 function travelTo(state, targetMapId, x, y, events) {
-  if (!content.getMap(targetMapId)) { events.push({ type: 'error', text: 'Those stairs lead nowhere.' }); return; }
+  const destination = typeof targetMapId === 'string' ? content.getMap(targetMapId) : null;
+  if (!destination || !Number.isSafeInteger(x) || !Number.isSafeInteger(y) || x < 0 || y < 0 || x >= destination.width || y >= destination.height || destination.rows[y][x] === '#') {
+    events.push({ type: 'error', text: 'Those stairs lead nowhere or have an invalid arrival tile.' }); return;
+  }
   if (!state.world) state.world = {}; // saves from before multi-map get it lazily
   state.world[state.mapId] = snapshotWorldMap(state);
   const fromName = state.mapName;
@@ -872,6 +923,8 @@ function rollDeathSave(state, events) {
   addLog(state, 'mech', `Death save: d20 ${roll.natural} — ${outcome} (${p.deathSaves.succ} success / ${p.deathSaves.fail} failure).`);
   if (p.deathSaves.fail >= 3) {
     state.mode = 'over'; state.flags.failed = true; p.alive = false;
+    // each death of this save is its own settleable end (T3): sync-delve dedupes on it
+    state.endSeq = (state.endSeq || 0) + 1;
     const ev = { type: 'player_down', narrate: true, text: `The third failure. ${p.name} slips beyond the reach of any blade or prayer…` };
     events.push(ev); addLog(state, 'system', ev.text);
     return;
@@ -973,6 +1026,7 @@ function charHasArmor(char) { return char.inventory.some(i => byId(ARMORS, i.ite
 
 // ---------------------------------------------------------------- damage ----
 function applyDamage(state, target, amount, damageType, events, opts = {}) {
+  if (target.kind === 'monster' && target.fled) return 0; // departed guards cannot be farmed through stale targets
   if (!target || target.alive === false || amount <= 0) return 0;
   let dmg = amount;
   if (!state.stats) state.stats = { dmgDealt: 0, dmgTaken: 0, kills: 0, goldFound: 0, rounds: 0 };
@@ -1238,7 +1292,7 @@ function hasExtraAttack(char) {
 function playerAttack(state, targetId, weaponId, events, opts = {}) {
   const p = playerEntity(state);
   removeBuff(p, 'invisible'); // attacking breaks Invisibility
-  const target = state.entities.find(e => e.id === targetId && e.alive !== false);
+  const target = state.entities.find(e => e.id === targetId && e.alive !== false && !e.fled);
   const objTarget = (!target) ? state.objects.find(o => o.id === targetId && (o.type === 'barrel' || o.type === 'spores')) : null;
   if (!target && !objTarget) { events.push({ type: 'error', text: 'No such target.' }); return false; }
   const char = state.character;
@@ -1711,51 +1765,148 @@ function noticeTrapsNearby(state, events) {
   });
 }
 
-function disarmTrap(state, trap, rollTotal, events) {
+function disarmTrap(state, trap, arg3, arg4) {
+  const events = Array.isArray(arg3) ? arg3 : (Array.isArray(arg4) ? arg4 : []);
   const p = playerEntity(state);
+  const char = state.character;
   if (trap.triggered || trap.disarmed) {
-    events.push({ type: 'info', text: 'This trap is already disarmed.' });
+    const text = 'This trap is already disarmed.';
+    events.push({ type: 'info', text });
+    addLog(state, 'mech', text);
+    return;
+  }
+  const hasTools = (char.inventory || []).some(i => i.itemId === 'thieves_tools' || i.itemId === 'tool_thieves');
+  if (!hasTools) {
+    const text = "You need thieves' tools to disarm a trap.";
+    events.push({ type: 'error', text });
+    addLog(state, 'mech', text);
     return;
   }
   const dc = trap.dc || 12;
-  const success = rollTotal >= dc;
-  if (success) {
+  let check = skillCheck(state, 'sleight_of_hand', dc, { toolProf: true });
+  if (char.className === 'rogue' && !check.success) {
+    check = skillCheck(state, 'sleight_of_hand', dc, { toolProf: true });
+  }
+  const natural = check.natural;
+  const total = check.total;
+  const modifier = total - natural;
+  if (check.success) {
     trap.disarmed = true;
     trap.triggered = true;
     awardXp(state, 25, events);
-    const text = `Success! ${p.name} disarms the ${trap.name} (roll ${rollTotal} vs DC ${dc}). (+25 XP)`;
-    events.push({ type: 'trap_disarmed', narrate: true, text, data: { trapId: trap.id, dc, rollTotal, success: true } });
+    const text = `Success! ${p.name} disarms the ${trap.name} (${check.detail}). (+25 XP)`;
+    events.push({
+      type: 'trap_disarmed',
+      narrate: true,
+      text,
+      data: {
+        trapId: trap.id,
+        natural,
+        modifier,
+        total,
+        dc,
+        outcome: 'success',
+        success: true
+      }
+    });
     addLog(state, 'mech', text);
   } else {
-    const text = `Failed check (roll ${rollTotal} vs DC ${dc})! The mechanism snaps!`;
-    events.push({ type: 'trap_disarm_failed', narrate: true, text, data: { trapId: trap.id, dc, rollTotal, success: false } });
+    const text = `Failed check (${check.detail})! The mechanism snaps!`;
+    events.push({
+      type: 'trap_disarm_failed',
+      narrate: true,
+      text,
+      data: {
+        trapId: trap.id,
+        natural,
+        modifier,
+        total,
+        dc,
+        outcome: 'failure',
+        success: false
+      }
+    });
     addLog(state, 'mech', text);
     triggerTrap(state, trap, events);
   }
 }
 
-function unlockChest(state, chest, method, rollTotal, events) {
+function unlockChest(state, chest, method = 'pick', arg4, arg5) {
+  const events = Array.isArray(arg4) ? arg4 : (Array.isArray(arg5) ? arg5 : []);
   const p = playerEntity(state);
+  const char = state.character;
   if (chest.looted) {
-    events.push({ type: 'info', text: 'The chest is already empty.' });
+    const text = 'The chest is already empty.';
+    events.push({ type: 'info', text });
+    addLog(state, 'mech', text);
     return;
   }
-  const dc = method === 'force' ? (chest.forceDc || 14) : (chest.pickDc || 12);
-  const success = rollTotal >= dc;
-  if (success) {
+  if (!chest.locked || chest.unlocked) {
+    const text = 'The chest is already unlocked.';
+    events.push({ type: 'info', text });
+    addLog(state, 'mech', text);
+    return;
+  }
+  const isForce = method === 'force';
+  const hasTools = (char.inventory || []).some(i => i.itemId === 'thieves_tools' || i.itemId === 'tool_thieves');
+  if (!isForce && !hasTools) {
+    const text = "You need thieves' tools to pick locks.";
+    events.push({ type: 'error', text });
+    addLog(state, 'mech', text);
+    return;
+  }
+  const dc = isForce ? (chest.forceDc || 14) : (chest.pickDc || 12);
+  let check = isForce
+    ? skillCheck(state, 'athletics', dc)
+    : skillCheck(state, 'sleight_of_hand', dc, { toolProf: true });
+  if (!isForce && char.className === 'rogue' && !check.success) {
+    check = skillCheck(state, 'sleight_of_hand', dc, { toolProf: true });
+  }
+  const natural = check.natural;
+  const total = check.total;
+  const modifier = total - natural;
+  if (check.success) {
     chest.locked = false;
     chest.unlocked = true;
-    const text = method === 'force'
-      ? `${p.name} shatters the lock with raw force (roll ${rollTotal} vs DC ${dc})!`
-      : `Click! ${p.name} picks the tumbler lock (roll ${rollTotal} vs DC ${dc})!`;
-    events.push({ type: 'chest_unlocked', narrate: true, text, data: { chestId: chest.id, success: true } });
+    const text = isForce
+      ? `${p.name} shatters the lock with raw force (${check.detail})!`
+      : `Click! ${p.name} picks the tumbler lock (${check.detail})!`;
+    events.push({
+      type: 'chest_unlocked',
+      narrate: true,
+      text,
+      data: {
+        chestId: chest.id,
+        method: isForce ? 'force' : 'pick',
+        natural,
+        modifier,
+        total,
+        dc,
+        outcome: 'success',
+        success: true
+      }
+    });
     addLog(state, 'mech', text);
     lootChest(state, chest, events);
   } else {
-    const text = method === 'force'
-      ? `The iron bands withstand ${p.name}'s blow (roll ${rollTotal} vs DC ${dc}).`
-      : `The lock tumblers jam and resist ${p.name}'s lockpick (roll ${rollTotal} vs DC ${dc}).`;
-    events.push({ type: 'chest_locked', narrate: true, text, data: { chestId: chest.id, success: false } });
+    const text = isForce
+      ? `The iron bands withstand ${p.name}'s blow (${check.detail}).`
+      : `The lock tumblers jam and resist ${p.name}'s lockpick (${check.detail}).`;
+    events.push({
+      type: 'chest_locked',
+      narrate: true,
+      text,
+      data: {
+        chestId: chest.id,
+        method: isForce ? 'force' : 'pick',
+        natural,
+        modifier,
+        total,
+        dc,
+        outcome: 'failure',
+        success: false
+      }
+    });
     addLog(state, 'mech', text);
   }
 }
@@ -2021,6 +2172,7 @@ function checkVictory(state, events) {
   } else if (state.flags.hasRelic) won = true;
   if (!won) return;
   state.mode = 'victory'; state.flags.victory = true;
+  state.endSeq = (state.endSeq || 0) + 1; // settleable end marker (T3)
   awardXp(state, 100, events);
   state.entities.filter(e => e.kind === 'ally' && e.alive).forEach(a => adjustLoyalty(state, 5, events, a));
   // the weekly trial pays its champion: a forced set piece the first time each delve wins
@@ -2238,6 +2390,7 @@ function checkCombatEnd(state, events) {
     events.push(ev); addLog(state, 'mech', ev.text);
     const visible = computeVision(state); markDiscovered(state, visible);
     checkRoomEntry(state, events);
+    progressScenes(state, events);
     return true;
   }
   return false;
@@ -2507,27 +2660,33 @@ function progressPersonalQuest(state, mon, events) {
 }
 
 // ---------------------------------------------------------------- checks & interaction ----
-function skillCheck(state, skill, dc) {
+function skillCheck(state, skill, dc, opts = {}) {
   const char = state.character;
   const p = playerEntity(state);
-  let bonus = 0, bonusTxt = '';
+  let bonus = opts.bonus || 0, bonusTxt = opts.bonusTxt || '';
   const guidance = getBuff(p, 'guidance');
   if (guidance) { bonus += die(4); bonusTxt += ' +1d4 guidance'; removeBuff(p, 'guidance'); }
   const insp = getBuff(p, 'inspiration');
   if (insp) { bonus += die(insp.dice || 6); bonusTxt += ` +1d${insp.dice || 6} inspiration`; removeBuff(p, 'inspiration'); }
-  let roll = d20({ adv: skill === 'stealth' && char.subclass === 'thief', reroll1: char.rerollNat1 });
-  let total = roll.natural + skillMod(char, skill) + bonus;
-  if (char.subclass === 'thief' && char.className === 'rogue' && char.level >= 11 && char.skills.includes(skill) && total < 10 + skillMod(char, skill) + bonus) { total = 10 + skillMod(char, skill) + bonus; }
+  let roll = d20({ adv: (skill === 'stealth' && char.subclass === 'thief') || !!opts.adv, reroll1: char.rerollNat1 });
+  let baseMod = skillMod(char, skill);
+  if (opts.toolProf && !char.skills.includes(skill)) {
+    baseMod += char.profBonus;
+    bonusTxt += ` +${char.profBonus} tools`;
+  }
+  let total = roll.natural + baseMod + bonus;
+  if (char.subclass === 'thief' && char.className === 'rogue' && char.level >= 11 && char.skills.includes(skill) && total < 10 + baseMod + bonus) { total = 10 + baseMod + bonus; }
   let rerolled = false;
   if (total < dc && (char.uses.lucky_reroll || 0) > 0) {
     char.uses.lucky_reroll--;
     roll = d20({ reroll1: char.rerollNat1 });
-    total = roll.natural + skillMod(char, skill) + bonus;
+    total = roll.natural + baseMod + bonus;
     rerolled = true;
   }
   return {
     success: total >= dc, total, natural: roll.natural,
-    detail: `d20 ${roll.natural}+${skillMod(char, skill)}${bonusTxt} = ${total} vs DC ${dc}${rerolled ? ' (Heroic reroll)' : ''}`
+    modifier: baseMod + bonus,
+    detail: `d20 ${roll.natural}+${baseMod}${bonusTxt} = ${total} vs DC ${dc}${rerolled ? ' (Heroic reroll)' : ''}`
   };
 }
 
@@ -2664,6 +2823,7 @@ function alertForcedNoise(state, events) {
 function interactDoor(state, door, events) {
   const p = playerEntity(state);
   if (manhattan(p, door) > 1) { events.push({ type: 'error', text: 'You are not close enough to the door.' }); return; }
+  if (sceneDoorBlocked(state, door.id)) { events.push({ type: 'error', text: '先和守门人交谈，选择如何通过这道哨门。' }); return; }
   if (door.open) { events.push({ type: 'info', text: 'The door is already open.' }); return; }
   if (door.locked && !door.unlocked) {
     const char = state.character;
@@ -2724,7 +2884,10 @@ function interactObject(state, objId, events) {
     return;
   }
   if (obj.type === 'npcMarker') {
-    const ev = { type: 'chat_open', narrate: false, text: `${obj.name}: "${(state.map.npcs[obj.npcId].canned || ['...'])[0]}"`, data: { npcId: obj.npcId, name: obj.name } };
+    const scene = (state.map.scenes || []).find(s => s.npcId === obj.npcId);
+    const line = sceneMemory(state, obj.npcId) || (state.map.npcs[obj.npcId].canned || ['...'])[0];
+    const ev = { type: 'chat_open', narrate: false, text: `${obj.name}: "${line}"`, data: { npcId: obj.npcId, name: obj.name, sceneId: scene?.id } };
+    addLog(state, 'npc', ev.text);
     events.push(ev);
     return;
   }
@@ -2777,11 +2940,354 @@ function interactObject(state, objId, events) {
   events.push({ type: 'info', text: `${obj.name}: ${obj.desc || 'Nothing unusual.'}` });
 }
 
+// ---------------------------------------------------------------- road encounters ----
+const ROAD_ENCOUNTERS = {
+  peddler: {
+    id: 'peddler',
+    icon: '🧳',
+    title: 'Garrick the Wandering Peddler',
+    blurb: '"Ho there, brave traveler! Before you delve into the damp tombs, consider a draught or charm from my pack. Genuine goods, modest coin!"',
+    desc: 'A jovial halfling merchant with an overloaded pack mule stands by the sun-dappled roadside.',
+    wares: [
+      { id: 'potion_healing', name: 'Potion of Healing', price: 20, desc: 'Heals 2d4+2 hit points' },
+      { id: 'potion_greater', name: 'Potion of Greater Healing', price: 45, desc: 'Heals 4d4+4 hit points' },
+      { id: 'cloak_protection', name: 'Cloak of Protection', price: 65, desc: '+1 bonus to Armor Class' }
+    ],
+    options: ['leave']
+  },
+  ambush: {
+    id: 'ambush',
+    icon: '🏹',
+    title: 'Roadside Goblin Ambush',
+    blurb: '"Drop the coin purse, tall-legs, or we skewer your knees!"',
+    desc: 'Three snarling goblin brigands leap from the roadside brush, notched shortbows aimed right at your chest.',
+    options: ['fight', 'bribe', 'sneak']
+  },
+  shrine: {
+    id: 'shrine',
+    icon: '⛩️',
+    title: 'Shrine of the Dawnmother',
+    blurb: '"May the golden rays illuminate your descent into the shadowed depths."',
+    desc: 'An ancient carved marble waypoint at the crossroads bathed in radiant dawnlight. Soft hymns seem to whisper in the gentle breeze.',
+    options: ['pray', 'offer', 'proceed']
+  }
+};
+
+const LEGACY_ROAD_OUTCOME_TO_CHOICE = {
+  ambush_win: 'fight',
+  ambush_wound: 'fight',
+  bribe: 'bribe',
+  sneak_wound: 'sneak',
+  sneak_win: 'sneak',
+  shrine_pray: 'pray',
+  shrine_offer: 'offer',
+  shrine_proceed: 'proceed',
+  peddler_leave: 'leave'
+};
+
+// Client-facing view of a stored road-encounter instance. The template (title, blurb,
+// options, wares) always comes from the engine's own tables so clients never keep a
+// second copy; instanceId + resolution state let a client restore an in-flight choice
+// (refresh / failed start) without re-rolling anything. For ambushes the view also
+// carries the engine-computed check modifiers (the same figures resolveRoadEncounter
+// rolls with) so the modal never previews a number the server won't use.
+function roadEncounterView(enc, char) {
+  if (!enc) return null;
+  const tpl = ROAD_ENCOUNTERS[enc.id];
+  if (!tpl) return null;
+  let checks = null;
+  if (enc.id === 'ambush' && char) {
+    const profBonus = char.profBonus || 2;
+    const strMod = mod((char.abilities || {}).str), dexMod = mod((char.abilities || {}).dex);
+    checks = {
+      fight: { dc: 11, modifier: Math.max(strMod, dexMod) + profBonus },
+      sneak: { dc: 12, modifier: dexMod + ((char.skills || []).includes('stealth') ? profBonus : 0) }
+    };
+  }
+  return {
+    ...tpl,
+    instanceId: enc.instanceId,
+    resolved: !!enc.resolved,
+    resolvedChoice: enc.resolvedChoice || null,
+    result: enc.result || null,
+    checks
+  };
+}
+
+function triggerRoadEncounter(char, options = {}) {
+  // A live instance is authoritative: unresolved (choice still owed) or resolved but not
+  // yet consumed by a delve start. Return it untouched — no re-roll, no instanceId
+  // overwrite, no RNG consumption at all (T7a).
+  if (char.currentRoadEncounter) return roadEncounterView(char.currentRoadEncounter, char);
+  beginRng(char);
+  try {
+    const force = !!options.force;
+    if (!force && rand() >= 0.35) {
+      return null;
+    }
+    const encKeys = ['peddler', 'ambush', 'shrine'];
+    const chosenKey = encKeys[Math.floor(rand() * encKeys.length)];
+    const encTemplate = ROAD_ENCOUNTERS[chosenKey];
+    const instanceId = 're_' + Date.now().toString(36) + '_' + Math.floor(rand() * 1000000).toString(36);
+    char.currentRoadEncounter = {
+      id: encTemplate.id,
+      instanceId,
+      options: encTemplate.options.slice(),
+      resolved: false,
+      resolvedChoice: null,
+      result: null
+    };
+    return roadEncounterView(char.currentRoadEncounter, char);
+  } finally {
+    persistRng(char);
+  }
+}
+
+function resolveRoadEncounter(char, rawChoice, options = {}) {
+  const enc = char.currentRoadEncounter;
+  if (!enc) {
+    throw new Error('No active road encounter.');
+  }
+  if (options.encounterId && enc.instanceId && options.encounterId !== enc.instanceId) {
+    throw new Error('Encounter instance mismatch.');
+  }
+
+  let choice = rawChoice;
+  if (!enc.options.includes(choice) && LEGACY_ROAD_OUTCOME_TO_CHOICE[choice]) {
+    choice = LEGACY_ROAD_OUTCOME_TO_CHOICE[choice];
+  }
+
+  // Idempotent duplicate choice handling: prevents duplicate awards
+  if (enc.resolved) {
+    if (enc.resolvedChoice === choice && enc.result) {
+      return { ...enc.result, alreadyResolved: true };
+    }
+    throw new Error('Encounter already resolved.');
+  }
+
+  // Check if choice is valid for current encounter
+  if (!enc.options.includes(choice)) {
+    throw new Error(`Option '${choice}' is not valid for ${enc.id} encounter.`);
+  }
+
+  beginRng(char);
+  try {
+    let result = null;
+    const strMod = mod(char.abilities?.str);
+    const dexMod = mod(char.abilities?.dex);
+    const profBonus = char.profBonus || 2;
+
+    if (enc.id === 'ambush') {
+      if (choice === 'fight') {
+        const fightMod = Math.max(strMod, dexMod) + profBonus;
+        const natural = die(20);
+        const total = natural + fightMod;
+        const dc = 11;
+        const success = total >= dc;
+        if (success) {
+          char.gold = (char.gold || 0) + 25;
+          char.xp = (char.xp || 0) + 50;
+          result = {
+            natural, modifier: fightMod, total, dc, success: true, outcome: 'ambush_win',
+            text: `Victory! (Roll ${natural}+${fightMod} = ${total} vs DC ${dc})\nYou strike down their leader and send the survivors running into the dark trees. You loot +25 GP from their pouches and earn +50 XP!`
+          };
+        } else {
+          char.hp = Math.max(1, (char.hp || char.hpMax || 10) - 3);
+          result = {
+            natural, modifier: fightMod, total, dc, success: false, outcome: 'ambush_wound',
+            text: `Staggered! (Roll ${natural}+${fightMod} = ${total} vs DC ${dc})\nThe goblins shoot a volley as they scatter! You take a stinging arrow graze (-3 HP, current HP: ${char.hp}/${char.hpMax || 10}) before driving them off.`
+          };
+        }
+      } else if (choice === 'bribe') {
+        if ((char.gold || 0) < 10) {
+          throw new Error('Insufficient gold for bribe (need 10 GP).');
+        }
+        char.gold = Math.max(0, (char.gold || 0) - 10);
+        result = {
+          natural: null, modifier: null, total: null, dc: null, success: true, outcome: 'bribe',
+          text: 'Coins Scattered! (-10 GP)\nThe goblins eagerly scramble in the mud for the glittering coins, squabbling amongst themselves as you slip safely past.'
+        };
+      } else if (choice === 'sneak') {
+        const stealthProf = (char.skills || []).includes('stealth');
+        const stealthMod = dexMod + (stealthProf ? profBonus : 0);
+        const natural = die(20);
+        const total = natural + stealthMod;
+        const dc = 12;
+        const success = total >= dc;
+        if (success) {
+          result = {
+            natural, modifier: stealthMod, total, dc, success: true, outcome: 'sneak_win',
+            text: `Unseen! (Roll ${natural}+${stealthMod} = ${total} vs DC ${dc})\nYou slide through the tall ferns like a phantom. The goblins stare down an empty road while you slip quietly into the dungeon entrance!`
+          };
+        } else {
+          char.hp = Math.max(1, (char.hp || char.hpMax || 10) - 2);
+          result = {
+            natural, modifier: stealthMod, total, dc, success: false, outcome: 'sneak_wound',
+            text: `Spotted! (Roll ${natural}+${stealthMod} = ${total} vs DC ${dc})\nA twig snaps loudly! A goblin shouts and looses an arrow that clips your shoulder (-2 HP, current HP: ${char.hp}/${char.hpMax || 10}) as you dash for cover.`
+          };
+        }
+      }
+    } else if (enc.id === 'shrine') {
+      if (choice === 'pray') {
+        char.tempHp = (char.tempHp || 0) + 5;
+        char.pendingRoadBoons = char.pendingRoadBoons || [];
+        char.pendingRoadBoons.push('shrine_temp_hp');
+        result = {
+          natural: null, modifier: null, total: null, dc: null, success: true, outcome: 'shrine_pray',
+          text: "Dawnmother's Vitality!\nA soothing solar warmth fills your chest. You feel invigorated and ready for battle. (+5 Temp HP added!)"
+        };
+      } else if (choice === 'offer') {
+        if ((char.gold || 0) < 5) {
+          throw new Error('Insufficient gold for offering (need 5 GP).');
+        }
+        char.gold = Math.max(0, (char.gold || 0) - 5);
+        char.blessed = true;
+        char.pendingRoadBoons = char.pendingRoadBoons || [];
+        char.pendingRoadBoons.push('shrine_blessed');
+        result = {
+          natural: null, modifier: null, total: null, dc: null, success: true, outcome: 'shrine_offer',
+          text: 'Divine Blessing Bestowed! (-5 GP)\nThe silver and gold coins gleam in the sacred bowl. A radiant aura settles upon your brow (Heroic Inspiration granted for the delve ahead!).'
+        };
+      } else if (choice === 'proceed') {
+        result = {
+          natural: null, modifier: null, total: null, dc: null, success: true, outcome: 'shrine_proceed',
+          text: 'Steady March.\nYou salute the sun crest and march purposefully toward the waiting dungeon.'
+        };
+      }
+    } else if (enc.id === 'peddler') {
+      if (choice === 'leave') {
+        result = {
+          natural: null, modifier: null, total: null, dc: null, success: true, outcome: 'peddler_leave',
+          text: 'Safe travels, adventurer!\nYou bid Garrick farewell and head toward the dungeon.'
+        };
+      }
+    }
+
+    if (!result) {
+      throw new Error(`Unhandled road encounter choice '${choice}'.`);
+    }
+
+    enc.resolved = true;
+    enc.resolvedChoice = choice;
+    enc.result = result;
+    return result;
+  } finally {
+    persistRng(char);
+  }
+}
+
+// T6's small authored encounter protocol. This stays inside the referee engine;
+// authored JSON selects two fixed effects, never JavaScript or arbitrary state writes.
+function sceneKey(state, scene) { return state.mapId + ':' + scene.id; }
+function sceneEntry(state, scene) { return state.encounters?.[sceneKey(state, scene)] || { phase: 'pending' }; }
+function sceneMemory(state, npcId) {
+  const facts = [...(state.character.encounterFacts || []), ...(state.encounterFacts || [])];
+  return facts.filter(f => f.mapId === state.mapId && f.npcId === npcId).reverse().sort((a, b) => b.ts - a.ts)[0]?.memory || '';
+}
+function sceneDoorBlocked(state, doorId) {
+  const scene = (state.map.scenes || []).find(s => s.doorId === doorId);
+  return !!scene && sceneEntry(state, scene).phase === 'pending';
+}
+function sceneChoiceReason(state, scene, choice) {
+  const entry = sceneEntry(state, scene), p = playerEntity(state);
+  if (entry.phase === 'resolved') return '本次遭遇已经完成。';
+  if (entry.phase === 'fighting') return '先完成这场战斗。';
+  if (state.mode !== 'explore' || !p.alive || p.hp <= 0 || p.conditions.includes('unconscious')) return '现在不能作出这个选择。';
+  const npc = state.entities.find(e => e.kind === 'npc' && e.npcId === scene.npcId);
+  if (!npc || manhattan(p, npc) > 1) return '先走到守门人身边。';
+  if (!state.objects.some(o => o.id === scene.doorId && o.type === 'door') || scene.guardIds.some(id => !state.entities.some(e => e.id === id && e.kind === 'monster'))) return '遭遇目标已经失效。';
+  if (choice.condition.type === 'has_item' && !(state.character.inventory || []).some(i => i.itemId === choice.condition.itemId && i.qty > 0)) return '需要' + itemName(choice.condition.itemId) + '；也可以选择交战。';
+  return '';
+}
+function sceneViews(state) {
+  const p = playerEntity(state);
+  return (state.map.scenes || []).filter(scene => state.entities.some(e => e.kind === 'npc' && e.npcId === scene.npcId && manhattan(p, e) <= 5)).map(scene => {
+    const entry = sceneEntry(state, scene);
+    return {
+      id: scene.id, npcId: scene.npcId, name: scene.name, prompt: scene.prompt,
+      phase: entry.phase, choiceId: entry.choiceId || null, memory: sceneMemory(state, scene.npcId),
+      outcome: entry.phase === 'resolved' ? scene.choices.find(c => c.id === entry.choiceId)?.response || '' : '',
+      choices: scene.choices.map(choice => ({ id: choice.id, label: choice.label, available: !sceneChoiceReason(state, scene, choice), reason: sceneChoiceReason(state, scene, choice) }))
+    };
+  });
+}
+function openScenePassage(state, scene) {
+  const door = state.objects.find(o => o.id === scene.doorId);
+  if (door) { door.open = true; door.unlocked = true; }
+}
+function completeScene(state, scene, choice, events) {
+  if (sceneEntry(state, scene).phase === 'resolved') return;
+  state.encounters ??= {};
+  state.encounters[sceneKey(state, scene)] = { phase: 'resolved', choiceId: choice.id };
+  openScenePassage(state, scene);
+  if (choice.effect.type === 'passage') state.entities.filter(e => scene.guardIds.includes(e.id)).forEach(e => { e.fled = true; e.pacified = true; e.aware = false; });
+  state.encounterFacts ??= [];
+  const fact = { id: state.id + ':' + sceneKey(state, scene), saveId: state.id, mapId: state.mapId, sceneId: scene.id, npcId: scene.npcId, choiceId: choice.id, fact: choice.fact, text: choice.response, memory: choice.memory, ts: Date.now() };
+  if (!state.encounterFacts.some(f => f.id === fact.id)) state.encounterFacts.push(fact);
+  const ev = { type: 'scene', narrate: true, text: choice.response, data: { sceneId: scene.id, choiceId: choice.id, fact: choice.fact } };
+  events.push(ev); addLog(state, 'system', ev.text);
+}
+function resetSceneAttempt(state, scene) {
+  state.encounters[sceneKey(state, scene)] = { phase: 'pending' };
+  const door = state.objects.find(o => o.id === scene.doorId);
+  if (door) { door.open = false; door.unlocked = false; }
+  state.entities.filter(e => scene.guardIds.includes(e.id)).forEach(e => {
+    const original = state.map.entities.find(o => o.id === e.id);
+    if (original) { e.x = original.x; e.y = original.y; e.aware = false; }
+  });
+}
+function progressScenes(state, events) {
+  if (state.mode !== 'explore') return;
+  for (const scene of state.map.scenes || []) {
+    const entry = sceneEntry(state, scene);
+    if (entry.phase !== 'fighting') continue;
+    const guards = state.entities.filter(e => scene.guardIds.includes(e.id));
+    if (guards.length === scene.guardIds.length && guards.every(e => !e.alive || e.fled)) {
+      const choice = scene.choices.find(c => c.id === entry.choiceId);
+      if (choice) completeScene(state, scene, choice, events);
+    } else resetSceneAttempt(state, scene); // stabilized/escaped fight: another route remains possible
+  }
+}
+function restoreScenePassages(state) {
+  for (const scene of state.map.scenes || []) {
+    if (sceneEntry(state, scene).phase !== 'resolved') continue;
+    openScenePassage(state, scene);
+    state.entities.filter(e => scene.guardIds.includes(e.id)).forEach(e => { e.fled = true; e.aware = false; });
+  }
+}
+function resetSceneAttempts(state) {
+  for (const scene of state.map.scenes || []) if (sceneEntry(state, scene).phase === 'fighting') resetSceneAttempt(state, scene);
+  restoreScenePassages(state);
+}
+function chooseScene(state, sceneId, choiceId, events) {
+  const scene = (state.map.scenes || []).find(s => s.id === sceneId);
+  const choice = scene?.choices.find(c => c.id === choiceId);
+  if (!scene || !choice) { events.push({ type: 'error', text: '这个遭遇选项不存在。' }); return; }
+  if (sceneEntry(state, scene).phase === 'resolved') { events.push({ type: 'info', text: '本次选择已生效，不会重复消耗或结算。' }); return; }
+  const reason = sceneChoiceReason(state, scene, choice);
+  if (reason) { events.push({ type: 'error', text: reason }); return; }
+  if (choice.effect.type === 'passage') {
+    if (choice.effect.consumeItem) {
+      const item = state.character.inventory.find(i => i.itemId === choice.effect.consumeItem && i.qty > 0);
+      item.qty--; state.character.inventory = state.character.inventory.filter(i => i.qty > 0);
+    }
+    completeScene(state, scene, choice, events);
+  } else {
+    state.encounters ??= {};
+    state.encounters[sceneKey(state, scene)] = { phase: 'fighting', choiceId: choice.id };
+    openScenePassage(state, scene);
+    const guards = state.entities.filter(e => scene.guardIds.includes(e.id) && e.alive && !e.fled);
+    if (!guards.length) completeScene(state, scene, choice, events);
+    else startCombat(state, guards.map(e => e.id), events);
+  }
+}
+
 module.exports = {
+  sceneViews, sceneMemory, chooseScene, progressScenes, sceneDoorBlocked, resetSceneAttempts,
   SPECIES, CLASSES, BACKGROUNDS, FEATS, WEAPONS, ARMORS, GEAR, SPELLS, MONSTERS, ALLY_DEF, ALLIES, MAPS,
   ABILITIES, SKILL_ABILITY, ALL_SKILLS, XP_THRESHOLDS, SLOTS, DIFFICULTY, SHOP_ITEMS,
   die, rollExpr, d20, mod, cap, byId, invEntry, equippedBonus,
-  buildCharacter, applyClassAndSpecies, skillMod, passivePerception, levelUpInfo,
+  buildCharacter, applyClassAndSpecies, skillMod, passivePerception, levelUpInfo, previewSkillCheckObject,
   getMap, tileChar, isWall, isBlocked, isDifficult, entityAt, roomAt, los, manhattan, bfsPath, computeVision, markDiscovered,
   rand, beginSeed, beginRng, persistRng, weeklyInfo,
   startGame, addLog, playerEntity, currentActor, endTurn, beginPlayerTurn, currentSpeed,
@@ -2795,5 +3301,6 @@ module.exports = {
   detonateBarrel, triggerSpores, useFont, pullLever, triggerHazard,
   rollLoot, lootChest, applyPickupEffects, itemName, addItemToInventory, resolveWeapon,
   rollSideQuest, checkQuest, campfireOf, loadWorldMap, shoveTarget, maybeOpportunityAttack, hasFlank,
-  disarmTrap, unlockChest, travelTo, affixes
+  disarmTrap, unlockChest, travelTo, affixes,
+  ROAD_ENCOUNTERS, triggerRoadEncounter, resolveRoadEncounter, roadEncounterView
 };

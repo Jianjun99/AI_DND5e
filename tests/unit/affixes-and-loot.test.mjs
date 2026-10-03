@@ -308,7 +308,19 @@ test('A rolled affix weapon is wielded with its own name, enhancement and damage
   const { state, p, mon } = freshState();
   const c = state.character;
 
-  const plainAvg = avgDamage(state, p, mon, 'longsword');
+  // Enumerate all d8 faces and all d4 faces (twice) with matched injected RNG.
+  // Midpoints avoid natural-1 misses / natural-20 crits; independent Monte Carlo
+  // means occasionally exceeded the old +/-1 band without a damage regression.
+  const matchedAverage = weaponId => {
+    const originalRandom = Math.random;
+    try {
+      return Array.from({ length: 8 }, (_, face) => {
+        Math.random = () => (face + 0.5) / 8;
+        return avgDamage(state, p, mon, weaponId, 1);
+      }).reduce((sum, damage) => sum + damage, 0) / 8;
+    } finally { Math.random = originalRandom; }
+  };
+  const plainAvg = matchedAverage('longsword');
 
   const flaming = {
     itemId: 'longsword', uniqueId: 'test_flaming', name: '精铸·炽火之长剑', rarity: 'rare',
@@ -325,10 +337,10 @@ test('A rolled affix weapon is wielded with its own name, enhancement and damage
   assert(entry.bonusDamage && entry.bonusDamage.type === 'fire', '+1d4 fire riding on the attack');
   assert(c.attacks[0].weaponId === 'test_flaming', 'The wielded weapon leads the attack list');
 
-  const magicAvg = avgDamage(state, p, mon, 'test_flaming');
+  const magicAvg = matchedAverage('test_flaming');
   const expectedGain = 1 + 2.5; // +1 enhancement (always) + 1d4 fire (average 2.5)
-  assert(magicAvg >= plainAvg + expectedGain - 1.0, `Magic weapon should hit ~${expectedGain.toFixed(1)} harder than the plain sword (${plainAvg.toFixed(1)} => ${magicAvg.toFixed(1)})`);
-  assert(magicAvg <= plainAvg + expectedGain + 1.0, `Enhancement must not be applied twice (${plainAvg.toFixed(1)} => ${magicAvg.toFixed(1)})`);
+  assert(magicAvg >= plainAvg + expectedGain - 1e-9, `Magic weapon should hit ${expectedGain.toFixed(1)} harder than the plain sword (${plainAvg.toFixed(1)} => ${magicAvg.toFixed(1)})`);
+  assert(magicAvg <= plainAvg + expectedGain + 1e-9, `Enhancement must not be applied twice (${plainAvg.toFixed(1)} => ${magicAvg.toFixed(1)})`);
 });
 
 test('Weapon damage includes the ability modifier', () => {

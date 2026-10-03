@@ -10,6 +10,10 @@ narrates every scene and lets you actually *talk* with NPCs.
 
 Packaged for Docker, so anyone can download it and play offline.
 
+Developers and coding agents: start with [START_HERE.md](START_HERE.md).
+Project-owner handoff instructions and copyable task prompts are in
+[docs/AGENT_HANDOFF.md](docs/AGENT_HANDOFF.md).
+
 ---
 
 ## Quick start (Docker)
@@ -55,6 +59,19 @@ npm start          # → http://localhost:3000
 
 Requires Node.js 20+.
 
+Automated verification uses a dedicated Docker Desktop Linux test container:
+
+```bash
+npm run verify
+```
+
+The command builds `Dockerfile.test` with dev dependencies, all tests and Chromium,
+runs the server and browser inside a 2 CPU / 4 GiB container, and removes it after
+success, failure or timeout. A fixed container name prevents concurrent full runs.
+Player saves/model settings are excluded; network and real AI are disabled.
+Logs and failure screenshots remain in `artifacts/verify/`. Missing Chromium/WebGL2
+fails verification. See [Docker testing and handoff rules](docs/DOCKER_TESTING.md).
+
 ---
 
 ## The game
@@ -62,12 +79,11 @@ Requires Node.js 20+.
 | | |
 |---|---|
 | **Adventure** | *The Sunless Crypt* — one hand-crafted dungeon: entrance camp, Bone Hall, forgotten alcove, flooded rat nest, goblin den, and the ogre-guarded Sanctum. Steal the Relic and escape to your campfire to win. |
-| **Rules** | D&D 2024 ("5e newest"): 10 species, 12 classes with level-1–2 features, 16 backgrounds with origin feats, ability scores (standard array / 4d6 drop lowest / point buy), skills, fighting styles, eldritch invocations, ~30 spells, rests, XP and level-ups to 3. |
+| **Rules** | D&D 2024 ("5e newest"): 10 species, 12 classes, 16 backgrounds with origin feats, ability scores (standard array / 4d6 drop lowest / point buy), skills, fighting styles, eldritch invocations, spells, rests, XP and progression through level 12. |
 | **Combat** | Turn-based on a 5-ft grid with fog of war and line of sight: initiative, attack rolls vs AC, crits, advantage/disadvantage, Sneak Attack, spell attacks and saves, concentration, death saving throws, traps, doors, chests, and a boss. |
-| **Three dungeons** | The Sunless Crypt (levels 1-5), The Drowned Vault beneath it, and The Howling Hills — an outdoor bandit-stronghold delve for levels 5-10. Connected by stairs, each with its own safe-zone camp. |
-| **Three dungeons** | The Sunless Crypt (levels 1-5), The Drowned Vault beneath it, and The Howling Hills — an outdoor bandit-stronghold delve for levels 5-10. Connected by stairs, each with its own safe-zone camp. |
+| **Dungeons & trials** | Six static maps: The Sunless Crypt, The Drowned Vault, The Howling Hills, Oakhaven Sewers, The Abandoned Mill and The Sun Dragon's Roost. Stairs connect the crypt and vault; Endless Depths and a weekly seeded trial add procedural adventures. |
 | **Subclasses & loot** | Every class gains a subclass at level 3 (Battle Master, Assassin-style Thief, Draconic Bloodline…). Monsters drop gold and chance-based loot; chests hide magic gear with real effects. Synthesized sound effects and an optional AI-DM voice-over are built in. |
-| **Companion** | Bram the Scout can join you as an AI-controlled ally (recommended for solo balance). |
+| **Companions** | Recruit Bram the Scout, Valeria Ironheart or Brother Aldous as an engine-controlled ally, with persistent loyalty and personal quests. |
 | **Oakhaven** | A town hub between delves: tavern (rests, rumors, a **gambling table**), armory, apothecary, guildhall bounties, and a Hall of Heroes with your bestiary and trophies. |
 | **Gambling** | Three tables at honest real-world odds (roulette 97.3% return, sic bo 97.2%, slots ~89%): bet gold, win gold or **delve-only prize tokens** (luck coin, talisman, slaying oil…). The opt-in **Devil's Bargain** tier pays far more — but three skulls curse your next delve. |
 | **Forge** | Melt unwanted magic gear into **ember essence**, then spend gold + essence at the armory forge to **reroll an affix** or **upgrade rarity** (magic → rare → legendary). Elites and bosses pay essence directly; equipped gear must be taken off first. |

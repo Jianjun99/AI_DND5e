@@ -1,4 +1,16 @@
 // api.js — thin fetch wrappers
+
+/**
+ * Options for POST /api/game/start. The server validates every field and falls back to
+ * its own defaults ('normal' difficulty, 'crypt' map, unknown ally ids to Bram), so the
+ * client never needs local tables for these values.
+ * @typedef {object} StartGameOptions
+ * @property {false | 'bram' | 'valeria' | 'aldous'} [bringAlly] companion to bring, or
+ *   false for a solo expedition (the server also accepts the string 'none')
+ * @property {'easy' | 'normal' | 'hard'} [difficulty] delve difficulty (default 'normal')
+ * @property {string} [mapId] a content map id, 'endless_1' (Endless Depths) or 'weekly'
+ *   (seeded weekly trial) (default 'crypt')
+ */
 async function req(method, url, body) {
   const res = await fetch(url, {
     method,
@@ -22,12 +34,29 @@ export const api = {
   equipCharacter: (id, slot, itemId) => req('POST', `/api/characters/${id}/equip`, { slot, itemId }),
   levelUpOptions: (id) => req('GET', `/api/characters/${id}/level-up-options`),
   levelUpCharacter: (id, choices) => req('POST', `/api/characters/${id}/level-up`, choices),
-  roadEncounter: (id, outcome) => req('POST', `/api/characters/${id}/road-encounter`, { outcome }),
+  triggerRoadEncounter: (id, opts = {}) => req('POST', `/api/characters/${id}/road-encounter`, { action: 'trigger', ...opts }),
+  resolveRoadEncounter: (id, choice, encounterId) => req('POST', `/api/characters/${id}/road-encounter`, { choice, encounterId }),
+  roadEncounterStatus: (id) => req('POST', `/api/characters/${id}/road-encounter`, { action: 'status' }),
+  roadEncounter: (id, payload) => req('POST', `/api/characters/${id}/road-encounter`, typeof payload === 'string' ? { choice: payload } : payload),
 
   listSaves: () => req('GET', '/api/game'),
-  startGame: (characterId, bringAlly, difficulty, mapId) => req('POST', '/api/game/start', { characterId, bringAlly, difficulty, mapId }),
+  /**
+   * Start a fresh delve. Always pass ONE options object — the old four-positional form is
+   * what let the prepare page send its options object as `bringAlly` and silently drop
+   * difficulty/mapId (the server then always embarked crypt/normal/bram; see T1).
+   * @param {string} characterId roster character id
+   * @param {StartGameOptions} options
+   * @returns {Promise<{ state: object, events: Array<object> }>}
+   */
+  startGame: (characterId, options) => req('POST', '/api/game/start', {
+    characterId,
+    bringAlly: options.bringAlly ?? false,
+    difficulty: options.difficulty,
+    mapId: options.mapId
+  }),
   getGame: (id) => req('GET', `/api/game/${id}`),
   gameAction: (id, action) => req('POST', `/api/game/${id}/action`, action),
+  gamePreview: (id, payload) => req('POST', `/api/game/${id}/preview`, payload),
   deleteGame: (id) => req('DELETE', `/api/game/${id}`),
 
   getSettings: () => req('GET', '/api/settings'),

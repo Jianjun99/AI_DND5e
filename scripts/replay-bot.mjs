@@ -129,19 +129,11 @@ function nextAction(state, run) {
   const char = state.character;
 
   if (state.mode === 'explore') {
-    // a locked chest just told us to pick or force it — roll the check exactly like
-    // the client's skill-check modal does (the client owns these dice by design)
+    // a locked chest told us to pick or force it — server referee rolls the check
     const lockedInfo = (run.lastEvents || []).find((e) => e.type === 'info' && /locked shut/.test(e.text || ''));
     if (lockedInfo && run.lastInteractableId) {
-      const ab = char.abilities || {};
-      const dexMod = Math.floor(((ab.dex || 10) - 10) / 2);
-      const strMod = Math.floor(((ab.str || 10) - 10) / 2);
-      const prof = char.profBonus || 2;
       const hasTools = (char.inventory || []).some((i) => i.itemId === 'thieves_tools');
-      const usePick = hasTools || (char.skills || []).includes('sleight_of_hand');
-      const mod = usePick ? dexMod + (hasTools ? prof : 0) : strMod + ((char.skills || []).includes('athletics') ? prof : 0);
-      const roll = 1 + Math.floor(Math.random() * 20);
-      return { type: 'skillCheckObject', objectId: run.lastInteractableId, method: usePick ? 'pick' : 'force', rollTotal: roll + mod };
+      return { type: 'skillCheckObject', objectId: run.lastInteractableId, method: hasTools ? 'pick' : 'force' };
     }
     // drink up first when hurt and a potion exists
     if (p.hp < p.hpMax * 0.4) {

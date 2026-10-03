@@ -1,5 +1,6 @@
 // home.js — character portal: list characters, create, resume delves, packs, backup
 import { esc, toast, navigate } from '../app.js';
+import { api } from '../api.js';
 
 export async function homeView(main) {
   const [chars, saves] = await Promise.all([apiListCharacters(), apiListSaves()]);
@@ -7,6 +8,7 @@ export async function homeView(main) {
   saves.forEach(s => { (savesByChar[s.characterId] = savesByChar[s.characterId] || []).push(s); });
   Object.values(savesByChar).forEach(list => list.sort((a, b) => b.updatedAt - a.updatedAt));
 
+  const presetList = (window.__rules && window.__rules.presets) || [];
   main.innerHTML = `
     <div class="hero">
       <h1>AI Dungeon</h1>
@@ -18,10 +20,13 @@ export async function homeView(main) {
       <a class="btn primary" href="#/create">＋ Create Character</a>
     </div>
     ${chars.length ? `<div class="grid cols3">${chars.map(c => charCard(c, savesByChar[c.id] || [])).join('')}</div>`
-      : `<div class="card" style="text-align:center; padding:40px;">
-           <p class="muted">No heroes yet. Every legend starts with a character sheet.</p>
-           <p style="margin-top:14px;"><a class="btn primary big" href="#/create">Create your first hero</a></p>
-         </div>`}
+      : ''}
+    ${presetList.length ? quickStartHtml(presetList, chars.length === 0) : ''}
+    ${!chars.length && !presetList.length ? `
+      <div class="card" style="text-align:center; padding:40px;">
+        <p class="muted">No heroes yet. Every legend starts with a character sheet.</p>
+        <p style="margin-top:14px;"><a class="btn primary big" href="#/create">Create your first hero</a></p>
+      </div>` : ''}
 
     <div class="card" style="margin-top:18px;">
       <h3>🧩 Content Packs</h3>
@@ -50,6 +55,46 @@ export async function homeView(main) {
 
   async function apiListCharacters() { return (await fetch('/api/characters')).json(); }
   async function apiListSaves() { return (await fetch('/api/game')).json(); }
+
+  // ---- T5 quick start: pick a server-defined preset, name it, head to the prepare page ----
+  let selectedPreset = presetList[0] ? presetList[0].id : null;
+  const nameInput = /** @type {HTMLInputElement | null} */ (document.getElementById('quickName'));
+  main.querySelectorAll('[data-preset]').forEach(el => el.addEventListener('click', () => {
+    selectedPreset = el.getAttribute('data-preset');
+    main.querySelectorAll('[data-preset]').forEach(t => t.classList.toggle('selected', t === el));
+    // follow the preset's default name unless the player already typed their own
+    if (nameInput && (!nameInput.value.trim() || presetList.some(p => p.defaultName === nameInput.value.trim()))) {
+      const p = presetList.find(x => x.id === selectedPreset);
+      if (p) nameInput.value = p.defaultName;
+    }
+  }));
+  if (nameInput && !nameInput.value) {
+    const p = presetList.find(x => x.id === selectedPreset);
+    if (p) nameInput.value = p.defaultName;
+  }
+  const quickBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('quickStartBtn'));
+  if (quickBtn) quickBtn.addEventListener('click', async () => {
+    const preset = presetList.find(p => p.id === selectedPreset);
+    if (!preset) return;
+    quickBtn.disabled = true;
+    quickBtn.textContent = '正在铸造英雄…';
+    try {
+      const char = await api.createCharacter({
+        presetId: preset.id,
+        name: nameInput ? nameInput.value.trim() : ''
+      });
+      toast(`${char.name} 已就绪！`);
+      // straight to the SAME prepare entrance the guidance uses — the player still picks
+      // difficulty / companion and presses Embark there (never auto-embark)
+      const primary = char.guidance && char.guidance.primary;
+      const node = primary && primary.kind === 'prepare' && primary.mapId ? '&node=' + encodeURIComponent(primary.mapId) : '';
+      location.hash = `#/overworld?char=${char.id}${node}`;
+    } catch (e) {
+      toast(e.message);
+      quickBtn.disabled = false;
+      quickBtn.textContent = '创建并准备出发 ⚔';
+    }
+  });
 
   main.querySelectorAll('[data-delsave]').forEach(btn => btn.addEventListener('click', async e => {
     e.stopPropagation();
@@ -136,6 +181,32 @@ export async function homeView(main) {
   });
 }
 
+// T5 quick start: presets are server data (window.__rules.presets) — this only renders the
+// cards and sends { presetId, name }. The build happens server-side via engine.buildCharacter.
+function quickStartHtml(presets, prominent) {
+  return `
+    <div class="card quick-start${prominent ? ' prominent' : ''}" id="quickStartCard" style="margin-top:18px;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
+        <h3 style="margin:0;">${prominent ? '⚡ 快速开始——选一名现成英雄，马上出发' : '⚡ 快速创建新英雄'}</h3>
+        <a class="small" href="#/create">想要完整自定义？进入七步创建 →</a>
+      </div>
+      <div class="quick-start-grid">
+        ${presets.map(p => `
+          <div class="card selectable preset-tile ${p.id === presets[0].id ? 'selected' : ''}" data-preset="${esc(p.id)}">
+            <div class="preset-head"><b>${esc(p.label)}</b><span class="chip gold-chip">${esc(p.tagline)}</span></div>
+            <p class="small muted" style="margin:6px 0;">${esc(p.blurb)}</p>
+            <ul class="trait-list">${p.tips.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+            <div class="small muted">默认名字：${esc(p.defaultName)}（可改名）</div>
+          </div>`).join('')}
+      </div>
+      <div class="quick-start-bar">
+        <input type="text" id="quickName" maxlength="40" placeholder="英雄名字（留空用默认名）">
+        <button class="btn primary" id="quickStartBtn">创建并准备出发 ⚔</button>
+      </div>
+      <p class="muted small" style="margin:8px 0 0;">创建后直达主线准备页——出发前仍可选择地图、难度与同伴。</p>
+    </div>`;
+}
+
 function charCard(c, saveList) {
   const rules = window.__rules || {};
   const cls = (rules.classes || []).find(x => x.id === c.className);
@@ -143,6 +214,8 @@ function charCard(c, saveList) {
   const clsName = cls ? cls.name : c.className;
   const spName = sp ? sp.name : c.species;
   const slots = saveList.slice(0, 3);
+  const g = c.guidance || null;
+  const primaryHref = guidanceHref(c, g && g.primary);
   return `
     <div class="card char-card">
       <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px;">
@@ -155,24 +228,52 @@ function charCard(c, saveList) {
           <div class="meta">Level ${c.level} ${esc(spName)} ${esc(clsName)} · ${c.xp} XP</div>
         </div>
       </div>
+      ${g ? `
+      <div class="char-guidance">
+        <div class="small"><span class="chip gold-chip" title="主线进度">📜 ${esc(g.label || '')}</span>
+          <span class="char-objective">🎯 ${esc((g.objective && g.objective.text) || '')}</span></div>
+        <a class="btn primary" style="width:100%; margin-top:8px;" href="${primaryHref}">${esc(g.primary ? g.primary.text : '继续冒险')}</a>
+        ${g.primary && g.primary.reason ? `<p class="muted small" style="margin:4px 0 0;">${esc(g.primary.reason)}</p>` : ''}
+      </div>` : ''}
       <div class="stats">
         <span><b>${c.hpMax}</b> HP</span>
         <span><b>${c.acBase}</b> AC</span>
         <span><b>${c.gold ?? 50}</b> gp</span>
       </div>
-      ${slots.length ? slots.map(sv => `
+      ${slots.length ? slots.map(sv => {
+        const st = saveStatus(sv);
+        return `
         <div class="stat-line" style="align-items:center;">
-          <span class="muted small">${esc(sv.mapName)} · ${new Date(sv.updatedAt).toLocaleDateString()}</span>
+          <span class="muted small">${esc(sv.mapName)} · ${new Date(sv.updatedAt).toLocaleDateString()} <span class="chip ${st.cls}" style="font-size:10px; padding:0 6px;">${st.text}</span></span>
           <span style="display:flex; gap:4px;">
-            <a class="btn small primary" href="#/play/${sv.id}" title="Resume delve">⚔</a>
+            <a class="btn small primary" href="#/play/${sv.id}" title="${st.title}">⚔</a>
             <button class="btn danger small" data-delsave="${sv.id}" title="Abandon delve">✕</button>
           </span>
-        </div>`).join('') : ''}
+        </div>`; }).join('') : ''}
         ${saveList.length > 3 ? `<div class="meta small muted">+ ${saveList.length - 3} older delve(s)</div>` : ''}
+      ${g && (g.options || []).length ? `
+      <div class="char-options">${g.options.map(o => `<a class="btn small" href="${guidanceHref(c, o)}" title="${esc(o.reason || '')}">${esc(o.text)}</a>`).join('')}</div>` : ''}
       <div class="actions">
-        <a class="btn primary" href="#/overworld?char=${c.id}">🗺️ Overworld</a>
+        <a class="btn" href="#/overworld?char=${c.id}">🗺️ Region Map</a>
         <a class="btn" href="#/character/${c.id}">Sheet</a>
         <button class="btn danger small" data-del="${c.id}">Delete</button>
       </div>
     </div>`;
+}
+
+// Guidance actions are server data — this only maps them to hash routes.
+function guidanceHref(c, action) {
+  if (!action) return `#/overworld?char=${c.id}`;
+  if (action.kind === 'resume' && action.saveId) return `#/play/${action.saveId}`;
+  if (action.kind === 'campaign') return `#/campaign/${c.id}`;
+  if (action.mapId) return `#/overworld?char=${c.id}&node=${encodeURIComponent(action.mapId)}`;
+  return `#/overworld?char=${c.id}`;
+}
+
+// A delve save's state chip on the character card: running / ended-unsettled / settled.
+function saveStatus(s) {
+  const ended = s.mode === 'victory' || s.mode === 'retreat' || s.mode === 'over';
+  if (ended && !s.settled) return { text: '待结算', cls: 'gold-chip', title: '这一局的收获还没结算——打开完成结算' };
+  if (ended) return { text: '已结算', cls: 'green', title: '已完成并结算，只是可以回看' };
+  return { text: '进行中', cls: 'blue', title: '进行中的地牢——从原地继续' };
 }

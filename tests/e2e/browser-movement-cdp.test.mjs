@@ -1,30 +1,15 @@
 // tests/e2e/browser-movement-cdp.test.mjs — End-to-End Headless Browser CDP Test
 // Verifies 3D Miniature Models, Realistic Walking Traversal, and Minimap Sync
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { browserBinary, softwareWebGLFlags, requireWebGL, captureBrowserArtifacts } from './_browser-runtime.mjs';
 import { pollUntil, clickUntil } from './_cdp-helpers.mjs';
 
 const BASE_URL = process.env.BASE_URL || (process.env.PORT ? `http://localhost:${process.env.PORT}` : 'http://localhost:3000');
 const CDP_PORT = 9224;
 
-const BROWSER_PATHS = [
-  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium-browser',
-  '/usr/bin/chromium'
-];
-
-function findBrowserBinary() {
-  for (const p of BROWSER_PATHS) {
-    if (fs.existsSync(p)) return p;
-  }
-  return null;
-}
+const findBrowserBinary = browserBinary;
 
 let passed = 0;
 let failed = 0;
@@ -70,10 +55,6 @@ async function waitPlayerTile(id, tx, ty, timeout = 8000) {
 console.log('\n--- Running E2E Browser Test: 3D Miniatures & Walk Animations ---');
 
 const browserBin = findBrowserBinary();
-if (!browserBin) {
-  console.log('⚠️ No Edge or Chrome binary found in standard paths; skipping E2E browser test.');
-  process.exit(0);
-}
 
 // 1. Prepare Delve on Server
 console.log('  Setting up test character and starting delve on server...');
@@ -122,7 +103,7 @@ const browserProc = spawn(browserBin, [
   // a private profile keeps the run isolated from any browser the user has open,
   // and keeps the spawned pid the real browser process so cleanup can kill the tree
   `--user-data-dir=${PROFILE_MARKER}`,
-  '--disable-gpu',
+  ...softwareWebGLFlags(),
   '--no-sandbox',
   '--disable-dev-shm-usage',
   '--no-first-run',
@@ -203,6 +184,7 @@ try {
 
   await new Promise(r => ws.onopen = r);
   await send('Runtime.enable');
+  await requireWebGL(send);
   await send('Page.enable');
   await send('DOM.enable');
 
@@ -380,6 +362,7 @@ try {
 
   ws.close();
 } catch (err) {
+  await captureBrowserArtifacts('browser-movement-cdp.test.mjs', [CDP_PORT]);
   console.error('  ❌ E2E Browser Test Error:', err);
   failed++;
 } finally {

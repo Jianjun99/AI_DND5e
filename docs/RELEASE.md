@@ -6,7 +6,7 @@
 ## 0. 前提
 
 - **必须用户明确说发版才发**（AGENTS.md 地面规则 1）。不要主动发版。
-- 完整验证全绿：`npm run verify`（自动起服务 → eslint → tsc → 17 套件 → 冒烟 → 收尾）。
+- 完整验证全绿：`npm run verify`（专用 Docker 测试容器内的 eslint → tsc → 全部套件 → 冒烟 → 移除容器）。
 - 工作区干净（`git status`），待发内容已全部 commit。
 
 ## 1. 版本号：只改 `package.json`
@@ -73,10 +73,9 @@ curl -s -H "Authorization: Bearer $GT" \
 
 ## 6. 已知坑速查
 
-- Docker Desktop 容器偶尔 OOM exit 137——`docker start ai-dnd` 重启即可。
-- 镜像验证：`docker build -t ai-dnd:review .` → `docker run -d --name ai-dnd-review
-  -p 3101:3000 -v ai-dnd-review-data:/app/data ai-dnd:review` → `BASE_URL=http://localhost:3101`
-  直连容器跑冒烟与 e2e。镜像里没有 tests/，要在容器内跑先 `docker cp`（Git Bash 下
-  `docker exec … ls /app/…` 需要 `MSYS_NO_PATHCONV=1`）。
+- 游戏生产容器偶尔 OOM exit 137——`docker start ai-dnd` 重启即可。专用测试容器自动移除，按测试日志修复原因后再执行统一 verify。
+- 自动验证统一 `npm run verify`，专用 `Dockerfile.test` 包含开发依赖、测试与 Chromium；
+  服务端和浏览器都在容器内，禁止退回宿主机浏览器。生产镜像构建/发布仍需用户另行授权。
+  资源、互斥、日志和数据隔离见 [Docker 测试指南](DOCKER_TESTING.md)。
 - re-point 一个已推的 tag（极少用）：`git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z
   && git tag -a vX.Y.Z -m "…" <sha> && git push origin vX.Y.Z`——会重跑 publish，无害。

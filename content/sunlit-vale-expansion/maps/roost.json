@@ -10,13 +10,13 @@
   "recommended": "Levels 9-12",
   "playerStart": {
     "x": 4,
-    "y": 19
+    "y": 20
   },
   "victory": {
     "type": "slay_boss",
     "campfire": {
       "x": 4,
-      "y": 19
+      "y": 20
     }
   },
   "wandering": [
@@ -118,10 +118,10 @@
   "entities": [
     {
       "type": "object",
-      "id": "roost_camp",
+      "id": "campfire",
       "name": "Obsidian Camp",
       "x": 4,
-      "y": 19,
+      "y": 20,
       "icon": "🔥",
       "desc": "The last sheltered spot."
     },

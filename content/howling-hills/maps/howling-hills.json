@@ -55,7 +55,7 @@
     { "type": "monster", "kind": "bandit_captain", "id": "hh_cap1", "x": 9, "y": 5 },
     { "type": "chest", "id": "hh_chest1", "name": "Stash Strongbox", "x": 10, "y": 4, "icon": "🧰", "loot": { "gold": "5d10", "items": [{ "id": "wolf_cloak", "qty": 1 }, { "id": "potion_greater", "chance": 0.5 }] } },
     { "type": "monster", "kind": "ogre_warboss", "id": "hh_boss", "x": 19, "y": 4 },
-    { "type": "chest", "id": "hh_chest2", "name": "Warboss's Hoard", "x": 20, "y": 3, "icon": "🧰", "loot": { "gold": "8d12", "items": [{ "id": "warboss_banner", "qty": 1 }] } },
+    { "type": "chest", "id": "hh_chest2", "name": "Warboss's Hoard", "x": 20, "y": 4, "icon": "🧰", "loot": { "gold": "8d12", "items": [{ "id": "warboss_banner", "qty": 1 }] } },
     { "type": "monster", "kind": "bandit", "id": "hh_b7", "x": 19, "y": 6 },
     { "type": "chest", "id": "hh_chest3", "name": "Yard Crate", "x": 8, "y": 15, "icon": "🧰", "loot": { "gold": "4d8", "items": [{ "id": "potion_greater", "chance": 0.6 }, { "id": "scroll_shield", "chance": 0.4 }] } },
     { "type": "trap", "id": "hh_trap1", "name": "Snare Trap", "x": 14, "y": 12, "dc": 13, "save": "dex", "damage": "2d6", "damageType": "piercing" }

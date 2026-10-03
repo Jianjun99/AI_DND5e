@@ -9,6 +9,7 @@ on:
 jobs:
   smoke-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -16,27 +17,13 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
+      - name: Full verification in the isolated Docker test container
+        run: npm run verify
 
-      - name: Lint
-        run: npx eslint .
-
-      - name: Type-check (JSDoc + checkJs)
-        run: npx tsc --noEmit
-
-      - name: Boot server
-        run: |
-          PORT=3100 node server/index.js &
-          echo $! > server.pid
-          sleep 1
-
-      - name: Smoke-test the API (health, rules, character, delve)
-        run: node scripts/smoke-test.mjs
-
-      - name: Run Full Test Suite (unit, integration & progression)
-        run: PORT=3100 node scripts/test-all.mjs
-
-      - name: Stop server
+      - name: Keep verification logs and failure screenshots
         if: always()
-        run: kill $(cat server.pid) || true
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification
+          path: artifacts/verify/
+          if-no-files-found: error

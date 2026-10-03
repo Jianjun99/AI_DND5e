@@ -15,6 +15,13 @@ const hallFilter = { seen: 'all', cr: 'all', sort: 'cr' };
 let currentTab = 'map'; // 'map' or 'city'
 let currentDistrict = 'tavern'; // 'tavern', 'armory', 'apothecary', 'guildhall', 'hall_of_heroes'
 let selectedNodeId = 'oakhaven';
+// T7a: one token per overworld mount — async embark/restore callbacks drop their result
+// when a newer view (or hero switch) took over, so a late response can never start a
+// delve for the old hero or re-open a stale encounter modal.
+let overworldToken = 0;
+// one embark flow at a time (trigger → modal → resolve → startGame), shared by the
+// Embark button and the restore modal's continue path
+let embarkBusy = false;
 
 // The town-district subsystem (tavern, gamble tables, armory, apothecary,
 // guildhall, hall of heroes) lives in overworld/districts.js. Its renderers and
@@ -46,11 +53,14 @@ const {
  * @returns {Promise<(function(): void) | undefined>} optional view cleanup function
  */
 export async function overworldView(main, ...args) {
+  const myToken = ++overworldToken;
+  embarkBusy = false;
   // Parse query parameters
   const qStr = location.hash.includes('?') ? location.hash.split('?')[1] : '';
   const params = new URLSearchParams(qStr);
   const charIdFromUrl = params.get('char');
   const returnParam = params.get('return') || params.get('delveDone');
+  const nodeParam = params.get('node');
 
   const chars = await api.listCharacters();
   if (!chars.length) {
@@ -69,6 +79,15 @@ export async function overworldView(main, ...args) {
   // Fetch city and map data
   await loadCityInfo();
 
+  // The guidance's destination arrives as a map id (?node=<mapId>) from home/summary —
+  // resolve it against the real nodes so a stale/unknown id simply leaves the selection
+  // alone. A destination link always lands on the region map, never a memorised city tab.
+  if (nodeParam) {
+    currentTab = 'map';
+    const target = (cityData?.mapNodes || []).find(n => n.mapId === nodeParam || n.id === nodeParam);
+    if (target) selectedNodeId = target.id;
+  }
+
   // If returning from a delve, display welcome banner
   if (returnParam) {
     toast(`⚔ Welcome back to Oakhaven, ${activeChar.name}! Your delve rewards have been secured.`);
@@ -79,9 +98,114 @@ export async function overworldView(main, ...args) {
 
   render(main, chars);
 
+  // T7a: restore an in-flight road encounter (unresolved, or resolved but not yet
+  // consumed by a delve start) on (re-)entering the overworld — the server's live
+  // instance is authoritative and the status query spends no RNG. No-op when the
+  // character has nothing pending (the common case).
+  restorePendingEncounter(myToken);
+
   return () => {
+    // T7a: leaving the overworld (home / settings / any other view) invalidates THIS
+    // mount's identity — in-flight trigger/status/restore responses and continue
+    // callbacks see alive() === false and act on nothing. The server keeps the pending
+    // instance untouched; the next overworld mount restores it.
+    overworldToken++;
+    embarkBusy = false;
     sfx.stopAmbient();
   };
+}
+
+// Shared embark flow (T7a): one live encounter lifecycle — trigger (reuses the server's
+// pending instance), optional modal choice, then startGame. Guarded from the first click;
+// failures surface as toasts and leave the encounter live for a retry; late responses
+// after a hero switch / view change are dropped. `knownEncounter` skips the trigger when
+// the caller already holds the live instance (restore-modal continue).
+async function startEmbarkFlow(btn, myToken, mapId, difficulty, bringAlly, knownEncounter = null) {
+  if (embarkBusy) return false;
+  embarkBusy = true;
+  const char = activeChar;
+  const alive = () => myToken === overworldToken && activeChar && activeChar.id === char.id;
+  const label = btn ? btn.textContent : '';
+  const reset = () => {
+    embarkBusy = false;
+    if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = label; }
+  };
+  const embarkAction = async () => {
+    // returns true when navigation happened, false when the player must retry
+    if (!alive()) return false;
+    if (btn && btn.isConnected) { btn.disabled = true; btn.textContent = '⚔️ Embarking...'; }
+    try {
+      const res = await api.startGame(char.id, {
+        bringAlly: /** @type {false | 'bram' | 'valeria' | 'aldous'} */ (bringAlly),
+        difficulty: /** @type {'easy' | 'normal' | 'hard'} */ (difficulty),
+        mapId: mapId === 'endless_1' ? 'endless_1' : mapId
+      });
+      if (res && res.state && res.state.id) {
+        if (alive()) location.hash = `#/play/${res.state.id}`;
+        return true;
+      }
+      if (alive()) toast('Failed to start delve expedition.');
+      return false;
+    } catch (err) {
+      if (alive()) toast(err.message || 'Error starting delve.');
+      return false;
+    } finally {
+      if (btn && btn.isConnected && alive()) { btn.disabled = false; btn.textContent = label; }
+    }
+  };
+
+  try {
+    // T7a: the knownEncounter path (restore-modal continue) must PROPAGATE the start
+    // result — dropping the `false` made a failed start look successful and closed the
+    // modal, leaving no in-place retry. With the result kept, the modal stays with its
+    // continue button and the resolved instance is never re-resolved or re-awarded.
+    if (knownEncounter) return await embarkAction();
+    if (btn && btn.isConnected) { btn.disabled = true; btn.textContent = '⚔️ Checking the road…'; }
+    let encRes;
+    try {
+      encRes = await api.triggerRoadEncounter(char.id);
+    } catch (err) {
+      // a failed trigger is NOT "no encounter" — never silently embark past it (T7a)
+      if (alive()) toast(`路遇检查失败，请重试：${err.message || '网络错误'}`);
+      return false;
+    }
+    if (!alive()) return false; // hero switched / view replaced while the request was in flight
+    if (encRes && encRes.encounter) {
+      showRoadEncounterModal(char, mapId, embarkAction, encRes.encounter, { alive });
+      return null; // the modal's continue path reports the start result itself
+    }
+    return await embarkAction();
+  } finally {
+    reset();
+  }
+}
+
+// Restore an in-flight encounter when the prepare page mounts (refresh / return). The
+// modal shows the same instanceId the server holds; continuing embarks with the current
+// on-screen options when present, else the guidance's default map.
+async function restorePendingEncounter(myToken) {
+  const char = activeChar;
+  if (!char) return;
+  let res;
+  try {
+    res = await api.roadEncounterStatus(char.id);
+  } catch {
+    return; // offline — nothing to restore, the embark click will surface the failure
+  }
+  if (myToken !== overworldToken || !activeChar || activeChar.id !== char.id) return; // late response
+  const enc = res && res.currentRoadEncounter;
+  if (!enc) return;
+  if (document.getElementById('roadEncounterModal')) return; // already on screen
+
+  const diffSel = /** @type {HTMLSelectElement | null} */ (document.getElementById('dispatchDifficulty'));
+  const compSel = /** @type {HTMLSelectElement | null} */ (document.getElementById('dispatchCompanion'));
+  const embarkBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('embarkBtn'));
+  const difficulty = diffSel ? diffSel.value : 'normal';
+  const compVal = compSel ? compSel.value : 'none';
+  const bringAlly = compVal === 'none' ? false : compVal;
+  const mapId = (embarkBtn && embarkBtn.getAttribute('data-map-id')) ||
+    (cityData && cityData.guidance && cityData.guidance.primary && cityData.guidance.primary.mapId) || 'crypt';
+  showRoadEncounterModal(char, mapId, () => startEmbarkFlow(embarkBtn, myToken, mapId, difficulty, bringAlly, enc), enc, { alive: () => myToken === overworldToken && activeChar && activeChar.id === char.id });
 }
 
 async function loadCityInfo() {
@@ -172,6 +296,12 @@ function renderMapContent() {
   const campObjective = camp?.objective || null;
   const campProgress = camp?.progress || null;
   const actByMap = camp?.actByMap || {};
+  // server-computed "what next": one primary action + reason (T4)
+  const guide = cityData?.guidance || null;
+  const guidePrimary = guide && guide.primary ? guide.primary : null;
+  const nodeByMapId = {};
+  nodes.forEach(n => { if (n.mapId) nodeByMapId[n.mapId] = n; });
+  const guideNode = guidePrimary && guidePrimary.mapId ? nodeByMapId[guidePrimary.mapId] : null;
 
   return `
     ${campObjective ? `
@@ -181,6 +311,13 @@ function renderMapContent() {
           <span class="chip gold-chip" title="四幕主线进度">${campProgress ? campProgress.label : ''}</span>
         </div>
         <p class="small" style="margin:6px 0 0; color:var(--gold);">${esc(campObjective.text)}</p>
+        ${guidePrimary ? `
+        <div class="guidance-banner-row">
+          ${guidePrimary.kind === 'resume' && guidePrimary.saveId
+            ? `<a class="btn primary small" href="#/play/${guidePrimary.saveId}">▶ ${esc(guidePrimary.text)}</a>`
+            : (guideNode ? `<button class="btn primary small" data-guidance-node="${guideNode.id}">▶ ${esc(guidePrimary.text)}</button>` : '')}
+          ${guidePrimary.reason ? `<span class="muted small">${esc(guidePrimary.reason)}</span>` : ''}
+        </div>` : ''}
         ${campObjective.done ? `<p class="muted small" style="margin:6px 0 0;">想看收场词？<a href="#/campaign/${activeChar.id}">打开结局面板 ↗</a></p>` : ''}
       </div>
     ` : ''}
@@ -316,9 +453,13 @@ function renderDungeonDispatch(node) {
     hard: { label: 'Hard', blurb: 'Monsters are mighty (+25% HP and damage)' }
   };
   const companions = cityData?.companions || [];
+  // the story's recommended destination gets its reason spelled out next to the options
+  const guide = cityData?.guidance || null;
+  const rec = guide && guide.primary && guide.primary.mapId === node.mapId ? guide.primary : null;
 
   return `
     <div class="dungeon-dispatch-box">
+      ${rec ? `<div class="recommend-box">📜 主线推荐 · ${esc(rec.reason || '')}</div>` : ''}
       <div class="field">
         <label><b>Select Expedition Difficulty:</b></label>
         <select id="dispatchDifficulty">
@@ -476,40 +617,28 @@ function attachMapEvents(main) {
     });
   }
 
-  // Embark button
+  // Guidance button in the campaign banner: select the recommended node (no auto-embark —
+  // the player still reviews difficulty/companion and presses Embark themselves)
+  main.querySelectorAll('[data-guidance-node]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedNodeId = btn.getAttribute('data-guidance-node') || selectedNodeId;
+      render(main, [activeChar]);
+    });
+  });
+
+  // Embark button (T7a: guarded flow in startEmbarkFlow — double clicks, trigger
+  // failures and late responses are all handled there)
   const embarkBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('embarkBtn'));
   if (embarkBtn) {
-    embarkBtn.addEventListener('click', async () => {
+    const myToken = overworldToken;
+    embarkBtn.addEventListener('click', () => {
       const mapId = embarkBtn.getAttribute('data-map-id') || 'crypt';
       const diffSel = /** @type {HTMLSelectElement | null} */ (document.getElementById('dispatchDifficulty'));
       const compSel = /** @type {HTMLSelectElement | null} */ (document.getElementById('dispatchCompanion'));
       const difficulty = diffSel ? diffSel.value : 'normal';
       const compVal = compSel ? compSel.value : 'none';
       const bringAlly = compVal === 'none' ? false : compVal;
-
-      const embarkAction = async () => {
-        try {
-          embarkBtn.disabled = true;
-          embarkBtn.textContent = '⚔️ Embarking...';
-          const res = await api.startGame(activeChar.id, bringAlly, difficulty, mapId === 'endless_1' ? 'endless_1' : mapId);
-          if (res && res.state && res.state.id) {
-            location.hash = `#/play/${res.state.id}`;
-          } else {
-            toast('Failed to start delve expedition.');
-            embarkBtn.disabled = false;
-          }
-        } catch (err) {
-          console.error('Error embarking', err);
-          toast(err.message || 'Error starting delve.');
-          embarkBtn.disabled = false;
-        }
-      };
-
-      if (Math.random() < 0.35) {
-        showRoadEncounterModal(activeChar, mapId, embarkAction);
-      } else {
-        await embarkAction();
-      }
+      startEmbarkFlow(embarkBtn, myToken, mapId, difficulty, bringAlly);
     });
   }
 }

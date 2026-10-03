@@ -75,6 +75,8 @@ a { color: var(--gold); }
 }
 .btn:hover { border-color: var(--gold-dim); color: var(--gold); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
+/* anchor links can't carry [disabled] — used to gate nav until a settle is confirmed */
+.btn.locked { opacity: .45; cursor: not-allowed; pointer-events: none; }
 .btn.primary {
   background: linear-gradient(180deg, #8a6d2f, #6e5522);
   border-color: #a5853f; color: #fff7e0; font-weight: 600;
@@ -2413,3 +2415,71 @@ body.immersive .map-wrap.view-3d .minimap-container { bottom: 150px; }
 body.immersive #questTrackerHost { display: block; }
 body.immersive .side-panel { top: 42px; bottom: auto; max-height: calc(100vh - 200px); }
 body.immersive .map-wrap.view-3d .minimap-container { bottom: 12px; }
+
+/* ==========================================================================
+   T4 guidance: server-driven next steps (home cards, region map, summary, combat)
+   ========================================================================== */
+.char-guidance { margin-top: 2px; }
+.char-objective { display: block; margin-top: 4px; color: var(--parchment); line-height: 1.35; }
+.char-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.char-options .btn { font-size: 11.5px; padding: 3px 8px; }
+.guidance-banner-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.recommend-box {
+  background: rgba(201, 169, 89, .10); border: 1px solid var(--gold-dim); border-radius: 8px;
+  padding: 8px 10px; font-size: 12.5px; color: var(--gold); margin-bottom: 12px;
+}
+.guidance-combat-line {
+  margin-top: 8px; padding: 6px 10px; background: rgba(255, 255, 255, .03);
+  border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--muted);
+}
+.summary-gains { margin-top: 8px; }
+.summary-details { margin-top: 6px; }
+.summary-details summary { cursor: pointer; color: var(--muted); font-size: 12.5px; padding: 4px 0; }
+.summary-details[open] summary { color: var(--gold); }
+
+/* ===================== T5 quick start & first-delve tutorial ===================== */
+.quick-start .quick-start-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px; margin: 12px 0;
+}
+.quick-start .preset-tile { cursor: pointer; }
+.quick-start .preset-tile.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+.quick-start .preset-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.quick-start .preset-tile .trait-list { margin: 6px 0; }
+.quick-start-bar { display: flex; gap: 8px; margin-top: 4px; }
+.quick-start-bar input {
+  flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--bg2); color: var(--text);
+}
+.quick-start.prominent { border-color: var(--gold); }
+
+/* floating coach card: above board UI (≤60), below modals (150+) */
+.delve-tutorial-card {
+  position: fixed; left: 12px; bottom: 12px; z-index: 56;
+  max-width: 320px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--gold); background: rgba(20, 16, 11, .94);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+}
+.delve-tutorial-card[hidden] { display: none; }
+.delve-tutorial-card .tutorial-head {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  font-size: 12.5px; color: var(--gold); margin-bottom: 4px;
+}
+.delve-tutorial-card .tutorial-skip {
+  border: none; background: none; color: var(--muted); cursor: pointer; font-size: 12px;
+  padding: 2px 4px; flex-shrink: 0;
+}
+.delve-tutorial-card .tutorial-skip:hover { color: var(--text); }
+.delve-tutorial-card .tutorial-text { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text); }
+.delve-tutorial-card .tutorial-dots { display: flex; gap: 5px; margin-top: 8px; }
+.delve-tutorial-card .tutorial-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--border); display: inline-block;
+}
+.delve-tutorial-card .tutorial-dot.current { background: var(--gold); }
+.delve-tutorial-card .tutorial-dot.done { background: #7da46b; }
+
+@media (max-width: 720px) {
+  .delve-tutorial-card { left: 8px; right: 8px; bottom: 8px; max-width: none; }
+  .quick-start-bar { flex-direction: column; }
+}
+/* =================== end T5 quick start & first-delve tutorial =================== */

@@ -481,10 +481,16 @@ await (async () => {
     const tokenInv = (tokenState.state.character.inventory || []).find(i => i.uniqueId === inDelve[0].uniqueId);
     assert(!tokenInv || tokenInv.qty === 0, 'The spent token is consumed');
 
-    await fetch(`${BASE_URL}/api/city/sync-delve`, {
+    // settlement settles an ENDED delve (T3): retreat like a player would, then sync
+    const gambleSave = store.getSave(gambleDelveId);
+    gambleSave.mode = 'retreat';
+    gambleSave.endSeq = (gambleSave.endSeq || 0) + 1;
+    store.saveGame(gambleSave);
+    const gambleSync = await fetch(`${BASE_URL}/api/city/sync-delve`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ charId: char.id, delveStateId: gambleDelveId })
     });
+    assert(gambleSync.status === 200, 'The retreated delve settles');
     const afterSync = await (await fetch(`${BASE_URL}/api/characters/${char.id}`)).json();
     assert(!(afterSync.inventory || []).some(i => i.delveOnly), 'Unused delve-only prizes are discarded at settlement');
     assert((afterSync.pendingDelveItems || []).length === 0, 'The pending list was emptied when they were carried in');
@@ -545,11 +551,19 @@ await (async () => {
       cryptSave.mode = 'victory';
       cryptSave.flags.victory = true;
       store.saveGame(cryptSave);
+      const delvesBefore = (store.getCharacters().find(c => c.id === char.id).delvesCompleted || 0);
       const settled = await cityPost('/sync-delve', { charId: char.id, delveStateId: cryptDelve.state.id });
       assert(settled.body.char.campaign.stage === 1, `Winning the crypt advances act 1 (stage ${settled.body.char.campaign.stage})`);
       assert((settled.body.char.campaignLog || []).length >= 1, 'The advance is written to the campaign log');
+      assert(settled.body.duplicate === false && settled.body.receipt.id === `${cryptDelve.state.id}#1`,
+        'The first settle issues a stable rev-independent receipt (T3)');
+      const delvesAfterFirst = settled.body.char.delvesCompleted;
+      assert(delvesAfterFirst === delvesBefore + 1, `delvesCompleted counted exactly once (got ${delvesAfterFirst})`);
       const settledAgain = await cityPost('/sync-delve', { charId: char.id, delveStateId: cryptDelve.state.id });
       assert(settledAgain.body.char.campaign.stage === 1, 'Settling twice does not advance the story twice');
+      assert(settledAgain.body.duplicate === true && settledAgain.body.receipt.id === settled.body.receipt.id,
+        'The replayed settle returns the SAME receipt without re-processing (T3)');
+      assert(settledAgain.body.char.delvesCompleted === delvesAfterFirst, 'delvesCompleted stays put on the replay');
       await fetch(`${BASE_URL}/api/game/${cryptDelve.state.id}`, { method: 'DELETE' });
       console.log('  ✔ PASS: Forge actions, bestiary detail and the main campaign advance over HTTP');
       passed += 16;
