@@ -13,7 +13,15 @@
   "victoryTile": {
     "x": 3,
     "y": 2,
-    "desc": "campfire"
+    "desc": "campfire",
+    "localized": {
+      "en": {
+        "desc": "campfire"
+      },
+      "zh-CN": {
+        "desc": "营火"
+      }
+    }
   },
   "legend": {
     "#": "wall",
@@ -57,7 +65,17 @@
         8,
         6
       ],
-      "desc": "A torch-lit entrance chamber. Your campfire still crackles here — the last warm place in the crypt."
+      "desc": "A torch-lit entrance chamber. Your campfire still crackles here — the last warm place in the crypt.",
+      "localized": {
+        "en": {
+          "name": "Entrance Hall",
+          "desc": "A torch-lit entrance chamber. Your campfire still crackles here — the last warm place in the crypt."
+        },
+        "zh-CN": {
+          "name": "入口大厅",
+          "desc": "火把照亮入口。你的营火仍在噼啪燃烧，这是墓穴中最后温暖的地方。"
+        }
+      }
     },
     {
       "id": "bonehall",
@@ -68,7 +86,17 @@
         32,
         7
       ],
-      "desc": "A vast pillared hall littered with old bones. Shadows pool between the columns, and something rattles in the dark."
+      "desc": "A vast pillared hall littered with old bones. Shadows pool between the columns, and something rattles in the dark.",
+      "localized": {
+        "en": {
+          "name": "Bone Hall",
+          "desc": "A vast pillared hall littered with old bones. Shadows pool between the columns, and something rattles in the dark."
+        },
+        "zh-CN": {
+          "name": "白骨大厅",
+          "desc": "柱廊里散落旧骨，阴影积在柱间，黑暗中传来骨头的响声。"
+        }
+      }
     },
     {
       "id": "nook",
@@ -79,7 +107,17 @@
         13,
         11
       ],
-      "desc": "A cramped burial alcove off the corridor. The air is thick with grave-dust."
+      "desc": "A cramped burial alcove off the corridor. The air is thick with grave-dust.",
+      "localized": {
+        "en": {
+          "name": "Forgotten Alcove",
+          "desc": "A cramped burial alcove off the corridor. The air is thick with grave-dust."
+        },
+        "zh-CN": {
+          "name": "遗忘壁龛",
+          "desc": "走廊旁狭小的墓葬壁龛，空气中满是墓尘。"
+        }
+      }
     },
     {
       "id": "ratnest",
@@ -90,7 +128,17 @@
         11,
         17
       ],
-      "desc": "Ankle-deep water floods this chamber, and its walls are gnawed and greasy. Things skitter at the edge of your light."
+      "desc": "Ankle-deep water floods this chamber, and its walls are gnawed and greasy. Things skitter at the edge of your light.",
+      "localized": {
+        "en": {
+          "name": "The Flooded Nest",
+          "desc": "Ankle-deep water floods this chamber, and its walls are gnawed and greasy. Things skitter at the edge of your light."
+        },
+        "zh-CN": {
+          "name": "积水巢穴",
+          "desc": "齐踝的水淹着房间，墙面油腻且遍布啃痕，有东西在灯光边缘疾走。"
+        }
+      }
     },
     {
       "id": "goblinden",
@@ -101,7 +149,17 @@
         27,
         17
       ],
-      "desc": "Scraps of hide, gnawed bones, and a rank smell. Goblins have made this hall their den."
+      "desc": "Scraps of hide, gnawed bones, and a rank smell. Goblins have made this hall their den.",
+      "localized": {
+        "en": {
+          "name": "Goblin Den",
+          "desc": "Scraps of hide, gnawed bones, and a rank smell. Goblins have made this hall their den."
+        },
+        "zh-CN": {
+          "name": "地精巢穴",
+          "desc": "碎皮、啃过的骨头与恶臭，地精把这里变成了巢穴。"
+        }
+      }
     },
     {
       "id": "sanctum",
@@ -112,7 +170,17 @@
         24,
         22
       ],
-      "desc": "The deepest chamber. A basalt altar dominates the far wall, and the dark here feels older — and heavier — than anywhere above."
+      "desc": "The deepest chamber. A basalt altar dominates the far wall, and the dark here feels older — and heavier — than anywhere above.",
+      "localized": {
+        "en": {
+          "name": "The Sanctum",
+          "desc": "The deepest chamber. A basalt altar dominates the far wall, and the dark here feels older — and heavier — than anywhere above."
+        },
+        "zh-CN": {
+          "name": "最深圣所",
+          "desc": "最深的房间，玄武岩祭坛占据远墙，这里的黑暗比上方更古老、更沉重。"
+        }
+      }
     }
   ],
   "entities": [
@@ -123,7 +191,17 @@
       "x": 3,
       "y": 2,
       "icon": "🔥",
-      "desc": "A crackling campfire. A safe place to rest — this is where the delve began."
+      "desc": "A crackling campfire. A safe place to rest — this is where the delve began.",
+      "localized": {
+        "en": {
+          "name": "Campfire",
+          "desc": "A crackling campfire. A safe place to rest — this is where the delve began."
+        },
+        "zh-CN": {
+          "name": "营火",
+          "desc": "噼啪燃烧的营火，安全休息之处，也是冒险起点。"
+        }
+      }
     },
     {
       "type": "npc",
@@ -131,7 +209,15 @@
       "name": "Bram the Scout",
       "x": 5,
       "y": 3,
-      "icon": "🧭"
+      "icon": "🧭",
+      "localized": {
+        "en": {
+          "name": "Bram the Scout"
+        },
+        "zh-CN": {
+          "name": "斥候布拉姆"
+        }
+      }
     },
     {
       "type": "npc",
@@ -139,7 +225,15 @@
       "name": "Marla the Peddler",
       "x": 2,
       "y": 3,
-      "icon": "🧺"
+      "icon": "🧺",
+      "localized": {
+        "en": {
+          "name": "Marla the Peddler"
+        },
+        "zh-CN": {
+          "name": "货郎玛拉"
+        }
+      }
     },
     {
       "type": "door",
@@ -147,7 +241,15 @@
       "name": "Wooden Door",
       "x": 9,
       "y": 4,
-      "locked": false
+      "locked": false,
+      "localized": {
+        "en": {
+          "name": "Wooden Door"
+        },
+        "zh-CN": {
+          "name": "木门"
+        }
+      }
     },
     {
       "type": "door",
@@ -155,7 +257,15 @@
       "name": "Bone-Framed Door",
       "x": 15,
       "y": 4,
-      "locked": false
+      "locked": false,
+      "localized": {
+        "en": {
+          "name": "Bone-Framed Door"
+        },
+        "zh-CN": {
+          "name": "骨框门"
+        }
+      }
     },
     {
       "type": "door",
@@ -165,7 +275,15 @@
       "y": 15,
       "locked": true,
       "lockDc": 13,
-      "forceDc": 15
+      "forceDc": 15,
+      "localized": {
+        "en": {
+          "name": "Bolted Door"
+        },
+        "zh-CN": {
+          "name": "闩门"
+        }
+      }
     },
     {
       "type": "door",
@@ -173,7 +291,15 @@
       "name": "Stone Door",
       "x": 22,
       "y": 18,
-      "locked": false
+      "locked": false,
+      "localized": {
+        "en": {
+          "name": "Stone Door"
+        },
+        "zh-CN": {
+          "name": "石门"
+        }
+      }
     },
     {
       "type": "monster",
@@ -212,6 +338,14 @@
             "chance": 0.5
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Iron-Banded Chest"
+        },
+        "zh-CN": {
+          "name": "铁箍木箱"
+        }
       }
     },
     {
@@ -248,7 +382,15 @@
       "name": "Morthek the Dying",
       "x": 2,
       "y": 13,
-      "icon": "🩸"
+      "icon": "🩸",
+      "localized": {
+        "en": {
+          "name": "Morthek the Dying"
+        },
+        "zh-CN": {
+          "name": "濒死的莫瑟克"
+        }
+      }
     },
     {
       "type": "chest",
@@ -269,6 +411,14 @@
             "chance": 0.6
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Waterlogged Chest"
+        },
+        "zh-CN": {
+          "name": "浸水木箱"
+        }
       }
     },
     {
@@ -280,7 +430,15 @@
       "dc": 13,
       "save": "dex",
       "damage": "1d6",
-      "damageType": "poison"
+      "damageType": "poison",
+      "localized": {
+        "en": {
+          "name": "Dart Trap"
+        },
+        "zh-CN": {
+          "name": "飞镖陷阱"
+        }
+      }
     },
     {
       "type": "monster",
@@ -289,7 +447,15 @@
       "name": "Griznak",
       "x": 22,
       "y": 14,
-      "chief": true
+      "chief": true,
+      "localized": {
+        "en": {
+          "name": "Griznak"
+        },
+        "zh-CN": {
+          "name": "格里兹纳克"
+        }
+      }
     },
     {
       "type": "monster",
@@ -324,6 +490,14 @@
             "chance": 0.5
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Goblin Stash"
+        },
+        "zh-CN": {
+          "name": "地精藏物箱"
+        }
       }
     },
     {
@@ -335,7 +509,15 @@
       "dc": 12,
       "save": "dex",
       "damage": "1d6",
-      "damageType": "piercing"
+      "damageType": "piercing",
+      "localized": {
+        "en": {
+          "name": "Tripwire Trap"
+        },
+        "zh-CN": {
+          "name": "绊线陷阱"
+        }
+      }
     },
     {
       "type": "monster",
@@ -358,7 +540,17 @@
       "x": 12,
       "y": 22,
       "icon": "🕯️",
-      "desc": "A basalt altar crusted with old wax and darker stains. The Relic rests upon it."
+      "desc": "A basalt altar crusted with old wax and darker stains. The Relic rests upon it.",
+      "localized": {
+        "en": {
+          "name": "Sunless Altar",
+          "desc": "A basalt altar crusted with old wax and darker stains. The Relic rests upon it."
+        },
+        "zh-CN": {
+          "name": "无光祭坛",
+          "desc": "玄武岩祭坛覆着旧蜡与深色污迹，圣物安放其上。"
+        }
+      }
     },
     {
       "type": "object",
@@ -367,7 +559,17 @@
       "x": 12,
       "y": 22,
       "icon": "💎",
-      "desc": "Your objective. Take it — if you can."
+      "desc": "Your objective. Take it — if you can.",
+      "localized": {
+        "en": {
+          "name": "Relic of the Sunless Crypt",
+          "desc": "Your objective. Take it — if you can."
+        },
+        "zh-CN": {
+          "name": "无光墓穴圣物",
+          "desc": "你的目标，若能做到，就取走它。"
+        }
+      }
     },
     {
       "type": "stairs",
@@ -381,7 +583,17 @@
         "x": 22,
         "y": 14
       },
-      "desc": "Steps behind the altar spiral down into flooded dark — the vault lies beneath the crypt."
+      "desc": "Steps behind the altar spiral down into flooded dark — the vault lies beneath the crypt.",
+      "localized": {
+        "en": {
+          "name": "Stairs Descending",
+          "desc": "Steps behind the altar spiral down into flooded dark — the vault lies beneath the crypt."
+        },
+        "zh-CN": {
+          "name": "下行阶梯",
+          "desc": "祭坛后的阶梯螺旋通向积水的黑暗，地窟就在墓穴下方。"
+        }
+      }
     },
     {
       "type": "font",
@@ -390,7 +602,17 @@
       "x": 20,
       "y": 2,
       "icon": "⛲",
-      "desc": "An ancient stone basin fed by an underground holy spring. Its azure waters glow with divine restoration."
+      "desc": "An ancient stone basin fed by an underground holy spring. Its azure waters glow with divine restoration.",
+      "localized": {
+        "en": {
+          "name": "Sacred Healing Font",
+          "desc": "An ancient stone basin fed by an underground holy spring. Its azure waters glow with divine restoration."
+        },
+        "zh-CN": {
+          "name": "神圣治疗泉",
+          "desc": "地下圣泉注入古老石盆，湛蓝的泉水闪耀着治愈神光。"
+        }
+      }
     },
     {
       "type": "lever",
@@ -399,8 +621,21 @@
       "x": 10,
       "y": 10,
       "icon": "🕹️",
-      "targetTrapIds": ["trap1", "trap2"],
-      "desc": "A heavy iron lever set into the alcove wall, linked to counterweight wires that run into the corridors."
+      "targetTrapIds": [
+        "trap1",
+        "trap2"
+      ],
+      "desc": "A heavy iron lever set into the alcove wall, linked to counterweight wires that run into the corridors.",
+      "localized": {
+        "en": {
+          "name": "Rusted Iron Lever",
+          "desc": "A heavy iron lever set into the alcove wall, linked to counterweight wires that run into the corridors."
+        },
+        "zh-CN": {
+          "name": "生锈铁杆",
+          "desc": "嵌在壁龛墙中的沉重铁杆，连接着延伸到走廊的配重钢线。"
+        }
+      }
     },
     {
       "type": "barrel",
@@ -409,7 +644,17 @@
       "x": 21,
       "y": 14,
       "icon": "🛢️",
-      "desc": "A sealed wooden keg stamped with an alchemical skull, leaking volatile pitch and black powder."
+      "desc": "A sealed wooden keg stamped with an alchemical skull, leaking volatile pitch and black powder.",
+      "localized": {
+        "en": {
+          "name": "Explosive Oil Barrel",
+          "desc": "A sealed wooden keg stamped with an alchemical skull, leaking volatile pitch and black powder."
+        },
+        "zh-CN": {
+          "name": "爆炸油桶",
+          "desc": "印着炼金骷髅的密封木桶，漏出易燃焦油与黑火药。"
+        }
+      }
     },
     {
       "type": "barrel",
@@ -418,7 +663,17 @@
       "x": 23,
       "y": 16,
       "icon": "🛢️",
-      "desc": "A volatile powder keg nestled near the goblin barricade. Highly flammable."
+      "desc": "A volatile powder keg nestled near the goblin barricade. Highly flammable.",
+      "localized": {
+        "en": {
+          "name": "Explosive Oil Barrel",
+          "desc": "A volatile powder keg nestled near the goblin barricade. Highly flammable."
+        },
+        "zh-CN": {
+          "name": "爆炸油桶",
+          "desc": "地精路障旁的火药桶，极易燃烧。"
+        }
+      }
     },
     {
       "type": "spores",
@@ -427,7 +682,17 @@
       "x": 5,
       "y": 15,
       "icon": "🍄",
-      "desc": "Swollen fungal pods pulsing with sickly viridian gas. Vulnerable to punctures and open flame."
+      "desc": "Swollen fungal pods pulsing with sickly viridian gas. Vulnerable to punctures and open flame.",
+      "localized": {
+        "en": {
+          "name": "Poison Spore Pods",
+          "desc": "Swollen fungal pods pulsing with sickly viridian gas. Vulnerable to punctures and open flame."
+        },
+        "zh-CN": {
+          "name": "毒孢子囊",
+          "desc": "膨胀的菌囊喷涌病绿气体，易被刺破或明火引燃。"
+        }
+      }
     },
     {
       "type": "hazard",
@@ -437,7 +702,17 @@
       "y": 16,
       "hazardType": "acid",
       "icon": "🧪",
-      "desc": "A bubbling pool of corrosive sewer runoff that eats through leather and flesh."
+      "desc": "A bubbling pool of corrosive sewer runoff that eats through leather and flesh.",
+      "localized": {
+        "en": {
+          "name": "Acid Slime Pool",
+          "desc": "A bubbling pool of corrosive sewer runoff that eats through leather and flesh."
+        },
+        "zh-CN": {
+          "name": "酸性黏液池",
+          "desc": "腐蚀性污水不断冒泡，会侵蚀皮革与血肉。"
+        }
+      }
     }
   ],
   "npcs": {
@@ -450,7 +725,31 @@
         "If you find anything shiny, I get first look. Scout's tax.",
         "That bolted door to the east? Goblins. Griznak's lot. Sneak or shove, your call.",
         "The deep sanctum... no. I'll hold the door. Someone has to."
-      ]
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Bram, a wiry, weather-beaten scout. You know the Sunless Crypt better than anyone alive. You are dry-witted, practical, superstitious about the deep rooms, and loyal once paid. You speak in short, weathered sentences. You will not enter the Sanctum — the last scout who did never came back. You never reveal the location of hidden treasure outright, only rumors and warnings.",
+          "knowledge": "The Bone Hall holds restless skeletons; the flooded nest is full of giant rats; a goblin band under Griznak lairs behind a bolted door; the deepest sanctum holds an ogre bound to guard a relic on an altar. He has heard the altar can bless those who pray rightly.",
+          "canned": [
+            "Keep your blade loose and your lantern low, friend.",
+            "Old bones don't stay buried down here. Trust me on that.",
+            "If you find anything shiny, I get first look. Scout's tax.",
+            "That bolted door to the east? Goblins. Griznak's lot. Sneak or shove, your call.",
+            "The deep sanctum... no. I'll hold the door. Someone has to."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是布拉姆，一名精瘦、饱经风霜的斥候，比任何活人都了解无光墓穴。你冷幽默、务实、对深处房间迷信，收钱后忠诚可靠，讲话短促。你不会进入圣所，上一名进入的斥候没有回来。你只透露传闻和警告，不直接说出隐藏宝藏的位置。",
+          "knowledge": "白骨大厅有不安的骷髅，积水巢穴满是巨鼠。格里兹纳克的地精藏在闩门后，最深圣所有食人魔守护祭坛圣物。听说虔诚祈祷能获得祭坛祝福。",
+          "canned": [
+            "握松刀柄，把灯放低，朋友。",
+            "这里的老骨头可不会安分地埋着，相信我。",
+            "找到亮晶晶的东西先让我看看，斥候税嘛。",
+            "东边那扇闩门？地精，格里兹纳克那伙。潜行还是硬闯，你定。",
+            "最深圣所……不，我看门，总得有人看门。"
+          ]
+        }
+      }
     },
     "morthek": {
       "persona": "You are Morthek, a wounded tomb-robber slumped against the wall, bleeding out from a giant rat's bite. You are weak, bitter, and darkly funny about your own impending death. You whisper more than you speak.",
@@ -461,7 +760,31 @@
         "Griznak? Goblin chief. Coward with a sword. He'll talk, if you scare him proper.",
         "Pray at the altar. The old god there... it still listens. It still grants.",
         "Take my potion. I won't... I won't be needing it where I'm going."
-      ]
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Morthek, a wounded tomb-robber slumped against the wall, bleeding out from a giant rat's bite. You are weak, bitter, and darkly funny about your own impending death. You whisper more than you speak.",
+          "knowledge": "You were part of a three-person crew. The others are dead. You saw the ogre: 'It swings that club like a branch breaks.' You know the goblin chief Griznak can be bought off, and that the altar in the sanctum rewards a proper prayer. You have one healing potion left, which you will give to anyone who speaks kindly to you.",
+          "canned": [
+            "Another one come to die? ...Ah, you look sturdier than my crew.",
+            "The ogre. Grubnik. It guards the relic like a mother guards a child.",
+            "Griznak? Goblin chief. Coward with a sword. He'll talk, if you scare him proper.",
+            "Pray at the altar. The old god there... it still listens. It still grants.",
+            "Take my potion. I won't... I won't be needing it where I'm going."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是莫瑟克，被巨鼠咬伤、靠墙濒死的盗墓者。你虚弱、苦涩，对即将到来的死亡怀着黑色幽默，常用低声耳语。",
+          "knowledge": "你原本有三人的队伍，其他人都死了。你见过食人魔：它挥棒像折断树枝。格里兹纳克可被收买，圣所祭坛会回应正确祈祷。你还剩一瓶治疗药水，愿送给善意说话的人。",
+          "canned": [
+            "又来一个送死的？……啊，你看着比我的同伴结实。",
+            "食人魔，格鲁布尼克，像母亲护孩子一样护着圣物。",
+            "格里兹纳克？地精头领，拿剑的懦夫。真把他吓住，他就肯谈。",
+            "去祭坛祈祷，那里的古神……仍在聆听，仍肯赐福。",
+            "拿我的药水吧。我……去的地方用不着了。"
+          ]
+        }
+      }
     },
     "griznak": {
       "persona": "You are Griznak, chief of the goblin band in the crypt. You are greedy, nervous, and a shameless coward when the odds turn. You bargain hard but fold under real intimidation. You call everyone 'soft-skin'.",
@@ -471,7 +794,29 @@
         "Big brute downstairs? Not ours. Not touching that one.",
         "You want the shiny rock? Go. Take it. Griznak doesn't die for rocks.",
         "Fifty gold and we walk away. Good deal, soft-skin. Best deal."
-      ]
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Griznak, chief of the goblin band in the crypt. You are greedy, nervous, and a shameless coward when the odds turn. You bargain hard but fold under real intimidation. You call everyone 'soft-skin'.",
+          "knowledge": "You serve nothing but coin and your own hide. The ogre in the sanctum is not yours to command. If paid, scared, or smoothly deceived, you and your two warriors will leave the crypt and never return. Otherwise you fight — and squeal for your warriors to join.",
+          "canned": [
+            "Soft-skin! You lost? This Griznak's crypt now. Pay toll or bleed.",
+            "Big brute downstairs? Not ours. Not touching that one.",
+            "You want the shiny rock? Go. Take it. Griznak doesn't die for rocks.",
+            "Fifty gold and we walk away. Good deal, soft-skin. Best deal."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是格里兹纳克，墓穴地精的头领，贪婪、紧张，形势不利时毫不羞愧地逃避。你善于讨价还价，遇到真正的威吓便屈服，叫所有人软皮。",
+          "knowledge": "你只在乎钱与自己的皮。圣所食人魔不受你指挥。若被收买、吓住或骗过，你和两个战士会离开墓穴，不再回来，否则战斗并尖叫召集部下。",
+          "canned": [
+            "软皮！迷路啦？这是格里兹纳克的墓穴，交钱或者流血！",
+            "楼下的大块头？不是我们的，我们不碰它。",
+            "你要闪亮石头？去拿，格里兹纳克不为石头送命。",
+            "五十金币我们就走，软皮，好买卖，最好的买卖。"
+          ]
+        }
+      }
     },
     "marla": {
       "persona": "You are Marla, a cheerful, sharp-tongued peddler who set up a stall by the crypt entrance. You sell potions and tools to delvers at honest-but-firm prices, always with an upsell. You are superstitious, kind to the wounded, and you never, ever enter the crypt yourself.",
@@ -481,7 +826,29 @@
         "Twenty-five gold a potion, and worth every coin down there, dear.",
         "Back already? Bleeding a little? That'll be the rats. Or the bones. Or worse.",
         "No refunds on destiny, dear. But do come back alive."
-      ]
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Marla, a cheerful, sharp-tongued peddler who set up a stall by the crypt entrance. You sell potions and tools to delvers at honest-but-firm prices, always with an upsell. You are superstitious, kind to the wounded, and you never, ever enter the crypt yourself.",
+          "knowledge": "You sell healing potions for 25 gold, healer's kits for 15, and thieves' tools for 25. You've heard the goblins behind the bolted door are led by a coward named Griznak who folds if you scare him. You warn delvers that the deep sanctum holds an ogre. You buy nothing back — 'no refunds on destiny, dear'.",
+          "canned": [
+            "Potions, tools, and luck — I sell the first two, the third you bring yourself.",
+            "Twenty-five gold a potion, and worth every coin down there, dear.",
+            "Back already? Bleeding a little? That'll be the rats. Or the bones. Or worse.",
+            "No refunds on destiny, dear. But do come back alive."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是玛拉，乐观又尖牙利嘴的货郎，在墓穴入口卖药水和工具，价格诚实但不让步，总想多卖点。你迷信，善待伤者，从不亲自进入墓穴。",
+          "knowledge": "治疗药水 25 金币，医疗包 15，盗贼工具 25。闩门后地精的头领格里兹纳克是懦夫，吓住便会屈服。深处圣所有食人魔。你不回购货物，命运可不能退款。",
+          "canned": [
+            "药水、工具和运气——前两样我卖，第三样你自备。",
+            "一瓶药水二十五金币，在下面每枚钱都值，亲爱的。",
+            "这么快回来？流血了？老鼠、骨头，或者更糟的东西吧。",
+            "命运不能退款，亲爱的，但一定活着回来。"
+          ]
+        }
+      }
     }
   },
   "wandering": [
@@ -491,5 +858,61 @@
     "ghoul",
     "dire_wolf"
   ],
-  "recommended": "Levels 1-5"
+  "recommended": "Levels 1-5",
+  "localized": {
+    "en": {
+      "name": "The Sunless Crypt",
+      "blurb": "A torch-lit crypt of bones, goblins and a sleeping ogre. Steal the Relic from the deepest sanctum and escape alive.",
+      "objectiveText": "Steal the Relic of the Sunless Crypt from the altar in the deepest sanctum, then escape to your campfire in the Entrance Hall.",
+      "recommended": "Levels 1-5"
+    },
+    "zh-CN": {
+      "name": "无光墓穴",
+      "blurb": "火把照亮堆满白骨、地精与沉睡食人魔的墓穴。深入最深处的圣所夺取圣物，活着逃离。",
+      "objectiveText": "从最深处圣所的祭坛夺取无光墓穴圣物，再返回入口大厅的营火逃离。",
+      "recommended": "等级 1–5"
+    }
+  },
+  "adventure": {
+    "waypoint": {
+      "regionX": 58,
+      "regionY": 26,
+      "icon": "crypt",
+      "region": "Barren Ridges",
+      "localized": {
+        "en": {
+          "region": "Barren Ridges"
+        },
+        "zh-CN": {
+          "region": "荒芜山脊"
+        }
+      },
+      "roads": [
+        {
+          "to": "oakhaven",
+          "label": "Old King's Highway",
+          "localized": {
+            "en": {
+              "label": "Old King's Highway"
+            },
+            "zh-CN": {
+              "label": "旧王大道"
+            }
+          }
+        },
+        {
+          "to": "drowned-vault",
+          "label": "Sunken Barrow Path",
+          "localized": {
+            "en": {
+              "label": "Sunken Barrow Path"
+            },
+            "zh-CN": {
+              "label": "沉冢小径"
+            }
+          }
+        }
+      ]
+    }
+  }
 }

@@ -75,16 +75,37 @@ function saveCharacters(list) {
 }
 
 // ---- game saves ----
-function getSave(id) { return migrateSave(readJson(path.join(SAVES_DIR, id + '.json'), null), 'delve'); }
+// A save is addressed by its stable id only: no separators, no dot segments, and the
+// resolved path must stay inside data/saves/.
+const SAVE_ID = /^[A-Za-z0-9_-]+$/;
+function saveFile(id) {
+  if (typeof id !== 'string' || !SAVE_ID.test(id)) return null;
+  const root = path.resolve(SAVES_DIR);
+  const file = path.resolve(root, `${id}.json`);
+  const relative = path.relative(root, file);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return null;
+  return file;
+}
+function getSave(id) {
+  const file = saveFile(id);
+  if (!file) return null;
+  return migrateSave(readJson(file, null), 'delve');
+}
 function saveGame(state) {
   // Every persisted change bumps rev — the client uses it to reject stale auxiliary
   // responses (a slow describe/portrait/narration must never roll the board back, T2).
   // Old saves have no rev and read as 0; the first write stamps 1.
   state.rev = (Number(state.rev) || 0) + 1;
   state.saveVersion = SAVE_VERSION;
-  writeJson(path.join(SAVES_DIR, state.id + '.json'), state);
+  const file = saveFile(state.id);
+  if (!file) throw new Error('Refusing to write a save with an invalid id.');
+  writeJson(file, state);
 }
-function deleteSave(id) { try { fs.unlinkSync(path.join(SAVES_DIR, id + '.json')); } catch {} }
+function deleteSave(id) {
+  const file = saveFile(id);
+  if (!file) return;
+  try { fs.unlinkSync(file); } catch {}
+}
 
 // ---- per-save write lock ----
 // The contract (T2): every mutation of a save is a synchronous read-modify-write of the
@@ -113,6 +134,9 @@ function listSaves() {
         id: s.id, characterId: s.characterId, characterName: s.character.name, mapName: s.mapName,
         mapId: s.mapId || null, mode: s.mode || null, endSeq: s.endSeq,
         settled: (s.settled && s.settled.id) || null,
+        // Additive: the authoring studio's scratch runs are filtered out of the player-facing
+        // continue list; readers that ignore this field keep working exactly as before.
+        isPlaytest: s.isPlaytest === true,
         updatedAt: s.updatedAt
       };
     }).filter(Boolean);

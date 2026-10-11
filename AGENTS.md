@@ -36,6 +36,21 @@ npm run verify
 - 成功、失败、超时都移除本轮容器，保留正确退出码及 `artifacts/verify/` 的日志、失败截图。
 - Windows 特有问题先报告，禁止自行回退宿主机启动浏览器。细节和诊断见 [Docker 测试指南](docs/DOCKER_TESTING.md)。
 
+### 快速开发检查（部分验证，不是验收）
+
+```bash
+npm run check                                  # eslint + tsc + 全部单元/集成套件，fail-fast
+npm run check -- --browsers=companion-story-cdp,hud-stability # 追加明确选择的 CDP 浏览器套件
+npm run check -- --list                        # 列出可选浏览器套件 id
+```
+
+- ⚠️ **这只是部分验证**：无冒烟、无完整截图轮、无失败清点；开发快速信号用，
+  完成验收仍然只有 `npm run verify`，报告里不得把 check 说成 verify。
+- 与 verify 共享同一管道：同一镜像、同一容器名互斥锁（占用返回 73）、2 CPU / 4 GiB、
+  网络/数据隔离与容器清理；证据与 `timings.json` 落在 `artifacts/check/`。
+- 套件清单单一来源 `scripts/test-suites.mjs`（id + unit/integration/browser 分层），
+  test-all 与 dev-check 共同消费；失败立即停止是设计行为，修完再跑即可，不许用重试换绿。
+
 ## MCP 接入（可选）
 
 仓库自带零依赖 MCP server（stdio），把验证与规则查询暴露给任何 MCP 客户端：
@@ -53,7 +68,7 @@ node mcp/server.mjs
 
 ## 硬约束速记（完整版见 ARCHITECTURE.md §7）
 
-- `applyClassAndSpecies` 每次调用会加一层 HP——重算时传第 5 参 `recomputeOnly=true`。
+- `applyClassAndSpecies` 创建/真正升级才加 HP——重算时传第 5 参 `recomputeOnly=true`；种族/特长加值由引擎 `hpPerLevelBonus` 统一计算，不能在重算时再次追加。
 - 词缀组装唯一入口 `affixes.buildAffixItem`；`uniqueId` 永不改变（装备槽引用不失效）。
 - `state.character` 是深拷贝不是档案本体——同步靠 `sync-delve` 或显式 write-through。
 - 升级徽章唯一来源 `engine.levelUpInfo`——客户端禁止自建 XP 表。

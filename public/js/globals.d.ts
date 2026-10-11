@@ -29,3 +29,4 @@ interface Element {
   /** tooltip.js — guards double-binding of hover listeners */
   _hasTooltip: boolean;
 }
+interface Window { __visualPreview?: any; }

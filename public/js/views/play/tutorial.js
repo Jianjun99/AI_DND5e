@@ -1,3 +1,5 @@
+import { t, label, translateDOM, onLocaleChange } from "../../i18n.js";
+import { esc } from '../../app.js';
 // tutorial.js — T5 first-delve coach. A small floating card that walks a brand-new player
 // through one delve: move → interact → one combat → settle. Hard rules (see
 // docs/T5_T7_PARALLEL_HANDOFF.md):
@@ -17,10 +19,10 @@ const STORE_KEY = 'aiDnd.tutorial.v1';
 // Sequential steps; 'combat' can jump ahead of 'move'/'interact' when a fight starts first,
 // and 'settle' takes over the moment the delve ends, whatever is still incomplete.
 const STEPS = [
-  { id: 'move', icon: '👣', title: '移动', text: '点击地图上发亮的地块移动（也可以用 WASD）。顶部目标提示会告诉你这一局要做什么。' },
-  { id: 'interact', icon: '🖐️', title: '互动', text: '靠近门、宝箱或营火时，直接点击它互动——宝箱开出战利品，营火可以休息恢复。' },
-  { id: 'combat', icon: '⚔️', title: '战斗', text: '遭遇敌人时：先在战况条选中目标，再点「攻击」或「施法」；行动用完后点「结束回合」。战斗面板会标明哪些行动还可用。' },
-  { id: 'settle', icon: '🧾', title: '结算', text: '目标完成或撤退后结算面板会自动打开——确认收获已保存，再回营地看下一目标。走回营火格才算完成胜利。' }
+  { id: 'move', icon: '👣', title: "ui.tutorial.move", text: "ui.tutorial.click_a_highlighted_tile_to_move_or" },
+  { id: 'interact', icon: '🖐️', title: "ui.tutorial.interact", text: "ui.tutorial.move_near_a_door_chest_or_campfire" },
+  { id: 'combat', icon: '⚔️', title: "ui.tutorial.combat", text: "ui.tutorial.when_enemies_appear_select_a_target_in" },
+  { id: 'settle', icon: '🧾', title: "ui.tutorial.settle", text: "ui.tutorial.the_summary_opens_after_victory_or_retreat" }
 ];
 const STEP_IDS = STEPS.map(s => s.id);
 
@@ -56,6 +58,8 @@ export function createDelveTutorial() {
   let card = null;
   let alive = false;
   let startPos = null;
+  function refreshLocalizedText() { if (card?.isConnected) translateDOM(card); }
+  const stopLocale = onLocaleChange(refreshLocalizedText);
 
   function nextFocus(afterId) {
     const remaining = STEPS.map(s => s.id).filter(id => !progress.done.includes(id));
@@ -76,10 +80,10 @@ export function createDelveTutorial() {
     card.hidden = false;
     card.innerHTML = `
       <div class="tutorial-head">
-        <span>🎓 首次探险引导 · <b>${idx + 1}/${STEPS.length} ${step.title}</b></span>
-        <button class="tutorial-skip" id="tutorialSkipBtn" title="以后不再显示">跳过 ✕</button>
+        <span>${label("ui.tutorial.first_delve_guide")} <b>${idx + 1}/${STEPS.length} ${label(step.title)}</b></span>
+        <button class="tutorial-skip" id="tutorialSkipBtn" data-i18n-title="ui.tutorial.do_not_show_again" title="${esc(t("ui.tutorial.do_not_show_again"))}">${label("ui.tutorial.skip")}</button>
       </div>
-      <p class="tutorial-text">${step.icon} ${step.text}</p>
+      <p class="tutorial-text">${step.icon} ${label(step.text)}</p>
       <div class="tutorial-dots">${STEPS.map((s, i) =>
         `<span class="tutorial-dot ${s.id === progress.step ? 'current' : ''} ${progress.done.includes(s.id) ? 'done' : ''}"></span>`).join('')}</div>`;
     const skip = document.getElementById('tutorialSkipBtn');
@@ -109,7 +113,7 @@ export function createDelveTutorial() {
   function finish() {
     if (!card || !alive) return;
     card.hidden = false;
-    card.innerHTML = `<p class="tutorial-text">✅ 引导完成——祝冒险顺利！随时可以把这段话忘掉。</p>`;
+    card.innerHTML = `<p class="tutorial-text">${label("ui.tutorial.guide_complete_good_luck_on_your_adventure")}</p>`;
     setTimeout(() => { if (card) card.hidden = true; }, 3500);
   }
 
@@ -192,6 +196,7 @@ export function createDelveTutorial() {
     },
 
     destroy() {
+      stopLocale();
       teardown();
     }
   };

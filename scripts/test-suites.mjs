@@ -1,0 +1,78 @@
+// scripts/test-suites.mjs — the single source of the verification suite list.
+// test-all.mjs (full acceptance) and dev-check.mjs (quick partial check) both
+// consume this table so the two entrances can never drift apart. Order is the
+// accepted full-run order; `kind` separates what the quick check always runs
+// (unit + integration) from what it only runs when explicitly selected (browser).
+// `id` is the stable short key `npm run check -- --browsers=<id,...>` matches on.
+export const testSuites = [
+  { id: 'verify-env', kind: 'integration', name: 'Verification Environment: isolation, missing browser & WebGL failure evidence', file: 'tests/integration/verification-environment.test.mjs' },
+  { id: 'dev-check-faults', kind: 'integration', name: 'Integration Tests: Dev-Check Fault Injection & Exit Codes (Q1a)', file: 'tests/integration/dev-check-faults.test.mjs' },
+  { id: 'rules', kind: 'unit', name: 'Unit Tests: D&D 2024 Rules Engine', file: 'tests/unit/rules.test.mjs' },
+  { id: 'models3d', kind: 'unit', name: 'Unit Tests: 3D Procedural Miniatures & Walk Animations', file: 'tests/unit/models3d.test.mjs' },
+  { id: 'visual-instance', kind: 'unit', name: 'Unit Tests: Visual Instance Ownership, Actions & Motion (V1a)', file: 'tests/unit/visual-instance.test.mjs' },
+  { id: 'visual-packs', kind: 'unit', name: 'Unit Tests: GLB Bones, Cache, Clips & Confirmed Results (V1b)', file: 'tests/unit/visual-packs.test.mjs' },
+  { id: 'affixes', kind: 'unit', name: 'Unit Tests: Elite Affixes & Loot Rarity', file: 'tests/unit/affixes-and-loot.test.mjs' },
+  { id: 'map-entities', kind: 'unit', name: 'Unit Tests: Map Board Visibility & Camera', file: 'tests/unit/map-entities.test.mjs' },
+  { id: 'gambling', kind: 'unit', name: 'Unit Tests: Tavern Gambling & Experimental Brews', file: 'tests/unit/gambling-and-potions.test.mjs' },
+  { id: 'forge', kind: 'unit', name: 'Unit Tests: Forge, Bestiary & Campaign', file: 'tests/unit/forge-and-campaign.test.mjs' },
+  { id: 'mcp', kind: 'unit', name: 'Unit Tests: MCP Server (stdio protocol)', file: 'tests/unit/mcp-server.test.mjs' },
+  { id: 'store-versioning', kind: 'unit', name: 'Unit Tests: Store Schema Versioning', file: 'tests/unit/store-versioning.test.mjs' },
+  { id: 'event-contract', kind: 'unit', name: 'Unit Tests: Event Contract (emitted vs client vocabulary)', file: 'tests/unit/event-contract.test.mjs' },
+  { id: 'content-validation', kind: 'integration', name: 'Integration Tests: Content Validation & Pack Roundtrip (T8)', file: 'tests/integration/content-validation.test.mjs' },
+  { id: 'visual-content', kind: 'integration', name: 'Integration Tests: Visual Assets, Transactions & Cosmetics (V1b)', file: 'tests/integration/visual-content.test.mjs' },
+  { id: 'adventure-directory', kind: 'integration', name: 'Integration Tests: Adventure Directory, Metadata & Snapshots (M1)', file: 'tests/integration/adventure-directory.test.mjs' },
+  { id: 'remembered-encounter', kind: 'integration', name: 'Integration Tests: Remembered Encounter & Two Real Routes (T6)', file: 'tests/integration/remembered-encounter.test.mjs' },
+  { id: 'replay-bot', kind: 'integration', name: 'Integration Tests: Delve Replay Bot (API invariants)', file: 'scripts/replay-bot.mjs', env: { REPLAY_QUICK: '1' } },
+  { id: 'movement', kind: 'integration', name: 'Integration Tests: Movement, Pathfinding & Vision', file: 'tests/integration/movement.test.mjs' },
+  { id: 'combat', kind: 'integration', name: 'Integration Tests: Combat, Actions & Health', file: 'tests/integration/combat.test.mjs' },
+  { id: 'tactics', kind: 'integration', name: 'Integration Tests: Tactics (OA, Flanking, Shove)', file: 'tests/integration/tactics.test.mjs' },
+  { id: 'progression', kind: 'integration', name: 'Integration Tests: Character Progression & Delve Systems', file: 'tests/integration/progression-systems.test.mjs' },
+  { id: 'state-and-ai', kind: 'integration', name: 'Integration Tests: State Updates & AI Persistence (T2)', file: 'tests/integration/state-and-ai.test.mjs' },
+  { id: 'settlement', kind: 'integration', name: 'Integration Tests: One Settlement & Return to Town (T3)', file: 'tests/integration/settlement.test.mjs' },
+  { id: 'server-checks', kind: 'integration', name: 'Integration Tests: Unified Server Checks & Road Encounters (T7)', file: 'tests/integration/server-checks.test.mjs' },
+  { id: 'quick-start', kind: 'integration', name: 'Integration Tests: Quick Start Presets & Creation (T5)', file: 'tests/integration/quick-start.test.mjs' },
+  { id: 'localization', kind: 'integration', name: 'Integration Tests: Locale Contract & Request Isolation (T9a)', file: 'tests/integration/localization.test.mjs' },
+  { id: 'content-localization', kind: 'integration', name: 'Integration Tests: Bilingual Content, Logs & AI Isolation (T9c)', file: 'tests/integration/content-localization.test.mjs' },
+  { id: 'branching-adventure', kind: 'integration', name: 'Integration Tests: Branching Adventure, Fail Forward & Persistent Facts (T11)', file: 'tests/integration/branching-adventure.test.mjs' },
+  { id: 'companion-story', kind: 'integration', name: 'Integration Tests: Bram Companion Story, Attitudes & Memory (T12a)', file: 'tests/integration/companion-story.test.mjs' },
+  { id: 'starter-adventure-t14', kind: 'integration', name: 'Integration Tests: Starter Adventure Chapter 2 & Cross-Chapter History (T14)', file: 'tests/integration/starter-adventure-t14.test.mjs' },
+  { id: 'bounded-natural-actions', kind: 'integration', name: 'Integration Tests: Bounded Natural Actions, Whitelist & Fallback (T13a)', file: 'tests/integration/bounded-natural-actions.test.mjs' },
+  { id: 'story-authoring', kind: 'integration', name: 'Integration Tests: Starter Template Cloning, Story Authoring & Playtest (T15a)', file: 'tests/integration/story-authoring.test.mjs' },
+  { id: 'map-authoring', kind: 'integration', name: 'Integration Tests: Grid Map Authoring & Safe Playtest (T15b)', file: 'tests/integration/map-authoring.test.mjs' },
+  { id: 'draft-path-boundary', kind: 'integration', name: 'Integration Tests: Draft Path Boundary & Identity (Review R1)', file: 'tests/integration/draft-path-boundary.test.mjs' },
+  { id: 'clone-playthrough', kind: 'integration', name: 'Integration Tests: Clone Remapping & Two-Chapter Playthrough (Review R2)', file: 'tests/integration/clone-playthrough.test.mjs', timeoutMs: 300000 },
+  { id: 'playtest-content-isolation', kind: 'integration', name: 'Integration Tests: Playtest Snapshot Never Touches Shared Content (Review R3)', file: 'tests/integration/playtest-content-isolation.test.mjs', timeoutMs: 300000 },
+  { id: 'playtest-lifecycle', kind: 'integration', name: 'Integration Tests: Playtest Identity, Settlement, Exit & Sweep (Review R4)', file: 'tests/integration/playtest-lifecycle.test.mjs', timeoutMs: 300000 },
+  { id: 'action-authority-parity', kind: 'integration', name: 'Integration Tests: Button & Sentence Share One Executor (Review R6)', file: 'tests/integration/action-authority-parity.test.mjs', timeoutMs: 300000 },
+  { id: 'action-context-visibility', kind: 'integration', name: 'Integration Tests: Proposal Context & Malicious Targets (Review R7)', file: 'tests/integration/action-context-visibility.test.mjs', timeoutMs: 300000 },
+  { id: 'map-tile-entity-sync', kind: 'integration', name: 'Integration Tests: Door Tiles, Entities & Engine Walk (Review R8)', file: 'tests/integration/map-tile-entity-sync.test.mjs', timeoutMs: 300000 },
+  { id: 'review-hp', kind: 'integration', name: 'Integration Tests: Review HP Recompute, Upgrades & API Consistency', file: 'tests/integration/review-hp.test.mjs' },
+  { id: 'review-regressions', kind: 'browser', name: 'End-to-End Tests: Deterministic Route Barriers & Dynamic Descriptors (Review CDP)', file: 'tests/e2e/review-regressions-cdp.test.mjs' },
+  { id: 'adventure-directory-cdp', kind: 'browser', name: 'End-to-End Tests: Imported Adventure Directory & Real Roundtrip (M1 CDP)', file: 'tests/e2e/adventure-directory-cdp.test.mjs' },
+  // L1 walks 8 viewports x 2 locales with fullscreen/focus/screenshot work: green runs span
+  // 204-290s, and on 2026-10-09 a loaded host pushed it past its former 300s cap mid-suite with
+  // every assertion still passing (exit 124). Budget sits above the worst observed run.
+  { id: 'landscape-fullscreen', kind: 'browser', name: 'End-to-End Tests: Landscape Desktop & Native Fullscreen (L1 CDP)', file: 'tests/e2e/landscape-fullscreen-cdp.test.mjs', timeoutMs: 420000 },
+  { id: 'visual-instance-cdp', kind: 'browser', name: 'End-to-End Tests: Replaceable Visuals, Confirmed Actions & Lifecycle (V1a CDP)', file: 'tests/e2e/visual-instance-cdp.test.mjs' },
+  { id: 'visual-packs-cdp', kind: 'browser', name: 'End-to-End Tests: GLB Packs, Product Binding UI & Lifetimes (V1b CDP)', file: 'tests/e2e/visual-packs-cdp.test.mjs' },
+  { id: 'browser-movement', kind: 'browser', name: 'End-to-End Tests: Browser 3D Rendering & Movement (CDP)', file: 'tests/e2e/browser-movement-cdp.test.mjs' },
+  { id: 'gameplay-refinements', kind: 'browser', name: 'End-to-End Tests: Turn Economy, Minimap & Cleared Beacon (CDP)', file: 'tests/e2e/gameplay-refinements-cdp.test.mjs' },
+  { id: 'responsive', kind: 'browser', name: 'End-to-End Tests: Device Adaptation, phone & tablet (CDP)', file: 'tests/e2e/responsive-cdp.test.mjs' },
+  { id: 'quick-start-cdp', kind: 'browser', name: 'End-to-End Tests: Quick Start & First-Delve Tutorial (CDP)', file: 'tests/e2e/quick-start-cdp.test.mjs' },
+  { id: 't7a-road-lifecycle', kind: 'browser', name: 'End-to-End Tests: Road Lifecycle & Check Previews (CDP)', file: 'tests/e2e/t7a-road-lifecycle-cdp.test.mjs' },
+  { id: 'remembered-encounter-cdp', kind: 'browser', name: 'End-to-End Tests: Remembered Encounter Both Routes (CDP)', file: 'tests/e2e/remembered-encounter-cdp.test.mjs' },
+  { id: 'localization-cdp', kind: 'browser', name: 'End-to-End Tests: Language Switch & Delve Preservation (CDP)', file: 'tests/e2e/localization-cdp.test.mjs' },
+  { id: 'interface-localization', kind: 'browser', name: 'End-to-End Tests: Full Bilingual Interface & Busy Lifecycle (T9b CDP)', file: 'tests/e2e/interface-localization-cdp.test.mjs' },
+  { id: 'map-first', kind: 'browser', name: 'End-to-End Tests: Map First, Floating Panels & Resize (T10 CDP)', file: 'tests/e2e/map-first-cdp.test.mjs' },
+  { id: 'content-localization-cdp', kind: 'browser', name: 'End-to-End Tests: Content, Logs, Both Routes & Voice Languages (T9c CDP)', file: 'tests/e2e/content-localization-cdp.test.mjs', timeoutMs: 300000 },
+  { id: 'branching-adventure-cdp', kind: 'browser', name: 'End-to-End Tests: Branching Story Both Routes, Phone & Town Memory (T11 CDP)', file: 'tests/e2e/branching-adventure-cdp.test.mjs', timeoutMs: 300000 },
+  { id: 'companion-story-cdp', kind: 'browser', name: 'End-to-End Tests: Bram Companion Story Both Routes & Memory (T12a CDP)', file: 'tests/e2e/companion-story-cdp.test.mjs', timeoutMs: 300000 },
+  { id: 'starter-adventure-cdp', kind: 'browser', name: 'End-to-End Tests: Complete Starter Adventure Both Chapters & UI (T14 CDP)', file: 'tests/e2e/starter-adventure-cdp.test.mjs', timeoutMs: 300000 },
+  { id: 'bounded-natural-actions-cdp', kind: 'browser', name: 'End-to-End Tests: Natural Language Actions, Clarification & Confirm (T13a CDP)', file: 'tests/e2e/bounded-natural-actions-cdp.test.mjs', timeoutMs: 300000 },
+  { id: 'hud-stability', kind: 'browser', name: 'End-to-End Tests: HUD Rebuild Stability, Held Clicks & Settlement Lock (H1 CDP)', file: 'tests/e2e/hud-stability-cdp.test.mjs', timeoutMs: 300000 },
+  { id: 'story-authoring-cdp', kind: 'browser', name: 'End-to-End Tests: Authoring Studio, Cloning, NPC Editing & Playtest (T15a CDP)', file: 'tests/e2e/story-authoring-cdp.test.mjs', timeoutMs: 300000 },
+  { id: 'map-authoring-cdp', kind: 'browser', name: 'End-to-End Tests: Grid Map Authoring & Safe Playtest (T15b CDP)', file: 'tests/e2e/map-authoring-cdp.test.mjs', timeoutMs: 300000 },
+  { id: 'authoring-review', kind: 'browser', name: 'End-to-End Tests: Unsaved Edit Guard, Current Export, Door Tiles & Playtest Release (Review CDP)', file: 'tests/e2e/authoring-review-cdp.test.mjs', timeoutMs: 300000 }
+];
+
+export const browserSuites = testSuites.filter(suite => suite.kind === 'browser');

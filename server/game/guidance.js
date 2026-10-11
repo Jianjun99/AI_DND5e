@@ -88,7 +88,7 @@ function pickLiveSave(char, saves) {
 //   objective campaign objective { text, act?, done? }
 //   primary   { kind: 'resume'|'prepare'|'map'|'campaign', saveId?, mapId?, text, reason }
 //   options   [{ kind, mapId?, text, reason? }] — small, optional
-function journey(char, opts = {}) {
+function journeyData(char, opts = {}) {
   const c = campaign.ensure(char && char.campaign);
   const objective = campaign.objective(c);
   const progress = campaign.progress(c);
@@ -163,7 +163,7 @@ function journey(char, opts = {}) {
 //   objective  the HUD objective pill line (server-owned copy)
 //   hint       the default hover-bar line (same leak rules as above)
 //   combat     { yourTurn, movementLeftFt, action, bonus, potions, notes } while in combat
-function delve(save) {
+function delveData(save) {
   const mode = save.mode;
   const v = (save.map && save.map.victory) || { type: 'fetch_relic' };
   const localObjective = (save.map && save.map.objectiveText) || '探索地牢，完成目标后返回营地。';
@@ -187,6 +187,10 @@ function delve(save) {
   }
   if (mode === 'combat') {
     return { stage: 'combat', objective: localObjective, hint: '战斗中：先看战斗面板哪些行动可用，行动用完就结束回合。', returnPrompt: false, combat: combatLine(save) };
+  }
+  if (v.type === 'story') {
+    const pending = (save.map.scenes || []).find(s => save.encounters?.[save.mapId + ':' + s.id]?.phase !== 'resolved');
+    return { stage: 'explore', objective: pending?.objective || '结局已确定，回到西岸营火完成冒险。', hint: pending ? '走到当前线索中的 NPC 身旁查看选择；每项风险和费用由服务器给出。' : '走到营火格完成胜利；回城后可在角色页重读实际选择。', returnPrompt: !pending, combat: null };
   }
   if (goalReached) {
     // engine rule: only STANDING ON the campfire tile fires checkVictory (story advance +
@@ -244,4 +248,48 @@ function combatLine(save) {
   return { yourTurn, movementLeftFt: mv, action: actionUsed ? 'spent' : 'ready', bonus: bonusUsed ? 'spent' : 'ready', potions, notes };
 }
 
+// Additive presentation descriptors. Old text remains untouched for older clients,
+// saves and bots; all stage/goal/turn decisions above remain server-owned.
+const display = (key, params = {}) => ({ key: 'guidance.' + key, params });
+function journey(char, opts = {}) {
+  const result = journeyData(char, opts);
+  const primary = result.primary;
+  const mapId=primary.mapId || opts.liveSave?.mapId;
+  const map = require('./presentation').ref('maps',mapId) || (opts.liveSave?.mapName || '');
+  primary.textDisplay = display(result.stage + '.primary', { map });
+  const stage = campaign.ensure(char?.campaign).stage;
+  primary.reasonDisplay = display(result.stage === 'preparing' ? 'preparing.reason' + stage : result.stage + '.reason');
+  result.labelDisplay = result.stage === 'complete' ? display('complete.label') : null;
+  for (const action of result.options) {
+    const key = action.kind === 'campaign' ? (result.stage === 'complete' ? 'epilogue' : 'progress')
+      : action.mapId === 'crypt' ? 'revisit' : 'endless';
+    action.textDisplay = display(key + '.text');
+    action.reasonDisplay = display(key + '.reason');
+  }
+  return result;
+}
+function delve(save) {
+  const result = delveData(save);
+  if (['victory', 'retreat', 'defeat', 'objective', 'cleared'].includes(result.stage)) {
+    result.objectiveDisplay = display(result.stage + '.objective');
+  }
+  if (['explore','combat'].includes(result.stage)) {
+    const story=save.map?.victory?.type === 'story';
+    const scene=story || result.stage==='explore' ? (save.map?.scenes || []).find(s=>save.encounters?.[save.mapId+':'+s.id]?.phase!=='resolved') : null;
+    result.objectiveDisplay=story && result.stage==='explore' && !scene ? { key: 'story.return.objective' } : require('./presentation').descriptor(scene || save.map,scene ? (scene.kind === 'story' ? 'objective' : 'prompt') : 'objectiveText');
+  }
+  const pending = (save.map?.scenes || []).some(s => save.encounters?.[save.mapId + ':' + s.id]?.phase !== 'resolved');
+  result.hintDisplay = display((save.map?.scenes || []).length && result.stage === 'explore'
+    ? (pending ? 'scene.pending' : 'scene.resolved') : result.stage + '.hint');
+  if (save.map?.victory?.type === 'story' && result.stage === 'explore') result.hintDisplay = { key: pending ? 'story.next.hint' : 'story.return.hint' };
+  if (result.combat) {
+    const c = result.combat;
+    c.notesDisplay = !c.yourTurn ? [display('combat.wait')] : [
+      display('combat.action.' + c.action), display('combat.bonus.' + c.bonus),
+      display('combat.movement', { ft: c.movementLeftFt, tiles: Math.floor(c.movementLeftFt / 5) }),
+      ...(c.potions === 0 ? [display('combat.noPotions')] : [])
+    ];
+  }
+  return result;
+}
 module.exports = { journey, delve, nextStep, pickLiveSave, isSettled, mapName, MAP_NAMES };

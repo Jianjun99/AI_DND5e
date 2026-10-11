@@ -33,7 +33,17 @@
         26,
         16
       ],
-      "desc": "A dry corner of the vault where previous delvers kept a watchfire. The water never quite reaches here."
+      "desc": "A dry corner of the vault where previous delvers kept a watchfire. The water never quite reaches here.",
+      "localized": {
+        "en": {
+          "name": "Your Camp",
+          "desc": "A dry corner of the vault where previous delvers kept a watchfire. The water never quite reaches here."
+        },
+        "zh-CN": {
+          "name": "你的营地",
+          "desc": "先前冒险者在地窟干燥角落点起守夜火，水从未真正漫到这里。"
+        }
+      }
     },
     {
       "id": "ratdens",
@@ -44,7 +54,17 @@
         8,
         16
       ],
-      "desc": "Nesting straw and gnawed bones. The skittering here is not all rats."
+      "desc": "Nesting straw and gnawed bones. The skittering here is not all rats.",
+      "localized": {
+        "en": {
+          "name": "Rat Dens",
+          "desc": "Nesting straw and gnawed bones. The skittering here is not all rats."
+        },
+        "zh-CN": {
+          "name": "鼠穴",
+          "desc": "筑巢的干草与啃过的骨头，疾走声并非全是老鼠。"
+        }
+      }
     },
     {
       "id": "storage",
@@ -55,7 +75,17 @@
         17,
         16
       ],
-      "desc": "Crates float in knee-deep water. Something large moved through here recently."
+      "desc": "Crates float in knee-deep water. Something large moved through here recently.",
+      "localized": {
+        "en": {
+          "name": "Flooded Storage",
+          "desc": "Crates float in knee-deep water. Something large moved through here recently."
+        },
+        "zh-CN": {
+          "name": "积水仓库",
+          "desc": "箱子漂在齐膝的水中，最近有大型生物经过。"
+        }
+      }
     },
     {
       "id": "hall",
@@ -66,7 +96,17 @@
         26,
         9
       ],
-      "desc": "A vast cistern hall; black water streams along a channel in the floor, and every sound carries."
+      "desc": "A vast cistern hall; black water streams along a channel in the floor, and every sound carries.",
+      "localized": {
+        "en": {
+          "name": "The Long Cistern",
+          "desc": "A vast cistern hall; black water streams along a channel in the floor, and every sound carries."
+        },
+        "zh-CN": {
+          "name": "长蓄水厅",
+          "desc": "宽阔的蓄水大厅，黑水沿地面水道流淌，每点声响都传得很远。"
+        }
+      }
     },
     {
       "id": "cellar",
@@ -77,7 +117,17 @@
         6,
         5
       ],
-      "desc": "Waist-deep water and hanging moss. Pairs of eyes ripple the surface."
+      "desc": "Waist-deep water and hanging moss. Pairs of eyes ripple the surface.",
+      "localized": {
+        "en": {
+          "name": "Flooded Cellar",
+          "desc": "Waist-deep water and hanging moss. Pairs of eyes ripple the surface."
+        },
+        "zh-CN": {
+          "name": "积水地窖",
+          "desc": "齐腰深水、垂挂苔藓，一双双眼睛在水面荡开波纹。"
+        }
+      }
     },
     {
       "id": "gallery",
@@ -88,7 +138,17 @@
         15,
         5
       ],
-      "desc": "Collapsed shelves and the smell of wet dog. Hounds have made this gallery their den."
+      "desc": "Collapsed shelves and the smell of wet dog. Hounds have made this gallery their den.",
+      "localized": {
+        "en": {
+          "name": "Sunken Gallery",
+          "desc": "Collapsed shelves and the smell of wet dog. Hounds have made this gallery their den."
+        },
+        "zh-CN": {
+          "name": "沉没长廊",
+          "desc": "倒塌的架子与湿狗的气味，猎犬已在长廊筑巢。"
+        }
+      }
     },
     {
       "id": "court",
@@ -99,7 +159,17 @@
         26,
         5
       ],
-      "desc": "The vault's throne chamber. Runes on the floor pulse with a slow, patient light — the Warden is here."
+      "desc": "The vault's throne chamber. Runes on the floor pulse with a slow, patient light — the Warden is here.",
+      "localized": {
+        "en": {
+          "name": "Warden's Court",
+          "desc": "The vault's throne chamber. Runes on the floor pulse with a slow, patient light — the Warden is here."
+        },
+        "zh-CN": {
+          "name": "守墓者王庭",
+          "desc": "地窟王座厅，地面符文缓慢发光，守墓者就在这里。"
+        }
+      }
     }
   ],
   "rows": [
@@ -130,7 +200,17 @@
       "x": 23,
       "y": 13,
       "icon": "🔥",
-      "desc": "A watchfire kept on a raised stone. Rest here — and leave with your loot."
+      "desc": "A watchfire kept on a raised stone. Rest here — and leave with your loot.",
+      "localized": {
+        "en": {
+          "name": "Campfire",
+          "desc": "A watchfire kept on a raised stone. Rest here — and leave with your loot."
+        },
+        "zh-CN": {
+          "name": "营火",
+          "desc": "高起石台上的守夜火，在这里休息并带走战利品。"
+        }
+      }
     },
     {
       "type": "monster",
@@ -161,6 +241,14 @@
             "chance": 0.7
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Flooded Cache"
+        },
+        "zh-CN": {
+          "name": "积水藏物箱"
+        }
       }
     },
     {
@@ -203,6 +291,14 @@
             "chance": 0.4
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Gallery Chest"
+        },
+        "zh-CN": {
+          "name": "长廊木箱"
+        }
       }
     },
     {
@@ -234,6 +330,14 @@
             "qty": 1
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Warden's Hoard"
+        },
+        "zh-CN": {
+          "name": "守墓者宝库"
+        }
       }
     },
     {
@@ -283,6 +387,14 @@
             "chance": 0.5
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Storage Crate"
+        },
+        "zh-CN": {
+          "name": "仓储木箱"
+        }
       }
     },
     {
@@ -297,7 +409,17 @@
         "x": 16,
         "y": 22
       },
-      "desc": "Worn steps climb back up into the crypt above."
+      "desc": "Worn steps climb back up into the crypt above.",
+      "localized": {
+        "en": {
+          "name": "Stairs Ascending",
+          "desc": "Worn steps climb back up into the crypt above."
+        },
+        "zh-CN": {
+          "name": "上行阶梯",
+          "desc": "磨损的阶梯通向上方墓穴。"
+        }
+      }
     },
     {
       "type": "npc",
@@ -305,7 +427,15 @@
       "name": "Perra the Pack Trader",
       "x": 25,
       "y": 13,
-      "icon": "🎒"
+      "icon": "🎒",
+      "localized": {
+        "en": {
+          "name": "Perra the Pack Trader"
+        },
+        "zh-CN": {
+          "name": "背包商佩拉"
+        }
+      }
     }
   ],
   "npcs": {
@@ -317,12 +447,78 @@
         "Everything's for sale, and nothing's for free. Potions?",
         "The Warden never leaves its court. Wait for level 3, then go take its shield.",
         "Autosave, dear — every step you take is already written in my ledger."
-      ]
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Perra, a pack-trader who set up shop in the vault's dry corner — braver (or greedier) than most. You are brisk, fair, and fearless behind your strongbox. You sell the same goods as your cousin Marla topside and always remind travelers the way home.",
+          "knowledge": "You sell healing potions for 25 gold, greater potions for 50, healer's kits for 15, thieves' tools for 25, and the silver shortsword for 200. The Tomb Warden cannot leave its court — smart delvers wait until level 3. The stairs beside you lead back up to the crypt.",
+          "canned": [
+            "Rest, restock, or run — the stairs home are right here, friend.",
+            "Everything's for sale, and nothing's for free. Potions?",
+            "The Warden never leaves its court. Wait for level 3, then go take its shield.",
+            "Autosave, dear — every step you take is already written in my ledger."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是佩拉，在地窟干燥角落开店的背包商，比多数人更勇敢或更贪财。你爽快、公平，在钱箱后无所畏惧。你出售和地表表亲玛拉同样的货物，总提醒旅人回家的路。",
+          "knowledge": "治疗药水 25 金币，强效药水 50，医疗包 15，盗贼工具 25，银短剑 200。守墓者无法离开王庭，聪明的旅人等到 3 级再挑战。旁边阶梯通向墓穴。",
+          "canned": [
+            "休息、补货或逃跑，回家的阶梯就在这里，朋友。",
+            "样样都卖，没一样免费。要药水吗？",
+            "守墓者从不离开王庭。等到三级，再去取它的盾。",
+            "自动存档，亲爱的——每步都已经写进我的账本。"
+          ]
+        }
+      }
     }
   },
   "wandering": [
     "giant_rat",
     "crypt_hound"
   ],
-  "recommended": "Levels 1-5"
+  "recommended": "Levels 1-5",
+  "localized": {
+    "en": {
+      "name": "The Drowned Vault",
+      "blurb": "A flooded vault beneath the crypt itself. Slay the Tomb Warden and return to your camp — where Perra trades and the stairs home wait.",
+      "objectiveText": "Slay the Tomb Warden in the Warden's Court (top-right), then return to your campfire to escape with the vault's treasures.",
+      "recommended": "Levels 1-5"
+    },
+    "zh-CN": {
+      "name": "淹没地窟",
+      "blurb": "墓穴下积水的地窟。击败守墓者后回到营地，佩拉在那里交易，阶梯通向归途。",
+      "objectiveText": "在右上方的守墓者王庭击败守墓者，再返回营火，带着地窟宝藏离开。",
+      "recommended": "等级 1–5"
+    }
+  },
+  "adventure": {
+    "waypoint": {
+      "regionX": 78,
+      "regionY": 74,
+      "icon": "vault",
+      "region": "Weeping Marsh",
+      "localized": {
+        "en": {
+          "region": "Weeping Marsh"
+        },
+        "zh-CN": {
+          "region": "哭泣沼泽"
+        }
+      },
+      "roads": [
+        {
+          "to": "oakhaven",
+          "label": "Weeping Marsh Causeway",
+          "localized": {
+            "en": {
+              "label": "Weeping Marsh Causeway"
+            },
+            "zh-CN": {
+              "label": "哭泣沼泽堤道"
+            }
+          }
+        }
+      ]
+    }
+  }
 }

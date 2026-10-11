@@ -34,7 +34,17 @@
         8,
         14
       ],
-      "desc": "Ivy chokes the millstone path."
+      "desc": "Ivy chokes the millstone path.",
+      "localized": {
+        "en": {
+          "name": "Overgrown Approach",
+          "desc": "Ivy chokes the millstone path."
+        },
+        "zh-CN": {
+          "name": "杂草丛生的入口",
+          "desc": "常春藤挤满通向磨坊的石路。"
+        }
+      }
     },
     {
       "id": "grinding",
@@ -45,7 +55,17 @@
         10,
         5
       ],
-      "desc": "Millstones caked with old flour and blood."
+      "desc": "Millstones caked with old flour and blood.",
+      "localized": {
+        "en": {
+          "name": "Grinding Floor",
+          "desc": "Millstones caked with old flour and blood."
+        },
+        "zh-CN": {
+          "name": "研磨大厅",
+          "desc": "磨石上结着旧面粉与血。"
+        }
+      }
     },
     {
       "id": "storage",
@@ -56,7 +76,17 @@
         24,
         5
       ],
-      "desc": "Sacks of rotten grain tower to the rafters."
+      "desc": "Sacks of rotten grain tower to the rafters.",
+      "localized": {
+        "en": {
+          "name": "Grain Storage",
+          "desc": "Sacks of rotten grain tower to the rafters."
+        },
+        "zh-CN": {
+          "name": "谷物仓库",
+          "desc": "腐烂谷物袋堆到椽木下。"
+        }
+      }
     },
     {
       "id": "yard",
@@ -67,7 +97,17 @@
         24,
         11
       ],
-      "desc": "An open yard between the mill and the cliff edge."
+      "desc": "An open yard between the mill and the cliff edge.",
+      "localized": {
+        "en": {
+          "name": "Mill Yard",
+          "desc": "An open yard between the mill and the cliff edge."
+        },
+        "zh-CN": {
+          "name": "磨坊庭院",
+          "desc": "磨坊与悬崖边缘之间的露天庭院。"
+        }
+      }
     },
     {
       "id": "inner",
@@ -78,7 +118,17 @@
         20,
         11
       ],
-      "desc": "Gears and shafts, motionless now."
+      "desc": "Gears and shafts, motionless now.",
+      "localized": {
+        "en": {
+          "name": "The Inner Works",
+          "desc": "Gears and shafts, motionless now."
+        },
+        "zh-CN": {
+          "name": "内部机房",
+          "desc": "齿轮与转轴如今静止不动。"
+        }
+      }
     }
   ],
   "rows": [
@@ -107,7 +157,17 @@
       "x": 3,
       "y": 14,
       "icon": "🔥",
-      "desc": "A quiet corner."
+      "desc": "A quiet corner.",
+      "localized": {
+        "en": {
+          "name": "Delver’s Camp",
+          "desc": "A quiet corner."
+        },
+        "zh-CN": {
+          "name": "冒险者营地",
+          "desc": "安静的角落。"
+        }
+      }
     },
     {
       "type": "monster",
@@ -162,6 +222,14 @@
             "qty": 1
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Grain Silo Cache"
+        },
+        "zh-CN": {
+          "name": "谷仓藏物箱"
+        }
       }
     },
     {
@@ -195,6 +263,14 @@
       "loot": {
         "gold": "3d10",
         "potions": 2
+      },
+      "localized": {
+        "en": {
+          "name": "Yard Crate"
+        },
+        "zh-CN": {
+          "name": "庭院木箱"
+        }
       }
     },
     {
@@ -206,7 +282,15 @@
       "dc": 13,
       "save": "dex",
       "damage": "2d6",
-      "damageType": "bludgeoning"
+      "damageType": "bludgeoning",
+      "localized": {
+        "en": {
+          "name": "Grain Chute Trap"
+        },
+        "zh-CN": {
+          "name": "谷物滑槽陷阱"
+        }
+      }
     },
     {
       "type": "monster",
@@ -240,6 +324,14 @@
             "qty": 1
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Inner Sanctum Chest"
+        },
+        "zh-CN": {
+          "name": "内圣所木箱"
+        }
       }
     },
     {
@@ -249,8 +341,60 @@
       "x": 22,
       "y": 14,
       "boss": true,
-      "name": "Mill Guardian"
+      "name": "Mill Guardian",
+      "localized": {
+        "en": {
+          "name": "Mill Guardian"
+        },
+        "zh-CN": {
+          "name": "磨坊守卫"
+        }
+      }
     }
   ],
-  "npcs": {}
+  "npcs": {},
+  "localized": {
+    "en": {
+      "name": "The Abandoned Mill",
+      "blurb": "An old mill on the Vale’s edge, now home to bandits, cultists and things that should not walk.",
+      "objectiveText": "Slay the Mill Guardian in the Inner Sanctum, then return to your camp.",
+      "recommended": "Levels 4-7"
+    },
+    "zh-CN": {
+      "name": "废弃磨坊",
+      "blurb": "瓦尔谷边缘的旧磨坊，如今盘踞着匪徒、邪教徒与不该行走的怪物。",
+      "objectiveText": "在内圣所击败磨坊守卫，再返回营地。",
+      "recommended": "等级 4–7"
+    }
+  },
+  "adventure": {
+    "waypoint": {
+      "regionX": 15,
+      "regionY": 65,
+      "icon": "mill",
+      "region": "The Outskirts",
+      "localized": {
+        "en": {
+          "region": "The Outskirts"
+        },
+        "zh-CN": {
+          "region": "城郊"
+        }
+      },
+      "roads": [
+        {
+          "to": "oakhaven",
+          "label": "The Outskirts Path",
+          "localized": {
+            "en": {
+              "label": "The Outskirts Path"
+            },
+            "zh-CN": {
+              "label": "城郊小径"
+            }
+          }
+        }
+      ]
+    }
+  }
 }

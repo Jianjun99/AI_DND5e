@@ -7,7 +7,15 @@
       "damage": "1d4",
       "damageType": "bludgeoning",
       "props": [],
-      "cost": 1
+      "cost": 1,
+      "localized": {
+        "en": {
+          "name": "Club"
+        },
+        "zh-CN": {
+          "name": "木棒"
+        }
+      }
     },
     {
       "id": "dagger",
@@ -20,7 +28,15 @@
         "thrown",
         "light"
       ],
-      "cost": 2
+      "cost": 2,
+      "localized": {
+        "en": {
+          "name": "Dagger"
+        },
+        "zh-CN": {
+          "name": "匕首"
+        }
+      }
     },
     {
       "id": "greatclub",
@@ -31,7 +47,15 @@
       "props": [
         "two_handed"
       ],
-      "cost": 2
+      "cost": 2,
+      "localized": {
+        "en": {
+          "name": "Greatclub"
+        },
+        "zh-CN": {
+          "name": "巨棒"
+        }
+      }
     },
     {
       "id": "handaxe",
@@ -43,7 +67,15 @@
         "light",
         "thrown"
       ],
-      "cost": 5
+      "cost": 5,
+      "localized": {
+        "en": {
+          "name": "Handaxe"
+        },
+        "zh-CN": {
+          "name": "手斧"
+        }
+      }
     },
     {
       "id": "javelin",
@@ -54,7 +86,15 @@
       "props": [
         "thrown"
       ],
-      "cost": 5
+      "cost": 5,
+      "localized": {
+        "en": {
+          "name": "Javelin"
+        },
+        "zh-CN": {
+          "name": "标枪"
+        }
+      }
     },
     {
       "id": "lighthammer",
@@ -66,7 +106,15 @@
         "light",
         "thrown"
       ],
-      "cost": 2
+      "cost": 2,
+      "localized": {
+        "en": {
+          "name": "Light Hammer"
+        },
+        "zh-CN": {
+          "name": "轻锤"
+        }
+      }
     },
     {
       "id": "mace",
@@ -75,7 +123,15 @@
       "damage": "1d6",
       "damageType": "bludgeoning",
       "props": [],
-      "cost": 5
+      "cost": 5,
+      "localized": {
+        "en": {
+          "name": "Mace"
+        },
+        "zh-CN": {
+          "name": "硬头锤"
+        }
+      }
     },
     {
       "id": "quarterstaff",
@@ -87,7 +143,15 @@
         "versatile"
       ],
       "versatile": "1d8",
-      "cost": 2
+      "cost": 2,
+      "localized": {
+        "en": {
+          "name": "Quarterstaff"
+        },
+        "zh-CN": {
+          "name": "长棍"
+        }
+      }
     },
     {
       "id": "sickle",
@@ -98,7 +162,15 @@
       "props": [
         "light"
       ],
-      "cost": 1
+      "cost": 1,
+      "localized": {
+        "en": {
+          "name": "Sickle"
+        },
+        "zh-CN": {
+          "name": "镰刀"
+        }
+      }
     },
     {
       "id": "spear",
@@ -111,7 +183,15 @@
         "versatile"
       ],
       "versatile": "1d8",
-      "cost": 1
+      "cost": 1,
+      "localized": {
+        "en": {
+          "name": "Spear"
+        },
+        "zh-CN": {
+          "name": "矛"
+        }
+      }
     },
     {
       "id": "lightcrossbow",
@@ -125,7 +205,15 @@
         "two_handed"
       ],
       "range": 80,
-      "cost": 25
+      "cost": 25,
+      "localized": {
+        "en": {
+          "name": "Light Crossbow"
+        },
+        "zh-CN": {
+          "name": "轻弩"
+        }
+      }
     },
     {
       "id": "shortbow",
@@ -138,7 +226,15 @@
         "two_handed"
       ],
       "range": 80,
-      "cost": 25
+      "cost": 25,
+      "localized": {
+        "en": {
+          "name": "Shortbow"
+        },
+        "zh-CN": {
+          "name": "短弓"
+        }
+      }
     },
     {
       "id": "battleaxe",
@@ -150,7 +246,15 @@
         "versatile"
       ],
       "versatile": "1d10",
-      "cost": 10
+      "cost": 10,
+      "localized": {
+        "en": {
+          "name": "Battleaxe"
+        },
+        "zh-CN": {
+          "name": "战斧"
+        }
+      }
     },
     {
       "id": "flail",
@@ -159,7 +263,15 @@
       "damage": "1d8",
       "damageType": "bludgeoning",
       "props": [],
-      "cost": 10
+      "cost": 10,
+      "localized": {
+        "en": {
+          "name": "Flail"
+        },
+        "zh-CN": {
+          "name": "链枷"
+        }
+      }
     },
     {
       "id": "glaive",
@@ -172,7 +284,15 @@
         "reach",
         "two_handed"
       ],
-      "cost": 20
+      "cost": 20,
+      "localized": {
+        "en": {
+          "name": "Glaive"
+        },
+        "zh-CN": {
+          "name": "长柄刀"
+        }
+      }
     },
     {
       "id": "greataxe",
@@ -184,7 +304,15 @@
         "heavy",
         "two_handed"
       ],
-      "cost": 30
+      "cost": 30,
+      "localized": {
+        "en": {
+          "name": "Greataxe"
+        },
+        "zh-CN": {
+          "name": "巨斧"
+        }
+      }
     },
     {
       "id": "greatsword",
@@ -196,7 +324,15 @@
         "heavy",
         "two_handed"
       ],
-      "cost": 50
+      "cost": 50,
+      "localized": {
+        "en": {
+          "name": "Greatsword"
+        },
+        "zh-CN": {
+          "name": "巨剑"
+        }
+      }
     },
     {
       "id": "longsword",
@@ -208,7 +344,15 @@
         "versatile"
       ],
       "versatile": "1d10",
-      "cost": 15
+      "cost": 15,
+      "localized": {
+        "en": {
+          "name": "Longsword"
+        },
+        "zh-CN": {
+          "name": "长剑"
+        }
+      }
     },
     {
       "id": "maul",
@@ -220,7 +364,15 @@
         "heavy",
         "two_handed"
       ],
-      "cost": 10
+      "cost": 10,
+      "localized": {
+        "en": {
+          "name": "Maul"
+        },
+        "zh-CN": {
+          "name": "巨锤"
+        }
+      }
     },
     {
       "id": "morningstar",
@@ -229,7 +381,15 @@
       "damage": "1d8",
       "damageType": "piercing",
       "props": [],
-      "cost": 15
+      "cost": 15,
+      "localized": {
+        "en": {
+          "name": "Morningstar"
+        },
+        "zh-CN": {
+          "name": "晨星锤"
+        }
+      }
     },
     {
       "id": "rapier",
@@ -240,7 +400,15 @@
       "props": [
         "finesse"
       ],
-      "cost": 25
+      "cost": 25,
+      "localized": {
+        "en": {
+          "name": "Rapier"
+        },
+        "zh-CN": {
+          "name": "刺剑"
+        }
+      }
     },
     {
       "id": "scimitar",
@@ -252,7 +420,15 @@
         "finesse",
         "light"
       ],
-      "cost": 25
+      "cost": 25,
+      "localized": {
+        "en": {
+          "name": "Scimitar"
+        },
+        "zh-CN": {
+          "name": "弯刀"
+        }
+      }
     },
     {
       "id": "shortsword",
@@ -264,7 +440,15 @@
         "finesse",
         "light"
       ],
-      "cost": 10
+      "cost": 10,
+      "localized": {
+        "en": {
+          "name": "Shortsword"
+        },
+        "zh-CN": {
+          "name": "短剑"
+        }
+      }
     },
     {
       "id": "warhammer",
@@ -276,7 +460,15 @@
         "versatile"
       ],
       "versatile": "1d10",
-      "cost": 15
+      "cost": 15,
+      "localized": {
+        "en": {
+          "name": "Warhammer"
+        },
+        "zh-CN": {
+          "name": "战锤"
+        }
+      }
     },
     {
       "id": "longbow",
@@ -290,7 +482,15 @@
         "two_handed"
       ],
       "range": 150,
-      "cost": 50
+      "cost": 50,
+      "localized": {
+        "en": {
+          "name": "Longbow"
+        },
+        "zh-CN": {
+          "name": "长弓"
+        }
+      }
     }
   ],
   "armor": [
@@ -299,63 +499,135 @@
       "name": "Padded Armor",
       "type": "light",
       "ac": "11+dex",
-      "cost": 5
+      "cost": 5,
+      "localized": {
+        "en": {
+          "name": "Padded Armor"
+        },
+        "zh-CN": {
+          "name": "布甲"
+        }
+      }
     },
     {
       "id": "leather",
       "name": "Leather Armor",
       "type": "light",
       "ac": "11+dex",
-      "cost": 10
+      "cost": 10,
+      "localized": {
+        "en": {
+          "name": "Leather Armor"
+        },
+        "zh-CN": {
+          "name": "皮甲"
+        }
+      }
     },
     {
       "id": "studded_leather",
       "name": "Studded Leather",
       "type": "light",
       "ac": "12+dex",
-      "cost": 45
+      "cost": 45,
+      "localized": {
+        "en": {
+          "name": "Studded Leather"
+        },
+        "zh-CN": {
+          "name": "镶钉皮甲"
+        }
+      }
     },
     {
       "id": "hide",
       "name": "Hide Armor",
       "type": "medium",
       "ac": "12+dex(2)",
-      "cost": 10
+      "cost": 10,
+      "localized": {
+        "en": {
+          "name": "Hide Armor"
+        },
+        "zh-CN": {
+          "name": "兽皮甲"
+        }
+      }
     },
     {
       "id": "chain_shirt",
       "name": "Chain Shirt",
       "type": "medium",
       "ac": "13+dex(2)",
-      "cost": 50
+      "cost": 50,
+      "localized": {
+        "en": {
+          "name": "Chain Shirt"
+        },
+        "zh-CN": {
+          "name": "链甲衫"
+        }
+      }
     },
     {
       "id": "scale_mail",
       "name": "Scale Mail",
       "type": "medium",
       "ac": "14+dex(2)",
-      "cost": 50
+      "cost": 50,
+      "localized": {
+        "en": {
+          "name": "Scale Mail"
+        },
+        "zh-CN": {
+          "name": "鳞甲"
+        }
+      }
     },
     {
       "id": "breastplate",
       "name": "Breastplate",
       "type": "medium",
       "ac": "14+dex(2)",
-      "cost": 400
+      "cost": 400,
+      "localized": {
+        "en": {
+          "name": "Breastplate"
+        },
+        "zh-CN": {
+          "name": "胸甲"
+        }
+      }
     },
     {
       "id": "half_plate",
       "name": "Half Plate",
       "type": "medium",
       "ac": "15+dex(2)",
-      "cost": 750
+      "cost": 750,
+      "localized": {
+        "en": {
+          "name": "Half Plate"
+        },
+        "zh-CN": {
+          "name": "半身板甲"
+        }
+      }
     },
     {
       "id": "ring_mail",
       "name": "Ring Mail",
       "type": "heavy",
       "ac": "14",
-      "cost": 30
+      "cost": 30,
+      "localized": {
+        "en": {
+          "name": "Ring Mail"
+        },
+        "zh-CN": {
+          "name": "环甲"
+        }
+      }
     },
     {
       "id": "chain_mail",
@@ -363,7 +635,15 @@
       "type": "heavy",
       "ac": "16",
       "minStr": 13,
-      "cost": 75
+      "cost": 75,
+      "localized": {
+        "en": {
+          "name": "Chain Mail"
+        },
+        "zh-CN": {
+          "name": "链甲"
+        }
+      }
     },
     {
       "id": "splint",
@@ -371,7 +651,15 @@
       "type": "heavy",
       "ac": "17",
       "minStr": 15,
-      "cost": 200
+      "cost": 200,
+      "localized": {
+        "en": {
+          "name": "Splint Armor"
+        },
+        "zh-CN": {
+          "name": "板条甲"
+        }
+      }
     },
     {
       "id": "plate",
@@ -379,7 +667,15 @@
       "type": "heavy",
       "ac": "18",
       "minStr": 15,
-      "cost": 1500
+      "cost": 1500,
+      "localized": {
+        "en": {
+          "name": "Plate Armor"
+        },
+        "zh-CN": {
+          "name": "板甲"
+        }
+      }
     }
   ],
   "gear": [
@@ -389,7 +685,17 @@
       "type": "potion",
       "heal": "2d4+2",
       "cost": 50,
-      "desc": "Bonus action to drink: regain 2d4+2 HP."
+      "desc": "Bonus action to drink: regain 2d4+2 HP.",
+      "localized": {
+        "en": {
+          "name": "Potion of Healing",
+          "desc": "Bonus action to drink: regain 2d4+2 HP."
+        },
+        "zh-CN": {
+          "name": "治疗药水",
+          "desc": "附赠动作饮用：恢复 2d4+2 点生命。"
+        }
+      }
     },
     {
       "id": "potion_greater",
@@ -397,21 +703,51 @@
       "type": "potion",
       "heal": "4d4+4",
       "cost": 100,
-      "desc": "Bonus action to drink: regain 4d4+4 HP."
+      "desc": "Bonus action to drink: regain 4d4+4 HP.",
+      "localized": {
+        "en": {
+          "name": "Greater Healing Potion",
+          "desc": "Bonus action to drink: regain 4d4+4 HP."
+        },
+        "zh-CN": {
+          "name": "强效治疗药水",
+          "desc": "附赠动作饮用：恢复 4d4+4 点生命。"
+        }
+      }
     },
     {
       "id": "healers_kit",
       "name": "Healer's Kit",
       "type": "kit",
       "cost": 5,
-      "desc": "Required for the Healer feat; 10 uses."
+      "desc": "Required for the Healer feat; 10 uses.",
+      "localized": {
+        "en": {
+          "name": "Healer's Kit",
+          "desc": "Required for the Healer feat; 10 uses."
+        },
+        "zh-CN": {
+          "name": "医疗包",
+          "desc": "医者专长所需，可使用 10 次。"
+        }
+      }
     },
     {
       "id": "thieves_tools",
       "name": "Thieves' Tools",
       "type": "tool",
       "cost": 25,
-      "desc": "Pick locks and disarm traps."
+      "desc": "Pick locks and disarm traps.",
+      "localized": {
+        "en": {
+          "name": "Thieves' Tools",
+          "desc": "Pick locks and disarm traps."
+        },
+        "zh-CN": {
+          "name": "盗贼工具",
+          "desc": "开锁与拆除陷阱。"
+        }
+      }
     },
     {
       "id": "shield",
@@ -419,32 +755,76 @@
       "type": "shield",
       "acBonus": 2,
       "cost": 10,
-      "desc": "+2 AC while wielded."
+      "desc": "+2 AC while wielded.",
+      "localized": {
+        "en": {
+          "name": "Shield",
+          "desc": "+2 AC while wielded."
+        },
+        "zh-CN": {
+          "name": "盾牌",
+          "desc": "持用时护甲 +2。"
+        }
+      }
     },
     {
       "id": "torch",
       "name": "Torch",
       "type": "gear",
-      "cost": 1
+      "cost": 1,
+      "localized": {
+        "en": {
+          "name": "Torch"
+        },
+        "zh-CN": {
+          "name": "火把"
+        }
+      }
     },
     {
       "id": "rope",
       "name": "Hempen Rope",
       "type": "gear",
-      "cost": 1
+      "cost": 1,
+      "localized": {
+        "en": {
+          "name": "Hempen Rope"
+        },
+        "zh-CN": {
+          "name": "麻绳"
+        }
+      }
     },
     {
       "id": "rations",
       "name": "Rations",
       "type": "gear",
-      "cost": 5
+      "cost": 5,
+      "localized": {
+        "en": {
+          "name": "Rations"
+        },
+        "zh-CN": {
+          "name": "口粮"
+        }
+      }
     },
     {
       "id": "relic",
       "name": "Relic of the Sunless Crypt",
       "type": "quest",
       "cost": 0,
-      "desc": "The objective of your delve."
+      "desc": "The objective of your delve.",
+      "localized": {
+        "en": {
+          "name": "Relic of the Sunless Crypt",
+          "desc": "The objective of your delve."
+        },
+        "zh-CN": {
+          "name": "无光墓穴圣物",
+          "desc": "本次冒险的目标。"
+        }
+      }
     },
     {
       "id": "silver_sword",
@@ -453,7 +833,17 @@
       "base": "shortsword",
       "magic": 1,
       "cost": 200,
-      "desc": "+1 to attack and damage; gleams near the undead."
+      "desc": "+1 to attack and damage; gleams near the undead.",
+      "localized": {
+        "en": {
+          "name": "Silver Shortsword",
+          "desc": "+1 to attack and damage; gleams near the undead."
+        },
+        "zh-CN": {
+          "name": "银短剑",
+          "desc": "攻击与伤害 +1，靠近不死生物时闪光。"
+        }
+      }
     },
     {
       "id": "flame_dagger",
@@ -466,7 +856,17 @@
         "type": "fire"
       },
       "cost": 250,
-      "desc": "+1 dagger whose edge drips fire: +1d4 fire damage."
+      "desc": "+1 dagger whose edge drips fire: +1d4 fire damage.",
+      "localized": {
+        "en": {
+          "name": "Flame-Tongue Dagger",
+          "desc": "+1 dagger whose edge drips fire: +1d4 fire damage."
+        },
+        "zh-CN": {
+          "name": "焰舌匕首",
+          "desc": "+1 匕首，刀锋滴落火焰，额外造成 +1d4 火焰伤害。"
+        }
+      }
     },
     {
       "id": "crypt_cleaver",
@@ -475,7 +875,17 @@
       "base": "greataxe",
       "magic": 1,
       "cost": 400,
-      "desc": "+1 greataxe carved from tomb-stone, still humming with the crypt's power."
+      "desc": "+1 greataxe carved from tomb-stone, still humming with the crypt's power.",
+      "localized": {
+        "en": {
+          "name": "Crypt Cleaver",
+          "desc": "+1 greataxe carved from tomb-stone, still humming with the crypt's power."
+        },
+        "zh-CN": {
+          "name": "墓穴劈斧",
+          "desc": "墓石雕成的 +1 巨斧，仍回荡着墓穴之力。"
+        }
+      }
     },
     {
       "id": "cloak_protection",
@@ -483,7 +893,17 @@
       "type": "magic_armor",
       "acBonus": 1,
       "cost": 200,
-      "desc": "+1 AC while carried."
+      "desc": "+1 AC while carried.",
+      "localized": {
+        "en": {
+          "name": "Cloak of Protection",
+          "desc": "+1 AC while carried."
+        },
+        "zh-CN": {
+          "name": "防护斗篷",
+          "desc": "携带时护甲 +1。"
+        }
+      }
     },
     {
       "id": "amulet_of_vigor",
@@ -491,7 +911,17 @@
       "type": "magic_trinket",
       "hpBonus": 5,
       "cost": 250,
-      "desc": "Permanently grants +5 max HP when found."
+      "desc": "Permanently grants +5 max HP when found.",
+      "localized": {
+        "en": {
+          "name": "Amulet of Vigor",
+          "desc": "Permanently grants +5 max HP when found."
+        },
+        "zh-CN": {
+          "name": "活力护符",
+          "desc": "找到时永久增加 5 点最大生命。"
+        }
+      }
     },
     {
       "id": "scroll_magic_missile",
@@ -499,7 +929,17 @@
       "type": "scroll",
       "spell": "magic_missile",
       "cost": 75,
-      "desc": "One-shot: 3d4+3 force damage to a target you can see."
+      "desc": "One-shot: 3d4+3 force damage to a target you can see.",
+      "localized": {
+        "en": {
+          "name": "Scroll of Magic Missile",
+          "desc": "One-shot: 3d4+3 force damage to a target you can see."
+        },
+        "zh-CN": {
+          "name": "魔法飞弹卷轴",
+          "desc": "一次性：对可见目标造成 3d4+3 力场伤害。"
+        }
+      }
     },
     {
       "id": "scroll_shield",
@@ -507,7 +947,17 @@
       "type": "scroll",
       "spell": "shield",
       "cost": 75,
-      "desc": "One-shot: +5 AC until your next turn."
+      "desc": "One-shot: +5 AC until your next turn.",
+      "localized": {
+        "en": {
+          "name": "Scroll of Shield",
+          "desc": "One-shot: +5 AC until your next turn."
+        },
+        "zh-CN": {
+          "name": "护盾术卷轴",
+          "desc": "一次性：护甲 +5，持续至下回合。"
+        }
+      }
     },
     {
       "id": "scroll_cure",
@@ -515,7 +965,17 @@
       "type": "scroll",
       "spell": "cure_wounds",
       "cost": 60,
-      "desc": "One-shot: restore 1d8+3 HP."
+      "desc": "One-shot: restore 1d8+3 HP.",
+      "localized": {
+        "en": {
+          "name": "Scroll of Cure Wounds",
+          "desc": "One-shot: restore 1d8+3 HP."
+        },
+        "zh-CN": {
+          "name": "疗伤术卷轴",
+          "desc": "一次性：恢复 1d8+3 点生命。"
+        }
+      }
     },
     {
       "id": "scroll_sleep",
@@ -523,7 +983,17 @@
       "type": "scroll",
       "spell": "sleep",
       "cost": 80,
-      "desc": "One-shot: 5d8 HP of magical slumber."
+      "desc": "One-shot: 5d8 HP of magical slumber.",
+      "localized": {
+        "en": {
+          "name": "Scroll of Sleep",
+          "desc": "One-shot: 5d8 HP of magical slumber."
+        },
+        "zh-CN": {
+          "name": "睡眠术卷轴",
+          "desc": "一次性：以 5d8 点生命池施加魔法睡眠。"
+        }
+      }
     },
     {
       "id": "dragontooth_blade",
@@ -536,7 +1006,17 @@
         "type": "fire"
       },
       "cost": 500,
-      "desc": "+2 longsword carved from a dragon’s tooth: +1d8 fire damage on hit."
+      "desc": "+2 longsword carved from a dragon’s tooth: +1d8 fire damage on hit.",
+      "localized": {
+        "en": {
+          "name": "Dragontooth Blade",
+          "desc": "+2 longsword carved from a dragon’s tooth: +1d8 fire damage on hit."
+        },
+        "zh-CN": {
+          "name": "龙牙剑",
+          "desc": "龙牙雕成的 +2 长剑，命中额外造成 +1d8 火焰伤害。"
+        }
+      }
     },
     {
       "id": "ring_greater",
@@ -544,28 +1024,68 @@
       "type": "magic_armor",
       "acBonus": 2,
       "cost": 400,
-      "desc": "+2 AC while worn — a band of woven force."
+      "desc": "+2 AC while worn — a band of woven force.",
+      "localized": {
+        "en": {
+          "name": "Greater Ring of Protection",
+          "desc": "+2 AC while worn — a band of woven force."
+        },
+        "zh-CN": {
+          "name": "强效防护戒指",
+          "desc": "佩戴时护甲 +2，一环编织的力场。"
+        }
+      }
     },
     {
       "id": "amulet_might",
       "name": "Amulet of Mighty Strikes",
       "type": "magic_trinket",
       "cost": 350,
-      "desc": "+2 to damage with all weapon attacks."
+      "desc": "+2 to damage with all weapon attacks.",
+      "localized": {
+        "en": {
+          "name": "Amulet of Mighty Strikes",
+          "desc": "+2 to damage with all weapon attacks."
+        },
+        "zh-CN": {
+          "name": "猛击护符",
+          "desc": "全部武器攻击伤害 +2。"
+        }
+      }
     },
     {
       "id": "cloak",
       "name": "Traveller's Cloak",
       "type": "gear",
       "cost": 20,
-      "desc": "A plain wool cloak — often the canvas for enchanted set sigils."
+      "desc": "A plain wool cloak — often the canvas for enchanted set sigils.",
+      "localized": {
+        "en": {
+          "name": "Traveller's Cloak",
+          "desc": "A plain wool cloak — often the canvas for enchanted set sigils."
+        },
+        "zh-CN": {
+          "name": "旅人斗篷",
+          "desc": "普通羊毛斗篷，常用于绘制附魔套装符印。"
+        }
+      }
     },
     {
       "id": "ring",
       "name": "Mithril Band",
       "type": "gear",
       "cost": 30,
-      "desc": "A plain mithril band — set sigils take readily to it."
+      "desc": "A plain mithril band — set sigils take readily to it.",
+      "localized": {
+        "en": {
+          "name": "Mithril Band",
+          "desc": "A plain mithril band — set sigils take readily to it."
+        },
+        "zh-CN": {
+          "name": "秘银指环",
+          "desc": "普通秘银指环，适合承载套装符印。"
+        }
+      }
     }
   ]
 }

@@ -12,7 +12,7 @@ const MONSTER_AFFIXES = {
     bonusDamage: { dice: '1d4', type: 'fire' },
     resistance: ['fire'],
     desc: '+25% HP, +1d4 fire damage on attacks, resistant to fire'
-  },
+  , localized:{"en":{"name":"Blazing","desc":"+25% HP, +1d4 fire damage on attacks, resistant to fire"},"zh-CN":{"name":"炽炎的","desc":"生命 +25%，攻击附加 1d4 火焰伤害，火焰抗性"}}},
   stone_skinned: {
     id: 'stone_skinned',
     name: '石肤',
@@ -24,7 +24,7 @@ const MONSTER_AFFIXES = {
     resistance: ['slashing', 'bludgeoning', 'piercing'],
     nonmagicalPhysical: true,
     desc: '+40% HP, +2 AC, resistant to non-magical weapons'
-  },
+  , localized:{"en":{"name":"Stone-skinned","desc":"+40% HP, +2 AC, resistant to non-magical weapons"},"zh-CN":{"name":"石肤","desc":"生命 +40%，AC +2，抵抗非魔法武器"}}},
   vampiric: {
     id: 'vampiric',
     name: '嗜血',
@@ -34,7 +34,7 @@ const MONSTER_AFFIXES = {
     hpMult: 1.20,
     vampiricLeech: 0.5,
     desc: '+20% HP, heals 50% of damage dealt to player or ally'
-  },
+  , localized:{"en":{"name":"Vampiric","desc":"+20% HP, heals 50% of damage dealt to player or ally"},"zh-CN":{"name":"嗜血","desc":"生命 +20%，恢复对玩家或同伴所造成伤害的 50%"}}},
   venomous: {
     id: 'venomous',
     name: '剧毒',
@@ -45,7 +45,7 @@ const MONSTER_AFFIXES = {
     bonusDamage: { dice: '1d4', type: 'poison' },
     inflictsCondition: 'poisoned',
     desc: '+20% HP, +1d4 poison damage, attacks inflict poisoned condition'
-  },
+  , localized:{"en":{"name":"Venomous","desc":"+20% HP, +1d4 poison damage, attacks inflict poisoned condition"},"zh-CN":{"name":"剧毒","desc":"生命 +20%，附加 1d4 毒素伤害，攻击造成中毒"}}},
   storm_charged: {
     id: 'storm_charged',
     name: '狂雷',
@@ -57,7 +57,7 @@ const MONSTER_AFFIXES = {
     attackBonus: 2,
     bonusDamage: { dice: '1d4', type: 'lightning' },
     desc: '+10 ft speed, +2 attack bonus, +1d4 lightning damage'
-  }
+  , localized:{"en":{"name":"Storm-charged","desc":"+10 ft speed, +2 attack bonus, +1d4 lightning damage"},"zh-CN":{"name":"狂雷","desc":"速度 +10 ft，攻击加值 +2，附加 1d4 闪电伤害"}}}
 };
 
 const MONSTER_AFFIX_KEYS = Object.keys(MONSTER_AFFIXES);
@@ -100,17 +100,17 @@ function applyMonsterAffix(monster, affixKey) {
 
 // ------------------------------------------------------------- Item Affixes ----
 const WEAPON_AFFIXES = [
-  { id: 'blazing', prefix: '炽火之', english: 'Blazing', bonusDamage: { dice: '1d4', type: 'fire' }, desc: '+1d4 fire damage' },
-  { id: 'venomous', prefix: '剧毒之', english: 'Venomous', bonusDamage: { dice: '1d4', type: 'poison' }, desc: '+1d4 poison damage' },
-  { id: 'shocking', prefix: '狂雷之', english: 'Shocking', bonusDamage: { dice: '1d4', type: 'lightning' }, desc: '+1d4 lightning damage' },
-  { id: 'vampiric', prefix: '嗜血之', english: 'Vampiric', vampiricHeal: 2, desc: 'Restores 2 HP on hit' },
-  { id: 'keen', prefix: '锋锐之', english: 'Keen', magic: 1, desc: '+1 to attack rolls' }
+  { id: 'blazing', prefix: '炽火之', english: 'Blazing', bonusDamage: { dice: '1d4', type: 'fire' }, desc: '+1d4 fire damage' , localized:{"en":{"desc":"+1d4 fire damage"},"zh-CN":{"desc":"+1d4 火焰伤害"}}},
+  { id: 'venomous', prefix: '剧毒之', english: 'Venomous', bonusDamage: { dice: '1d4', type: 'poison' }, desc: '+1d4 poison damage' , localized:{"en":{"desc":"+1d4 poison damage"},"zh-CN":{"desc":"+1d4 毒素伤害"}}},
+  { id: 'shocking', prefix: '狂雷之', english: 'Shocking', bonusDamage: { dice: '1d4', type: 'lightning' }, desc: '+1d4 lightning damage' , localized:{"en":{"desc":"+1d4 lightning damage"},"zh-CN":{"desc":"+1d4 闪电伤害"}}},
+  { id: 'vampiric', prefix: '嗜血之', english: 'Vampiric', vampiricHeal: 2, desc: 'Restores 2 HP on hit' , localized:{"en":{"desc":"Restores 2 HP on hit"},"zh-CN":{"desc":"命中恢复 2 HP"}}},
+  { id: 'keen', prefix: '锋锐之', english: 'Keen', magic: 1, desc: '+1 to attack rolls' , localized:{"en":{"desc":"+1 to attack rolls"},"zh-CN":{"desc":"攻击检定 +1"}}}
 ];
 
 const ARMOR_AFFIXES = [
-  { id: 'stalwart', prefix: '坚毅之', english: 'Stalwart', acBonus: 1, desc: '+1 AC' },
-  { id: 'vigor', prefix: '活力之', english: 'Vigor', hpBonus: 5, desc: '+5 Max HP while equipped' },
-  { id: 'fleet', prefix: '轻捷之', english: 'Fleet', speedBonus: 5, desc: '+5 ft movement speed' }
+  { id: 'stalwart', prefix: '坚毅之', english: 'Stalwart', acBonus: 1, desc: '+1 AC' , localized:{"en":{"desc":"+1 AC"},"zh-CN":{"desc":"AC +1"}}},
+  { id: 'vigor', prefix: '活力之', english: 'Vigor', hpBonus: 5, desc: '+5 Max HP while equipped' , localized:{"en":{"desc":"+5 Max HP while equipped"},"zh-CN":{"desc":"装备时生命上限 +5"}}},
+  { id: 'fleet', prefix: '轻捷之', english: 'Fleet', speedBonus: 5, desc: '+5 ft movement speed' , localized:{"en":{"desc":"+5 ft movement speed"},"zh-CN":{"desc":"移动速度 +5 ft"}}}
 ];
 
 // Item sets: rolled armour-pool pieces (armour / cloak / ring / shield) have a 25%
@@ -122,33 +122,33 @@ const ARMOR_SETS = [
     id: 'emberforged', prefix: '余烬锻造', english: 'Emberforged', color: '#f59e0b',
     set2: { acBonus: 1 }, set3: { acBonus: 2, initBonus: 2 },
     desc: '套装：2 件 +1 AC，3 件 +2 AC 且先攻 +2'
-  },
+  , localized:{"en":{"desc":"Set: 2 pieces +1 AC; 3 pieces +2 AC and +2 initiative"},"zh-CN":{"desc":"套装：2 件 +1 AC，3 件 +2 AC 且先攻 +2"}}},
   {
     id: 'deepwarden', prefix: '渊守', english: 'Deepwarden', color: '#38bdf8',
     set2: { acBonus: 1 }, set3: { acBonus: 2, initBonus: 2 },
     desc: '套装：2 件 +1 AC，3 件 +2 AC 且先攻 +2'
-  }
+  , localized:{"en":{"desc":"Set: 2 pieces +1 AC; 3 pieces +2 AC and +2 initiative"},"zh-CN":{"desc":"套装：2 件 +1 AC，3 件 +2 AC 且先攻 +2"}}}
 ];
 
 const BASE_WEAPONS = [
-  { id: 'longsword', name: '长剑', english: 'Longsword', type: 'weapon', cost: 15 },
-  { id: 'shortsword', name: '短剑', english: 'Shortsword', type: 'weapon', cost: 10 },
-  { id: 'greatsword', name: '巨剑', english: 'Greatsword', type: 'weapon', cost: 50 },
-  { id: 'battleaxe', name: '战斧', english: 'Battleaxe', type: 'weapon', cost: 10 },
-  { id: 'rapier', name: '刺剑', english: 'Rapier', type: 'weapon', cost: 25 },
-  { id: 'dagger', name: '匕首', english: 'Dagger', type: 'weapon', cost: 2 },
-  { id: 'mace', name: '硬头锤', english: 'Mace', type: 'weapon', cost: 5 },
-  { id: 'longbow', name: '长弓', english: 'Longbow', type: 'weapon', cost: 50 }
+  { id: 'longsword', name: '长剑', english: 'Longsword', type: 'weapon', cost: 15 , localized:{"en":{"name":"Longsword"},"zh-CN":{"name":"长剑"}}},
+  { id: 'shortsword', name: '短剑', english: 'Shortsword', type: 'weapon', cost: 10 , localized:{"en":{"name":"Shortsword"},"zh-CN":{"name":"短剑"}}},
+  { id: 'greatsword', name: '巨剑', english: 'Greatsword', type: 'weapon', cost: 50 , localized:{"en":{"name":"Greatsword"},"zh-CN":{"name":"巨剑"}}},
+  { id: 'battleaxe', name: '战斧', english: 'Battleaxe', type: 'weapon', cost: 10 , localized:{"en":{"name":"Battleaxe"},"zh-CN":{"name":"战斧"}}},
+  { id: 'rapier', name: '刺剑', english: 'Rapier', type: 'weapon', cost: 25 , localized:{"en":{"name":"Rapier"},"zh-CN":{"name":"刺剑"}}},
+  { id: 'dagger', name: '匕首', english: 'Dagger', type: 'weapon', cost: 2 , localized:{"en":{"name":"Dagger"},"zh-CN":{"name":"匕首"}}},
+  { id: 'mace', name: '硬头锤', english: 'Mace', type: 'weapon', cost: 5 , localized:{"en":{"name":"Mace"},"zh-CN":{"name":"硬头锤"}}},
+  { id: 'longbow', name: '长弓', english: 'Longbow', type: 'weapon', cost: 50 , localized:{"en":{"name":"Longbow"},"zh-CN":{"name":"长弓"}}}
 ];
 
 const BASE_ARMORS = [
-  { id: 'leather', name: '皮甲', english: 'Leather Armor', type: 'armor', cost: 10 },
-  { id: 'chain_shirt', name: '锁子衫', english: 'Chain Shirt', type: 'armor', cost: 50 },
-  { id: 'chain_mail', name: '锁子甲', english: 'Chain Mail', type: 'armor', cost: 75 },
-  { id: 'breastplate', name: '胸甲', english: 'Breastplate', type: 'armor', cost: 400 },
-  { id: 'shield', name: '盾牌', english: 'Shield', type: 'shield', cost: 10 },
-  { id: 'cloak', name: '披风', english: 'Cloak', type: 'cloak', cost: 20 },
-  { id: 'ring', name: '秘银戒指', english: 'Mithril Ring', type: 'ring', cost: 30 }
+  { id: 'leather', name: '皮甲', english: 'Leather Armor', type: 'armor', cost: 10 , localized:{"en":{"name":"Leather Armor"},"zh-CN":{"name":"皮甲"}}},
+  { id: 'chain_shirt', name: '锁子衫', english: 'Chain Shirt', type: 'armor', cost: 50 , localized:{"en":{"name":"Chain Shirt"},"zh-CN":{"name":"锁子衫"}}},
+  { id: 'chain_mail', name: '锁子甲', english: 'Chain Mail', type: 'armor', cost: 75 , localized:{"en":{"name":"Chain Mail"},"zh-CN":{"name":"锁子甲"}}},
+  { id: 'breastplate', name: '胸甲', english: 'Breastplate', type: 'armor', cost: 400 , localized:{"en":{"name":"Breastplate"},"zh-CN":{"name":"胸甲"}}},
+  { id: 'shield', name: '盾牌', english: 'Shield', type: 'shield', cost: 10 , localized:{"en":{"name":"Shield"},"zh-CN":{"name":"盾牌"}}},
+  { id: 'cloak', name: '披风', english: 'Cloak', type: 'cloak', cost: 20 , localized:{"en":{"name":"Cloak"},"zh-CN":{"name":"披风"}}},
+  { id: 'ring', name: '秘银戒指', english: 'Mithril Ring', type: 'ring', cost: 30 , localized:{"en":{"name":"Mithril Ring"},"zh-CN":{"name":"秘银戒指"}}}
 ];
 
 const uidCounter = { n: 0 };

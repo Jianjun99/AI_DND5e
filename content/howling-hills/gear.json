@@ -1,13 +1,39 @@
 {
   "gear": [
-    { "id": "vale_seal", "name": "山谷通行印", "type": "quest", "cost": 0, "desc": "旧木箱中的通行凭证。哨门守卫愿意收回它，换你平安通过。" },
+    {
+      "id": "vale_seal",
+      "name": "山谷通行印",
+      "type": "quest",
+      "cost": 0,
+      "desc": "旧木箱中的通行凭证。哨门守卫愿意收回它，换你平安通过。",
+      "localized": {
+        "en": {
+          "name": "Vale Passage Seal",
+          "desc": "A passage credential found in the old chest. Return it to the gatekeeper to pass peacefully."
+        },
+        "zh-CN": {
+          "name": "山谷通行印",
+          "desc": "旧木箱中的通行凭证。哨门守卫愿意收回它，换你平安通过。"
+        }
+      }
+    },
     {
       "id": "warboss_banner",
       "name": "Warboss's Banner",
       "type": "banner",
       "attackBonus": 1,
       "cost": 300,
-      "desc": "+1 to attack rolls while carried — the hills remember who owns this banner now."
+      "desc": "+1 to attack rolls while carried — the hills remember who owns this banner now.",
+      "localized": {
+        "en": {
+          "name": "Warboss's Banner",
+          "desc": "+1 to attack rolls while carried — the hills remember who owns this banner now."
+        },
+        "zh-CN": {
+          "name": "战酋旗帜",
+          "desc": "携带时攻击检定 +1，丘陵会记住旗帜如今的主人。"
+        }
+      }
     },
     {
       "id": "wolf_cloak",
@@ -15,7 +41,17 @@
       "type": "magic_armor",
       "acBonus": 1,
       "cost": 150,
-      "desc": "+1 AC while worn. Smells faintly of wet dog, in a reassuring way."
+      "desc": "+1 AC while worn. Smells faintly of wet dog, in a reassuring way.",
+      "localized": {
+        "en": {
+          "name": "Wolf-Fur Cloak",
+          "desc": "+1 AC while worn. Smells faintly of wet dog, in a reassuring way."
+        },
+        "zh-CN": {
+          "name": "狼皮斗篷",
+          "desc": "佩戴时护甲 +1，淡淡湿狗气味令人安心。"
+        }
+      }
     }
   ]
 }

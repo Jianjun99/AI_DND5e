@@ -33,7 +33,17 @@
         8,
         20
       ],
-      "desc": "Volcanic glass forms the gate."
+      "desc": "Volcanic glass forms the gate.",
+      "localized": {
+        "en": {
+          "name": "The Obsidian Gate",
+          "desc": "Volcanic glass forms the gate."
+        },
+        "zh-CN": {
+          "name": "黑曜石大门",
+          "desc": "火山玻璃构成大门。"
+        }
+      }
     },
     {
       "id": "ledge",
@@ -44,7 +54,17 @@
         12,
         15
       ],
-      "desc": "A narrow ledge above cooled lava."
+      "desc": "A narrow ledge above cooled lava.",
+      "localized": {
+        "en": {
+          "name": "The Ledge",
+          "desc": "A narrow ledge above cooled lava."
+        },
+        "zh-CN": {
+          "name": "崖台",
+          "desc": "冷却熔岩上方的狭窄崖台。"
+        }
+      }
     },
     {
       "id": "temple",
@@ -55,7 +75,17 @@
         28,
         15
       ],
-      "desc": "Cultists chant before a massive iron door."
+      "desc": "Cultists chant before a massive iron door.",
+      "localized": {
+        "en": {
+          "name": "Temple of Ash",
+          "desc": "Cultists chant before a massive iron door."
+        },
+        "zh-CN": {
+          "name": "灰烬神殿",
+          "desc": "邪教徒在巨大的铁门前吟唱。"
+        }
+      }
     },
     {
       "id": "outer",
@@ -66,7 +96,17 @@
         12,
         10
       ],
-      "desc": "Wind-carved alcoves above the lava lake."
+      "desc": "Wind-carved alcoves above the lava lake.",
+      "localized": {
+        "en": {
+          "name": "The Outer Roost",
+          "desc": "Wind-carved alcoves above the lava lake."
+        },
+        "zh-CN": {
+          "name": "外巢",
+          "desc": "熔岩湖上方被风蚀出的壁龛。"
+        }
+      }
     },
     {
       "id": "inner",
@@ -77,7 +117,17 @@
         28,
         10
       ],
-      "desc": "The hoard glitters with molten gold."
+      "desc": "The hoard glitters with molten gold.",
+      "localized": {
+        "en": {
+          "name": "The Inner Sanctum",
+          "desc": "The hoard glitters with molten gold."
+        },
+        "zh-CN": {
+          "name": "内圣所",
+          "desc": "宝藏闪耀着熔金的光。"
+        }
+      }
     },
     {
       "id": "lair",
@@ -88,7 +138,17 @@
         24,
         4
       ],
-      "desc": "HERE LIES THE EMBER QUEEN."
+      "desc": "HERE LIES THE EMBER QUEEN.",
+      "localized": {
+        "en": {
+          "name": "The Dragon’s Lair",
+          "desc": "HERE LIES THE EMBER QUEEN."
+        },
+        "zh-CN": {
+          "name": "巨龙巢穴",
+          "desc": "烬后就在此处。"
+        }
+      }
     }
   ],
   "rows": [
@@ -123,7 +183,17 @@
       "x": 4,
       "y": 20,
       "icon": "🔥",
-      "desc": "The last sheltered spot."
+      "desc": "The last sheltered spot.",
+      "localized": {
+        "en": {
+          "name": "Obsidian Camp",
+          "desc": "The last sheltered spot."
+        },
+        "zh-CN": {
+          "name": "黑曜石营地",
+          "desc": "最后一处避风点。"
+        }
+      }
     },
     {
       "type": "monster",
@@ -177,6 +247,14 @@
       "loot": {
         "gold": "6d10",
         "potions": 3
+      },
+      "localized": {
+        "en": {
+          "name": "Pilgrim’s Offerings"
+        },
+        "zh-CN": {
+          "name": "朝圣者供品"
+        }
       }
     },
     {
@@ -211,6 +289,14 @@
             "qty": 1
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Roost Alcove Cache"
+        },
+        "zh-CN": {
+          "name": "巢穴壁龛藏物箱"
+        }
       }
     },
     {
@@ -254,6 +340,14 @@
             "qty": 1
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "The Ember Hoard"
+        },
+        "zh-CN": {
+          "name": "余烬宝库"
+        }
       }
     },
     {
@@ -265,8 +359,60 @@
       "dc": 14,
       "save": "dex",
       "damage": "3d6",
-      "damageType": "fire"
+      "damageType": "fire",
+      "localized": {
+        "en": {
+          "name": "Magma Vent"
+        },
+        "zh-CN": {
+          "name": "岩浆喷口"
+        }
+      }
     }
   ],
-  "npcs": {}
+  "npcs": {},
+  "localized": {
+    "en": {
+      "name": "The Sun Dragon’s Roost",
+      "blurb": "High in the volcanic peaks, the Ember Queen has made her lair.",
+      "objectiveText": "Slay Yzmerith the Ember Queen at the peak, then return to the Obsidian Camp.",
+      "recommended": "Levels 9-12"
+    },
+    "zh-CN": {
+      "name": "日龙巢穴",
+      "blurb": "火山高峰中，烬后筑起巢穴。",
+      "objectiveText": "在峰顶击败烬后伊兹梅莉丝，再返回黑曜石营地。",
+      "recommended": "等级 9–12"
+    }
+  },
+  "adventure": {
+    "waypoint": {
+      "regionX": 80,
+      "regionY": 15,
+      "icon": "dragon",
+      "region": "The Volcanic Peaks",
+      "localized": {
+        "en": {
+          "region": "The Volcanic Peaks"
+        },
+        "zh-CN": {
+          "region": "火山群峰"
+        }
+      },
+      "roads": [
+        {
+          "to": "oakhaven",
+          "label": "The Ashen Pass",
+          "localized": {
+            "en": {
+              "label": "The Ashen Pass"
+            },
+            "zh-CN": {
+              "label": "灰烬隘口"
+            }
+          }
+        }
+      ]
+    }
+  }
 }

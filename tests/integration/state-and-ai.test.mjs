@@ -139,7 +139,12 @@ async function createHero(name) {
 }
 
 async function startDelve(charId) {
-  return api('POST', '/api/game/start', { characterId: charId, bringAlly: false, difficulty: 'normal', mapId: 'crypt' });
+  const result=await api('POST', '/api/game/start', { characterId: charId, bringAlly: false, difficulty: 'normal', mapId: 'crypt' });
+  // T9c: these persistence tests describe an already-known creature. Unknown
+  // targets are covered by the localization privacy tests instead.
+  const save=store.getSave(result.state.id),monster=save.entities.find(e=>e.kind==='monster');
+  if(monster) {save.discovered=[...new Set([...(save.discovered||[]),monster.x+','+monster.y])];store.saveGame(save);result.state.discovered=save.discovered;}
+  return result;
 }
 
 function playerOf(state) { return state.entities.find(e => e.kind === 'player'); }

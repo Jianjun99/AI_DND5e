@@ -5,6 +5,7 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { browserBinary, softwareWebGLFlags, requireWebGL, captureBrowserArtifacts } from './_browser-runtime.mjs';
 import { pollUntil, clickUntil } from './_cdp-helpers.mjs';
+import { measureLayout } from './_layout-measurements.mjs';
 
 const BASE_URL = process.env.BASE_URL || (process.env.PORT ? `http://localhost:${process.env.PORT}` : 'http://localhost:3000');
 const CDP_PORT = 9224;
@@ -197,6 +198,8 @@ try {
       && getComputedStyle(map3d).display !== 'none';
   })()`, { timeout: 15000, description: '3D world mount (#map3d canvas, #mapCanvas, visible)' });
 
+  const measurements = await measureLayout(send, CDP_PORT, 'after');
+  assert(measurements.length === 8, 'Four viewports in both languages recorded with the following camera');
   // Check 1: 3D Canvas & Minimap Mount
   const domCheck = await send('Runtime.evaluate', {
     expression: `(() => {

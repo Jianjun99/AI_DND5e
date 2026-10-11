@@ -22,13 +22,31 @@
           "bonus": 4,
           "range": 5,
           "damage": "1d6+2",
-          "damageType": "piercing"
+          "damageType": "piercing",
+          "localized": {
+            "en": {
+              "name": "Bite"
+            },
+            "zh-CN": {
+              "name": "啮咬"
+            }
+          }
         }
       ],
       "loot": {
         "gold": "1d6"
       },
-      "blurb": "A gaunt, hairless hound with grave-light burning in its eyes; it hunts in quick, silent lopes."
+      "blurb": "A gaunt, hairless hound with grave-light burning in its eyes; it hunts in quick, silent lopes.",
+      "localized": {
+        "en": {
+          "name": "Crypt Hound",
+          "blurb": "A gaunt, hairless hound with grave-light burning in its eyes; it hunts in quick, silent lopes."
+        },
+        "zh-CN": {
+          "name": "墓穴猎犬",
+          "blurb": "瘦削无毛的猎犬，眼中燃着墓光，奔跑迅速无声。"
+        }
+      }
     },
     {
       "id": "tomb_warden",
@@ -52,7 +70,15 @@
           "bonus": 5,
           "range": 5,
           "damage": "1d10+3",
-          "damageType": "bludgeoning"
+          "damageType": "bludgeoning",
+          "localized": {
+            "en": {
+              "name": "Rune Slam"
+            },
+            "zh-CN": {
+              "name": "符文重击"
+            }
+          }
         }
       ],
       "loot": {
@@ -66,7 +92,17 @@
       },
       "boss": true,
       "gimmick": "ground_slam",
-      "blurb": "A towering construct of green stone and old bronze, bound to guard the vault until the water rises no more."
+      "blurb": "A towering construct of green stone and old bronze, bound to guard the vault until the water rises no more.",
+      "localized": {
+        "en": {
+          "name": "The Tomb Warden",
+          "blurb": "A towering construct of green stone and old bronze, bound to guard the vault until the water rises no more."
+        },
+        "zh-CN": {
+          "name": "守墓者",
+          "blurb": "绿石与旧青铜铸成的高大构装体，被束缚着守护地窟，直到水不再上涨。"
+        }
+      }
     }
   ]
 }

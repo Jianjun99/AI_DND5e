@@ -1,0 +1,1147 @@
+{
+  "id": "river-post",
+  "theme": "hills",
+  "width": 25,
+  "height": 15,
+  "tileSizeFt": 5,
+  "name": "河湾哨所的决断",
+  "blurb": "封锁的哨卡、紧闭的粮秣货栈、执事官案头的终审卷宗。第一章的选择在这里回响，决定河湾与下游的未来。",
+  "recommended": "等级 1–3 · 故事主线第二章",
+  "objectiveText": "进入哨所平息货栈争议，面见执事官贝伦作出最终裁决，返回营火完成探索。",
+  "localized": {
+    "en": {
+      "name": "The River Post Verdict",
+      "blurb": "A barricaded watchpost, locked supply depots, and the magistrate's final docket. Your choices at the crossing echo here to shape the river's future.",
+      "recommended": "Levels 1–3 · Story Adventure Chapter 2",
+      "objectiveText": "Enter the post to resolve the storehouse crisis, present your findings to Magistrate Beren, and return to camp."
+    },
+    "zh-CN": {
+      "name": "河湾哨所的决断",
+      "blurb": "封锁的哨卡、紧闭的粮秣货栈、执事官案头的终审卷宗。第一章的选择在这里回响，决定河湾与下游的未来。",
+      "recommended": "等级 1–3 · 故事主线第二章",
+      "objectiveText": "进入哨所平息货栈争议，面见执事官贝伦作出最终裁决，返回营火完成探索。"
+    }
+  },
+  "story": {
+    "id": "missing-courier-chapter-2",
+    "name": "河湾哨所的决断",
+    "requiresHistory": {
+      "storyId": "missing-courier",
+      "fallback": "no_history"
+    },
+    "localized": {
+      "en": {
+        "name": "The River Post Verdict"
+      },
+      "zh-CN": {
+        "name": "河湾哨所的决断"
+      }
+    }
+  },
+  "playerStart": {
+    "x": 1,
+    "y": 7
+  },
+  "victory": {
+    "type": "story",
+    "sceneId": "final_verdict",
+    "campfire": {
+      "x": 1,
+      "y": 7
+    }
+  },
+  "rows": [
+    "#########################",
+    "#.......#......#........#",
+    "#.......#......#........#",
+    "#.......#......#........#",
+    "#.......#......#........#",
+    "#.......#......#........#",
+    "#.......#......#........#",
+    "#.......D...............#",
+    "#.......#......#........#",
+    "#.......#......#........#",
+    "#.......#......#........#",
+    "#.......#......#........#",
+    "#.......#......#........#",
+    "#.......#......#........#",
+    "#########################"
+  ],
+  "rooms": [
+    {
+      "id": "post_outer",
+      "rect": [1, 1, 7, 13],
+      "name": "哨所外栅",
+      "desc": "河湾哨所的外围栅栏前拉着警戒线。泥泞的驿道在此处收窄，守哨卫兵奥登正按剑警戒。一侧的水门栈道延伸进芦苇荡，栈桥桩旁隐约露出一只遗落的防水补给箱。",
+      "localized": {
+        "en": {
+          "name": "Outer Barricade",
+          "desc": "Cordon ropes seal the approach to the River Post. The muddy road narrows before Guard Oden's station. A slipway stretches into the reeds, hiding a supply box beneath its pilings."
+        },
+        "zh-CN": {
+          "name": "哨所外栅",
+          "desc": "河湾哨所的外围栅栏前拉着警戒线。泥泞的驿道在此处收窄，守哨卫兵奥登正按剑警戒。一侧的水门栈道延伸进芦苇荡，栈桥桩旁隐约露出一只遗落的防水补给箱。"
+        }
+      }
+    },
+    {
+      "id": "post_courtyard",
+      "rect": [9, 1, 14, 13],
+      "name": "哨所前院与货栈",
+      "desc": "院内堆满由板车运来的粮秣与杂货。货栈管事维尔把守着上了厚铁锁的仓房大门，周围聚集着神色焦急的百姓与难民。几位熟悉的面孔正在此处驻足，等待交涉的结果。",
+      "localized": {
+        "en": {
+          "name": "Courtyard Depot",
+          "desc": "Carts of grain and supplies pack the courtyard. Storekeeper Vael stands before the heavy padlock on the warehouse depot while anxious families await the outcome of the dispute."
+        },
+        "zh-CN": {
+          "name": "哨所前院与货栈",
+          "desc": "院内堆满由板车运来的粮秣与杂货。货栈管事维尔把守着上了厚铁锁的仓房大门，周围聚集着神色焦急的百姓与难民。几位熟悉的面孔正在此处驻足，等待交涉的结果。"
+        }
+      }
+    },
+    {
+      "id": "post_hall",
+      "rect": [16, 1, 23, 13],
+      "name": "议事主厅",
+      "desc": "哨所内堂长桌两侧点着火炬。执事官贝伦坐在案头，手旁整齐摆放着议会朱印、过桥税底账以及等待加盖印章的河湾调度案卷。",
+      "localized": {
+        "en": {
+          "name": "Council Hall",
+          "desc": "Torches light the long table of the council chamber. Magistrate Beren sits at his docket surrounded by official seals, crossing records, and decrees awaiting final signature."
+        },
+        "zh-CN": {
+          "name": "议事主厅",
+          "desc": "哨所内堂长桌两侧点着火炬。执事官贝伦坐在案头，手旁整齐摆放着议会朱印、过桥税底账以及等待加盖印章的河湾调度案卷。"
+        }
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "campfire",
+      "type": "object",
+      "x": 1,
+      "y": 7,
+      "icon": "🔥",
+      "name": "哨所营火",
+      "localized": {
+        "en": {
+          "name": "Post Campfire"
+        },
+        "zh-CN": {
+          "name": "哨所营火"
+        }
+      }
+    },
+    {
+      "id": "dock_cache",
+      "type": "chest",
+      "x": 3,
+      "y": 12,
+      "icon": "📦",
+      "name": "水门物资箱",
+      "desc": "藏在水门栈道木桩下的防水补给箱。",
+      "loot": {
+        "potions": 1,
+        "items": [
+          {
+            "id": "potion_healing",
+            "qty": 1,
+            "chance": 1
+          }
+        ]
+      },
+      "localized": {
+        "en": {
+          "name": "Slipway Cache",
+          "desc": "A waterproof supply chest tucked under the slipway pilings."
+        },
+        "zh-CN": {
+          "name": "水门物资箱",
+          "desc": "藏在水门栈道木桩下的防水补给箱。"
+        }
+      }
+    },
+    {
+      "id": "guard_oden",
+      "type": "npc",
+      "x": 6,
+      "y": 6,
+      "icon": "🛡️",
+      "name": "守哨卫兵奥登",
+      "localized": {
+        "en": {
+          "name": "Guard Oden"
+        },
+        "zh-CN": {
+          "name": "守哨卫兵奥登"
+        }
+      }
+    },
+    {
+      "id": "post_gate_door",
+      "type": "door",
+      "x": 8,
+      "y": 7,
+      "locked": true,
+      "name": "哨所外栅门",
+      "localized": {
+        "en": {
+          "name": "Post Outer Gate"
+        },
+        "zh-CN": {
+          "name": "哨所外栅门"
+        }
+      }
+    },
+    {
+      "id": "post_guard",
+      "type": "monster",
+      "kind": "bandit",
+      "x": 10,
+      "y": 7,
+      "name": "哨所强盗守卫",
+      "localized": {
+        "en": {
+          "name": "Post Bandit Guard"
+        },
+        "zh-CN": {
+          "name": "哨所强盗守卫"
+        }
+      }
+    },
+    {
+      "id": "refugee_mara",
+      "type": "npc",
+      "x": 13,
+      "y": 8,
+      "icon": "👵",
+      "name": "难民代表玛拉",
+      "localized": {
+        "en": {
+          "name": "Elder Mara"
+        },
+        "zh-CN": {
+          "name": "难民代表玛拉"
+        }
+      }
+    },
+    {
+      "id": "iris",
+      "type": "npc",
+      "x": 11,
+      "y": 6,
+      "icon": "🗡️",
+      "name": "守桥人艾芮",
+      "localized": {
+        "en": {
+          "name": "Iris the Bridgewarden"
+        },
+        "zh-CN": {
+          "name": "守桥人艾芮"
+        }
+      }
+    },
+    {
+      "id": "lio",
+      "type": "npc",
+      "x": 14,
+      "y": 8,
+      "icon": "📦",
+      "name": "信使里奥",
+      "localized": {
+        "en": {
+          "name": "Lio the Courier"
+        },
+        "zh-CN": {
+          "name": "信使里奥"
+        }
+      }
+    },
+    {
+      "id": "storekeeper_vael",
+      "type": "npc",
+      "x": 13,
+      "y": 6,
+      "icon": "📜",
+      "name": "货栈管事维尔",
+      "localized": {
+        "en": {
+          "name": "Storekeeper Vael"
+        },
+        "zh-CN": {
+          "name": "货栈管事维尔"
+        }
+      }
+    },
+    {
+      "id": "verdict_desk",
+      "type": "object",
+      "x": 20,
+      "y": 7,
+      "icon": "📖",
+      "name": "终审案卷书台",
+      "localized": {
+        "en": {
+          "name": "Verdict Docket Desk"
+        },
+        "zh-CN": {
+          "name": "终审案卷书台"
+        }
+      }
+    },
+    {
+      "id": "magistrate_beren",
+      "type": "npc",
+      "x": 21,
+      "y": 7,
+      "icon": "⚖️",
+      "name": "执事官贝伦",
+      "localized": {
+        "en": {
+          "name": "Magistrate Beren"
+        },
+        "zh-CN": {
+          "name": "执事官贝伦"
+        }
+      }
+    }
+  ],
+  "npcs": {
+    "guard_oden": {
+      "persona": "你是守哨卫兵奥登。尽职守卫外栅，对公函与协约按规放行，不愿为难正派旅人。",
+      "knowledge": "哨所戒备中。有公函或协约令会开门；无公函时若受到诚恳陈情也会通融放行；水门栈道有巡逻死角。",
+      "canned": [
+        "哨所正在执行戒备。若有公函或公干，请上前说明。"
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Guard Oden, watching the outer gate. You honor official passes and accords by regulation.",
+          "knowledge": "The post is on watch. Passes and accords gain entry; sincere petitions receive provisional roll-signing. The water slipway has blind spots.",
+          "canned": [
+            "The post is on watch. State your business or present your warrants."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是守哨卫兵奥登。尽职守卫外栅，对公函与协约按规放行，不愿为难正派旅人。",
+          "knowledge": "哨所戒备中。有公函或协约令会开门；无公函时若受到诚恳陈情也会通融放行；水门栈道有巡逻死角。",
+          "canned": [
+            "哨所正在执行戒备。若有公函或公干，请上前说明。"
+          ]
+        }
+      }
+    },
+    "storekeeper_vael": {
+      "persona": "你是货栈管事维尔。唯利是图但胆小怕事，擅长克扣账目，惧怕公署正规核账与法律追责。",
+      "knowledge": "管辖粮秣与药水调拨。若有人出示信使账册、难民信物或守桥人调令便不得不开仓；劳务清点或垫付押金同样能满足要求。",
+      "canned": [
+        "没有批条或足额押金，这里的任何一袋粮、一瓶药都别想运走！"
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Storekeeper Vael. Greedy but timid, skimming from stocks and terrified of official audits.",
+          "knowledge": "Controls depot rations and supplies. Direct witness testimony, refugee tokens, or warden orders compel opening. Labor audits or deposits also suffice.",
+          "canned": [
+            "Without written warrants or a deposit, nothing leaves this depot!"
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是货栈管事维尔。唯利是图但胆小怕事，擅长克扣账目，惧怕公署正规核账与法律追责。",
+          "knowledge": "管辖粮秣与药水调拨。若有人出示信使账册、难民信物或守桥人调令便不得不开仓；劳务清点或垫付押金同样能满足要求。",
+          "canned": [
+            "没有批条或足额押金，这里的任何一袋粮、一瓶药都别想运走！"
+          ]
+        }
+      }
+    },
+    "refugee_mara": {
+      "persona": "你是难民长者玛拉。坚毅护佑族人，持有第一章渡船留下的信物。",
+      "knowledge": "在第一章乘船逃离后于河湾避难，信物可证明难民已有下游生计安排。",
+      "canned": [
+        "多亏你当初的帮助，大家才逃过追捕。只要货栈给口粮，我们能在下游自力更生。"
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Elder Mara, protective of the displaced families, bearing a token from Chapter 1.",
+          "knowledge": "Sheltered downriver after the crossing ferry. Her token proves the families have survival arrangements.",
+          "canned": [
+            "Thanks to your aid at the ferry, we survived. If we secure rations, we can sustain ourselves downriver."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是难民长者玛拉。坚毅护佑族人，持有第一章渡船留下的信物。",
+          "knowledge": "在第一章乘船逃离后于河湾避难，信物可证明难民已有下游生计安排。",
+          "canned": [
+            "多亏你当初的帮助，大家才逃过追捕。只要货栈给口粮，我们能在下游自力更生。"
+          ]
+        }
+      }
+    },
+    "iris": {
+      "persona": "你是守桥人艾芮。公正严明，持守法理与道义。",
+      "knowledge": "渡口协约达成后亲自来到哨所协调粮食与过桥税长效机制。",
+      "canned": [
+        "你在渡口促成的协约正在被落实。货栈管事若敢抗令，公署律法绝不轻饶。"
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Iris the Bridgewarden, resolute in law and honor.",
+          "knowledge": "Came to the post following the Crossing Accord to oversee relief distributions and tax arrangements.",
+          "canned": [
+            "The accord you forged at the bridge is taking root. The storekeeper cannot defy lawful warrants."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是守桥人艾芮。公正严明，持守法理与道义。",
+          "knowledge": "渡口协约达成后亲自来到哨所协调粮食与过桥税长效机制。",
+          "canned": [
+            "你在渡口促成的协约正在被落实。货栈管事若敢抗令，公署律法绝不轻饶。"
+          ]
+        }
+      }
+    },
+    "lio": {
+      "persona": "你是信使里奥。公开账册后作为关键证人随同公署办案。",
+      "knowledge": "持原底账在哨所协助听证，能一眼识破管事的私账漏洞。",
+      "canned": [
+        "真相已经公开。我愿意为每一笔支出作证，绝不让管事把过错推给难民。"
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Lio the Courier, serving as key witness following the public records release.",
+          "knowledge": "Assisting the council hearing with original records, ready to expose depot discrepancies.",
+          "canned": [
+            "The truth is in the open. I will testify to every coin so the families are not scapegoated."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是信使里奥。公开账册后作为关键证人随同公署办案。",
+          "knowledge": "持原底账在哨所协助听证，能一眼识破管事的私账漏洞。",
+          "canned": [
+            "真相已经公开。我愿意为每一笔支出作证，绝不让管事把过错推给难民。"
+          ]
+        }
+      }
+    },
+    "magistrate_beren": {
+      "persona": "你是执事官贝伦。务实而崇尚法度，重视秩序、规制与民生平衡。",
+      "knowledge": "听取冒险者全盘裁决建议。秩序归档、下游自治或共生盟约均愿盖印签署。",
+      "canned": [
+        "信使、账册与难民的事今日必须了结。议会听取你的裁决。"
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Magistrate Beren, pragmatic and committed to lawful balance.",
+          "knowledge": "Weighs the adventurer's verdict. Open to lawful order, autonomous sanctuary, or a shared covenant.",
+          "canned": [
+            "The courier, the ledger, and the families reach their final resolution today. Speak your verdict."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是执事官贝伦。务实而崇尚法度，重视秩序、规制与民生平衡。",
+          "knowledge": "听取冒险者全盘裁决建议。秩序归档、下游自治或共生盟约均愿盖印签署。",
+          "canned": [
+            "信使、账册与难民的事今日必须了结。议会听取你的裁决。"
+          ]
+        }
+      }
+    }
+  },
+  "scenes": [
+    {
+      "id": "post_gate",
+      "kind": "story",
+      "name": "哨所外栅",
+      "npcId": "guard_oden",
+      "doorId": "post_gate_door",
+      "guardIds": [
+        "post_guard"
+      ],
+      "prompt": "河湾哨所扼守着通往下游的水道，厚重的木栅门紧闭。守哨卫兵奥登按着腰间的号角：“哨所正在执行戒备，任何闲杂人等不得擅入。”",
+      "objective": "进入河湾哨所。",
+      "localized": {
+        "en": {
+          "name": "The Outer Gate",
+          "prompt": "The River Post commands the bottleneck to the lower river. Its heavy gate is barred. Guard Oden rests a hand on his horn: \"The post is on watch. No travelers pass without cause.\"",
+          "objective": "Enter the River Post."
+        },
+        "zh-CN": {
+          "name": "哨所外栅",
+          "prompt": "河湾哨所扼守着通往下游的水道，厚重的木栅门紧闭。守哨卫兵奥登按着腰间的号角：“哨所正在执行戒备，任何闲杂人等不得擅入。”",
+          "objective": "进入河湾哨所。"
+        }
+      },
+      "choices": [
+        {
+          "id": "show_pass",
+          "fact": "gate_shown_pass",
+          "condition": {
+            "type": "history_ending",
+            "ending": "reported"
+          },
+          "effect": {
+            "type": "passage",
+            "costGold": 0
+          },
+          "label": "出示艾芮签署的公诉调查公函",
+          "response": "奥登核对了文书上的火漆印记，神色缓和下来：“艾芮派来的人？执事官正在主厅等候证词。”他摇动机关打开大门。",
+          "memory": "你出示了公函，守哨卫兵依规放行。",
+          "reactions": {
+            "guard_oden": {
+              "text": "公函齐全，请进。主厅就在里面。",
+              "localized": {
+                "en": {
+                  "text": "Your papers are in order. The main hall is straight ahead."
+                },
+                "zh-CN": {
+                  "text": "公函齐全，请进。主厅就在里面。"
+                }
+              }
+            }
+          },
+          "localized": {
+            "en": {
+              "label": "Present Iris's official inquiry pass",
+              "response": "Oden checks the wax seal and nods: \"Sent by Iris? The magistrate is waiting in the hall.\" He cranks the winch and opens the gate.",
+              "memory": "You showed an official pass; the guard opened the gate by regulation."
+            },
+            "zh-CN": {
+              "label": "出示艾芮签署的公诉调查公函",
+              "response": "奥登核对了文书上的火漆印记，神色缓和下来：“艾芮派来的人？执事官正在主厅等候证词。”他摇动机关打开大门。",
+              "memory": "你出示了公函，守哨卫兵依规放行。"
+            }
+          }
+        },
+        {
+          "id": "dock_bypass",
+          "fact": "gate_dock_bypass_success",
+          "condition": {
+            "type": "history_ending",
+            "ending": "protected"
+          },
+          "effect": {
+            "type": "check",
+            "skill": "stealth",
+            "dc": 11,
+            "costGold": 0,
+            "failureGold": 0
+          },
+          "label": "依照难民留下的标记，从水门旧栈道潜入",
+          "response": "你避开正门火把，沿着湿滑的船桩悄然翻过低矮的水门栏杆。哨兵没有察觉你的进入。",
+          "memory": "你借助难民留下的路线潜入了哨所。",
+          "failure": {
+            "fact": "gate_dock_bypass_seen",
+            "response": "水门的旧木板发出脆响。奥登转过身发现你，皱起眉头：“走水门进来的？算了，今天不查私货，登记名字就进去吧。”大门由此打开。",
+            "memory": "你在水门被发觉，但卫兵登记后准许通行。",
+            "localized": {
+              "en": {
+                "response": "A rotting board creaks underfoot. Oden turns and frowns: \"Coming by the slipway? No contraband checks today. Sign the roll and step inside.\" The gate opens.",
+                "memory": "Spotted at the water-gate, but the guard signed you through."
+              },
+              "zh-CN": {
+                "response": "水门的旧木板发出脆响。奥登转过身发现你，皱起眉头：“走水门进来的？算了，今天不查私货，登记名字就进去吧。”大门由此打开。",
+                "memory": "你在水门被发觉，但卫兵登记后准许通行。"
+              }
+            }
+          },
+          "localized": {
+            "en": {
+              "label": "Follow the refugees' trail and slip through the water-gate",
+              "response": "Avoiding the torches, you slip over the low water-gate railing along the damp pilings. The sentry notices nothing.",
+              "memory": "You slipped into the post using the refugees' path."
+            },
+            "zh-CN": {
+              "label": "依照难民留下的标记，从水门旧栈道潜入",
+              "response": "你避开正门火把，沿着湿滑的船桩悄然翻过低矮的水门栏杆。哨兵没有察觉你的进入。",
+              "memory": "你借助难民留下的路线潜入了哨所。"
+            }
+          }
+        },
+        {
+          "id": "accord_notice",
+          "fact": "gate_accord_notice",
+          "condition": {
+            "type": "history_ending",
+            "ending": "accord"
+          },
+          "effect": {
+            "type": "passage",
+            "costGold": 0
+          },
+          "label": "出示渡口救济协约初审文书",
+          "response": "奥登双手接过文书：“原来是渡口送来的救济协约！艾芮早前已传信过来，快请进。”大门随即敞开。",
+          "memory": "救济协约文书为你赢得了免检通行。",
+          "reactions": {
+            "guard_oden": {
+              "text": "协约已至，请进。",
+              "localized": {
+                "en": {
+                  "text": "The accord has arrived. Please enter."
+                },
+                "zh-CN": {
+                  "text": "协约已至，请进。"
+                }
+              }
+            }
+          },
+          "localized": {
+            "en": {
+              "label": "Present the Crossing Accord notice",
+              "response": "Oden receives the paper with both hands: \"The relief accord from the crossing! Iris sent word ahead. Enter freely.\" The gate swings open.",
+              "memory": "The relief accord granted you free passage."
+            },
+            "zh-CN": {
+              "label": "出示渡口救济协约初审文书",
+              "response": "奥登双手接过文书：“原来是渡口送来的救济协约！艾芮早前已传信过来，快请进。”大门随即敞开。",
+              "memory": "救济协约文书为你赢得了免检通行。"
+            }
+          }
+        },
+        {
+          "id": "persuade_entry",
+          "fact": "gate_persuaded",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "check",
+            "skill": "persuasion",
+            "dc": 12,
+            "costGold": 0,
+            "failureGold": 0
+          },
+          "label": "说明渡口变故，恳请放行通报",
+          "response": "奥登被你的诚意打动：“找执事官谈公事是合理的。进去吧，别在院里随意走动。”大门开启。",
+          "memory": "你说服了奥登为你打开哨所大门。",
+          "failure": {
+            "fact": "gate_probation_entry",
+            "response": "奥登摇头：“规矩不能坏。不过看在事态紧急的份上，我扣下你的名字作为临时登记，限时出来见执事官。”大门仍旧为你开启。",
+            "memory": "说服虽未完全成功，但卫兵临时登记后放行。",
+            "localized": {
+              "en": {
+                "response": "Oden shakes his head: \"Rules are rules. Still, given the urgency, I'll enter your name as a provisional guest. See the magistrate at once.\" The gate opens anyway.",
+                "memory": "The appeal was imperfect, but the guard granted provisional passage."
+              },
+              "zh-CN": {
+                "response": "奥登摇头：“规矩不能坏。不过看在事态紧急的份上，我扣下你的名字作为临时登记，限时出来见执事官。”大门仍旧为你开启。",
+                "memory": "说服虽未完全成功，但卫兵临时登记后放行。"
+              }
+            }
+          },
+          "localized": {
+            "en": {
+              "label": "Explain the crossing's crisis and ask for entry",
+              "response": "Oden is swayed by your earnest words: \"Business with the magistrate is lawful enough. Go in, but cause no trouble.\" The gate opens.",
+              "memory": "You persuaded Oden to open the gate."
+            },
+            "zh-CN": {
+              "label": "说明渡口变故，恳请放行通报",
+              "response": "奥登被你的诚意打动：“找执事官谈公事是合理的。进去吧，别在院里随意走动。”大门开启。",
+              "memory": "你说服了奥登为你打开哨所大门。"
+            }
+          }
+        },
+        {
+          "id": "pay_tax",
+          "fact": "gate_paid_tax",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "passage",
+            "costGold": 5
+          },
+          "label": "缴纳五枚金币哨所通行税",
+          "response": "你交付五枚金币。奥登收下钱币并盖章：“通行税已结清。哨所内禁止拔刀。”大门打开。",
+          "memory": "你支付了五枚金币通行税。",
+          "localized": {
+            "en": {
+              "label": "Pay the five gold post transit tax",
+              "response": "You pay five gold. Oden takes the coins and stamps the book: \"Toll settled. Keep your blades sheathed inside.\" The gate opens.",
+              "memory": "You paid the five gold transit tax."
+            },
+            "zh-CN": {
+              "label": "缴纳五枚金币哨所通行税",
+              "response": "你交付五枚金币。奥登收下钱币并盖章：“通行税已结清。哨所内禁止拔刀。”大门打开。",
+              "memory": "你支付了五枚金币通行税。"
+            }
+          }
+        },
+        {
+          "id": "fight_gate",
+          "fact": "gate_fought",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "combat"
+          },
+          "label": "拔剑强攻，击倒哨卡守卫",
+          "response": "前哨守卫被击倒，奥登退回哨楼拉起警报门栓。木栅门在混乱中被撞开，通路打开。",
+          "memory": "你击倒了哨卡守卫强行过门。",
+          "localized": {
+            "en": {
+              "label": "Draw steel and force your way past the sentry",
+              "response": "The sentry falls. Oden retreats to the watchbox to blow his horn. In the confusion the gate yields.",
+              "memory": "You forced your way past the sentry."
+            },
+            "zh-CN": {
+              "label": "拔剑强攻，击倒哨卡守卫",
+              "response": "前哨守卫被击倒，奥登退回哨楼拉起警报门栓。木栅门在混乱中被撞开，通路打开。",
+              "memory": "你击倒了哨卡守卫强行过门。"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "storehouse_dispute",
+      "kind": "story",
+      "requiresScene": "post_gate",
+      "guardIds": [],
+      "name": "货栈争议",
+      "npcId": "storekeeper_vael",
+      "prompt": "货栈前聚集着争执的人群。管事维尔把守着厚铁锁：“没有批条或足额押金，这里的任何一袋救济粮、一瓶药水都休想运出去！”",
+      "objective": "解决粮秣货栈被锁争议，获得进入议事大厅的许可与证据。",
+      "localized": {
+        "en": {
+          "name": "Storehouse Dispute",
+          "prompt": "An uneasy crowd gathers at the warehouse. Storekeeper Vael guards the padlock: \"Without written warrants or a deposit, not one sack of grain or bottle of medicine leaves this depot!\"",
+          "objective": "Resolve the storehouse crisis and secure passage to the council hall."
+        },
+        "zh-CN": {
+          "name": "货栈争议",
+          "prompt": "货栈前聚集着争执的人群。管事维尔把守着厚铁锁：“没有批条或足额押金，这里的任何一袋救济粮、一瓶药水都休想运出去！”",
+          "objective": "解决粮秣货栈被锁争议，获得进入议事大厅的许可与证据。"
+        }
+      },
+      "choices": [
+        {
+          "id": "cite_records",
+          "fact": "dispute_lio_testimony",
+          "condition": {
+            "type": "history_ending",
+            "ending": "reported"
+          },
+          "effect": {
+            "type": "check",
+            "skill": "persuasion",
+            "dc": 10,
+            "costGold": 0,
+            "failureGold": 0
+          },
+          "label": "让里奥当面指出账册上的出入",
+          "response": "里奥上前摊开渡口账册底本。维尔额头冒汗，仓皇收起私账：“原来是公署的证人！仓门开了，请尽管调阅。”",
+          "memory": "里奥的当面指认让货栈管事迅速屈服。",
+          "failure": {
+            "fact": "dispute_lio_signature_concession",
+            "response": "维尔试图狡辩，里奥直接指出自己的手书签字。维尔不敢公然对抗公署证据，骂骂咧咧地解开锁链：“算你们厉害，进来吧。”",
+            "memory": "账册签字迫使管事开门，维尔心怀怨气。",
+            "localized": {
+              "en": {
+                "response": "Vael attempts to bluster, but Lio taps his own clerk signature. Unwilling to defy written evidence, Vael unchains the gate: \"Have it your way. Get inside.\"",
+                "memory": "The clerk's signature forced Vael to yield, though he grumbled bitterly."
+              },
+              "zh-CN": {
+                "response": "维尔试图狡辩，里奥直接指出自己的手书签字。维尔不敢公然对抗公署证据，骂骂咧咧地解开锁链：“算你们厉害，进来吧。”",
+                "memory": "账册签字迫使管事开门，维尔心怀怨气。"
+              }
+            }
+          },
+          "localized": {
+            "en": {
+              "label": "Have Lio point out the ledger discrepancies in person",
+              "response": "Lio presents the original crossing ledger. Sweating, Vael hides his private notes: \"The council's own witness! The doors are open; inspect at will.\"",
+              "memory": "Lio's direct testimony quickly made the storekeeper yield."
+            },
+            "zh-CN": {
+              "label": "让里奥当面指出账册上的出入",
+              "response": "里奥上前摊开渡口账册底本。维尔额头冒汗，仓皇收起私账：“原来是公署的证人！仓门开了，请尽管调阅。”",
+              "memory": "里奥的当面指认让货栈管事迅速屈服。"
+            }
+          }
+        },
+        {
+          "id": "refugee_token",
+          "fact": "dispute_token_accepted",
+          "condition": {
+            "type": "history_ending",
+            "ending": "protected"
+          },
+          "effect": {
+            "type": "check",
+            "skill": "insight",
+            "dc": 11,
+            "costGold": 0,
+            "failureGold": 0
+          },
+          "label": "出示难民玛拉留存的渡工信物，指明仓储调配权",
+          "response": "玛拉上前的作证与信物让维尔意识到这批难民已有妥善安排：“只要别说是我擅自放的粮就行。”他打开库门。",
+          "memory": "难民信物说服了管事通融放粮。",
+          "failure": {
+            "fact": "dispute_guarantor_pledge",
+            "response": "维尔不认信物，但害怕激起民愤：“你在调拨单上签下冒险者担保，出了差错议会找你算账！”你签署担保，仓门开启。",
+            "memory": "你以个人名义签署担保，换得仓门开启。",
+            "localized": {
+              "en": {
+                "response": "Vael dismisses the token, but fears unrest: \"Sign as the adventurers' guarantor! If the council audits, it's on your head.\" You sign; the door opens.",
+                "memory": "You signed as guarantor to open the warehouse."
+              },
+              "zh-CN": {
+                "response": "维尔不认信物，但害怕激起民愤：“你在调拨单上签下冒险者担保，出了差错议会找你算账！”你签署担保，仓门开启。",
+                "memory": "你以个人名义签署担保，换得仓门开启。"
+              }
+            }
+          },
+          "localized": {
+            "en": {
+              "label": "Show Elder Mara's ferry token to negotiate emergency grain",
+              "response": "Mara's token and testimony convince Vael the refugees have arranged departure: \"Just don't claim I gave it away freely.\" He unlocks the gate.",
+              "memory": "The refugee token persuaded Vael to release supplies."
+            },
+            "zh-CN": {
+              "label": "出示难民玛拉留存的渡工信物，指明仓储调配权",
+              "response": "玛拉上前的作证与信物让维尔意识到这批难民已有妥善安排：“只要别说是我擅自放的粮就行。”他打开库门。",
+              "memory": "难民信物说服了管事通融放粮。"
+            }
+          }
+        },
+        {
+          "id": "accord_advocacy",
+          "fact": "dispute_accord_advocacy",
+          "condition": {
+            "type": "history_ending",
+            "ending": "accord"
+          },
+          "effect": {
+            "type": "check",
+            "skill": "persuasion",
+            "dc": 11,
+            "costGold": 0,
+            "failureGold": 0
+          },
+          "label": "由艾芮出示渡口协约，以公职身份命令开仓",
+          "response": "艾芮按剑而立，掷地有声。维尔不敢违抗守桥人的公署威望，老老实实取出钥匙开门。",
+          "memory": "艾芮的公署威信使货栈管事顺服。",
+          "failure": {
+            "fact": "dispute_bridgewarden_order",
+            "response": "维尔推三阻四，艾芮直接签发一份暂行调令压在柜台上：“责任由我承担。”维尔无奈打开仓门。",
+            "memory": "艾芮签发暂行令平息争议。",
+            "localized": {
+              "en": {
+                "response": "Vael hedges, but Iris signs a provisional requisition and slaps it down: \"I take full responsibility.\" Vael reluctantly turns the key.",
+                "memory": "Iris issued a provisional order to resolve the dispute."
+              },
+              "zh-CN": {
+                "response": "维尔推三阻四，艾芮直接签发一份暂行调令压在柜台上：“责任由我承担。”维尔无奈打开仓门。",
+                "memory": "艾芮签发暂行令平息争议。"
+              }
+            }
+          },
+          "localized": {
+            "en": {
+              "label": "Have Iris cite the Crossing Accord and order the doors opened",
+              "response": "Iris rests her hand on her pommel, her voice ringing clear. Vael dares not defy her lawful standing and unlocks the warehouse.",
+              "memory": "Iris's lawful authority compelled the storekeeper to comply."
+            },
+            "zh-CN": {
+              "label": "由艾芮出示渡口协约，以公职身份命令开仓",
+              "response": "艾芮按剑而立，掷地有声。维尔不敢违抗守桥人的公署威望，老老实实取出钥匙开门。",
+              "memory": "艾芮的公署威信使货栈管事顺服。"
+            }
+          }
+        },
+        {
+          "id": "labor_compromise",
+          "fact": "dispute_investigated_errors",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "check",
+            "skill": "investigation",
+            "dc": 12,
+            "costGold": 0,
+            "failureGold": 0
+          },
+          "label": "协助核对仓储底账，找出多余的富余定额",
+          "response": "你敏锐地核对了三车谷物与防霉记录，挑出了维尔算错的盈余份额。维尔大喜：“算你帮了大忙！”他痛快地打开仓门。",
+          "memory": "你通过精湛的调查核平了账目盈余，换得开门。",
+          "failure": {
+            "fact": "dispute_labor_concession",
+            "response": "账目过于杂乱难以厘清，但你卷起袖子帮搬运工扛完了积压的面粉袋。维尔擦擦汗：“看在你出力干活的份上，放你们进去。”仓门开启。",
+            "memory": "账目未清，但诚实的体力协助换来了放行。",
+            "localized": {
+              "en": {
+                "response": "The messy tallies yield no quick answers, but you haul heavy flour sacks alongside the workers. Wiping his brow, Vael sighs: \"Honest labor earns its keep. Step inside.\"",
+                "memory": "The audit failed, but honest physical labor secured passage."
+              },
+              "zh-CN": {
+                "response": "账目过于杂乱难以厘清，但你卷起袖子帮搬运工扛完了积压的面粉袋。维尔擦擦汗：“看在你出力干活的份上，放你们进去。”仓门开启。",
+                "memory": "账目未清，但诚实的体力协助换来了放行。"
+              }
+            }
+          },
+          "localized": {
+            "en": {
+              "label": "Audit the storehouse tally to find surplus rations",
+              "response": "Examining the grain logs and spoilage records, you spot surplus sacks hidden in math errors. Delighted, Vael grins: \"You saved my neck!\" He unlocks the doors.",
+              "memory": "Your thorough investigation uncovered surplus grain and opened the doors."
+            },
+            "zh-CN": {
+              "label": "协助核对仓储底账，找出多余的富余定额",
+              "response": "你敏锐地核对了三车谷物与防霉记录，挑出了维尔算错的盈余份额。维尔大喜：“算你帮了大忙！”他痛快地打开仓门。",
+              "memory": "你通过精湛的调查核平了账目盈余，换得开门。"
+            }
+          }
+        },
+        {
+          "id": "post_bond",
+          "fact": "dispute_posted_bond",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "decision",
+            "costGold": 5
+          },
+          "label": "垫付五枚金币仓储担保金",
+          "response": "维尔数清五枚金币，锁上钱箱：“有押金就好办。仓门归你们了。”",
+          "memory": "你支付了五枚金币仓储押金。",
+          "localized": {
+            "en": {
+              "label": "Pay a five gold storage deposit",
+              "response": "Vael counts five gold and pockets them: \"A proper deposit speaks clearly. The warehouse is yours.\"",
+              "memory": "You paid a five gold storage deposit."
+            },
+            "zh-CN": {
+              "label": "垫付五枚金币仓储担保金",
+              "response": "维尔数清五枚金币，锁上钱箱：“有押金就好办。仓门归你们了。”",
+              "memory": "你支付了五枚金币仓储押金。"
+            }
+          }
+        },
+        {
+          "id": "donate_potion",
+          "fact": "dispute_donated_potion",
+          "condition": {
+            "type": "has_item",
+            "itemId": "potion_healing"
+          },
+          "effect": {
+            "type": "decision",
+            "consumeItem": "potion_healing"
+          },
+          "label": "交付一瓶治疗药水作为救济物资",
+          "response": "你将一瓶治疗药水递给维尔。维尔仔细验看后点头：“这正是急需的药剂，算你们尽了份内之责。”他打开了仓门。",
+          "memory": "你捐赠了一瓶治疗药水换取开仓。",
+          "localized": {
+            "en": {
+              "label": "Donate a healing potion as emergency relief",
+              "response": "You hand a healing potion to Vael. Inspecting the vial, he nods: \"Medicine in short supply. That covers your share.\" He unlocks the warehouse.",
+              "memory": "You donated a healing potion to open the warehouse."
+            },
+            "zh-CN": {
+              "label": "交付一瓶治疗药水作为救济物资",
+              "response": "你将一瓶治疗药水递给维尔。维尔仔细验看后点头：“这正是急需的药剂，算你们尽了份内之责。”他打开了仓门。",
+              "memory": "你捐赠了一瓶治疗药水换取开仓。"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "final_verdict",
+      "kind": "story",
+      "requiresScene": "storehouse_dispute",
+      "guardIds": [],
+      "name": "终局审断",
+      "npcId": "magistrate_beren",
+      "prompt": "执事官贝伦端坐在长桌尽头，桌上摊着渡口账册、难民名册与哨所印章。“信使、账册、过桥税，还有下游那些无家可归的人。今天必须有个交代。你一路见证至此，议会听取你的裁决。”",
+      "objective": "面见执事官贝伦，定夺河湾终审方案。",
+      "localized": {
+        "en": {
+          "name": "The Final Verdict",
+          "prompt": "Magistrate Beren sits at the long table surrounded by ledgers, refugee rolls, and official seals. \"The courier, the missing tolls, and the destitute families downstream. This ends today. You witnessed it all; the council hears your verdict.\"",
+          "objective": "Face Magistrate Beren and deliver the final verdict for the river post."
+        },
+        "zh-CN": {
+          "name": "终局审断",
+          "prompt": "执事官贝伦端坐在长桌尽头，桌上摊着渡口账册、难民名册与哨所印章。“信使、账册、过桥税，还有下游那些无家可归的人。今天必须有个交代。你一路见证至此，议会听取你的裁决。”",
+          "objective": "面见执事官贝伦，定夺河湾终审方案。"
+        }
+      },
+      "choices": [
+        {
+          "id": "choice_lawful_order",
+          "ending": "lawful_order",
+          "fact": "verdict_lawful_order",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "check",
+            "skill": "persuasion",
+            "dc": 12,
+            "costGold": 0,
+            "failureGold": 0
+          },
+          "label": "裁定法理优先：账目移交议会公署，难民登记编入合法劳役名册",
+          "response": "结局：秩序与法理。贝伦郑重盖上哨所朱印。渡口账册被正式归档，里奥获得赦免并转任公署登记官；难民家庭获得了合法的定居配额与劳役生计。程序正义得以彰显，瓦尔谷的税法尊严得以保全。返回西岸营火完成冒险。",
+          "memory": "你促成了法理解决：公署接管账目，难民获准合法登记定居。",
+          "failure": {
+            "ending": "lawful_order",
+            "fact": "verdict_lawful_strict_oversight",
+            "response": "结局：秩序与法理。贝伦接受了归档提案，但追加了严苛的宵禁与定期考查条款：“议会的宽容绝非无度。”尽管受到管制，难民仍免于流离失所。返回西岸营火完成冒险。",
+            "memory": "公署接管了账册，但附加了严格的管理条例。",
+            "localized": {
+              "en": {
+                "response": "Ending: Lawful Order. Beren accepts the petition but adds strict curfews: \"The council's mercy carries strict bounds.\" Though heavily regulated, the families are spared displacement. Return to the west-bank campfire to finish.",
+                "memory": "The council archived the records under strict administrative oversight."
+              },
+              "zh-CN": {
+                "response": "结局：秩序与法理。贝伦接受了归档提案，但追加了严苛的宵禁与定期考查条款：“议会的宽容绝非无度。”尽管受到管制，难民仍免于流离失所。返回西岸营火完成冒险。",
+                "memory": "公署接管了账册，但附加了严格的管理条例。"
+              }
+            }
+          },
+          "localized": {
+            "en": {
+              "label": "Rule by Law: Transfer records to the council; register refugees for lawful work",
+              "response": "Ending: Lawful Order. Beren stamps the decree. The crossing ledger is formally archived; Lio is pardoned to serve as a registry clerk, and the families receive lawful settlement permits. Due process is upheld, preserving the rule of law. Return to the west-bank campfire to finish.",
+              "memory": "You secured a lawful resolution: the council archived the ledger and granted lawful settlement."
+            },
+            "zh-CN": {
+              "label": "裁定法理优先：账目移交议会公署，难民登记编入合法劳役名册",
+              "response": "结局：秩序与法理。贝伦郑重盖上哨所朱印。渡口账册被正式归档，里奥获得赦免并转任公署登记官；难民家庭获得了合法的定居配额与劳役生计。程序正义得以彰显，瓦尔谷的税法尊严得以保全。返回西岸营火完成冒险。",
+              "memory": "你促成了法理解决：公署接管账目，难民获准合法登记定居。"
+            }
+          }
+        },
+        {
+          "id": "choice_free_haven",
+          "ending": "free_haven",
+          "fact": "verdict_free_haven",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "check",
+            "skill": "persuasion",
+            "dc": 12,
+            "costGold": 0,
+            "failureGold": 0
+          },
+          "label": "裁定人道庇护：哨所撤回追捕，河湾下游划归难民自由开垦自治",
+          "response": "结局：自由庇护所。贝伦在地图上圈出下游河湾：“公署巡逻队将止步于哨所渡口，追逃令即刻撤销。”难民们得以在下游建立属于自己的自由聚落，两地以河运贸易互惠互利。返回西岸营火完成冒险。",
+          "memory": "你为难民争取到了河湾下游的自由自治权。",
+          "failure": {
+            "ending": "free_haven",
+            "fact": "verdict_free_haven_conditional",
+            "response": "结局：自由庇护所。贝伦同意停止追捕并划界自治，但他要求难民签署放弃申领镇内救济粮的誓约。难民获得了安全与自由，但未来的口粮需全凭自己的双手耕作。返回西岸营火完成冒险。",
+            "memory": "下游自治达成，难民以放弃镇内救济为代价换取了人身自由。",
+            "localized": {
+              "en": {
+                "response": "Ending: A River Haven. Beren agrees to stop pursuit and yield the land, but demands the refugees renounce all claims to town rations. They have freedom and safety, but must sustain themselves entirely. Return to the west-bank campfire to finish.",
+                "memory": "Sanctuary was won downstream, traded against town welfare claims."
+              },
+              "zh-CN": {
+                "response": "结局：自由庇护所。贝伦同意停止追捕并划界自治，但他要求难民签署放弃申领镇内救济粮的誓约。难民获得了安全与自由，但未来的口粮需全凭自己的双手耕作。返回西岸营火完成冒险。",
+                "memory": "下游自治达成，难民以放弃镇内救济为代价换取了人身自由。"
+              }
+            }
+          },
+          "localized": {
+            "en": {
+              "label": "Rule by Sanctuary: Withdraw patrols and grant the lower riverway as an autonomous haven",
+              "response": "Ending: A River Haven. Beren circles the lower banks on the map: \"Patrols will halt at the post. All warrants are rescinded.\" The families gain autonomous land to build a peaceful haven, trading with the town by riverboat. Return to the west-bank campfire to finish.",
+              "memory": "You won the refugees autonomy in the lower river haven."
+            },
+            "zh-CN": {
+              "label": "裁定人道庇护：哨所撤回追捕，河湾下游划归难民自由开垦自治",
+              "response": "结局：自由庇护所。贝伦在地图上圈出下游河湾：“公署巡逻队将止步于哨所渡口，追逃令即刻撤销。”难民们得以在下游建立属于自己的自由聚落，两地以河运贸易互惠互利。返回西岸营火完成冒险。",
+              "memory": "你为难民争取到了河湾下游的自由自治权。"
+            }
+          }
+        },
+        {
+          "id": "choice_shared_covenant",
+          "ending": "shared_covenant",
+          "fact": "verdict_shared_covenant",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "check",
+            "skill": "persuasion",
+            "dc": 13,
+            "costGold": 0,
+            "failureGold": 0
+          },
+          "label": "裁定长效共生：过桥税永久划拨一成设立救济金，由守桥人共管",
+          "response": "结局：共生盟约。各方代表共同在盟约卷轴上签名。过桥税款不再被私下挪用，而是依法提取一成注入瓦尔谷行路人救济基金，由守桥人艾芮公正监管。仁慈与法理融为一体。返回西岸营火完成冒险。",
+          "memory": "你促成了三方共生盟约：过桥税一成永久用于公开救济。",
+          "failure": {
+            "ending": "lawful_order",
+            "fact": "verdict_covenant_fallback_law",
+            "response": "结局：秩序与法理。贝伦摇头表示无法代表镇议会分割永久税源，但他认可账目公布的意义，决定将案卷按正规听证接管。盟约未立，但法理归位。返回西岸营火完成冒险。",
+            "memory": "共生盟约未获全准，案件转由公署按常规法理归档。",
+            "localized": {
+              "en": {
+                "response": "Ending: Lawful Order. Beren cannot bind the council to permanent tax-sharing, but accepts the transparent ledger. He takes over the case under formal council procedures. The covenant fell short, yet lawful order prevails. Return to the west-bank campfire to finish.",
+                "memory": "The permanent covenant fell short; the case defaulted to council legal oversight."
+              },
+              "zh-CN": {
+                "response": "结局：秩序与法理。贝伦摇头表示无法代表镇议会分割永久税源，但他认可账目公布的意义，决定将案卷按正规听证接管。盟约未立，但法理归位。返回西岸营火完成冒险。",
+                "memory": "共生盟约未获全准，案件转由公署按常规法理归档。"
+              }
+            }
+          },
+          "localized": {
+            "en": {
+              "label": "Rule by Covenant: Permanently divert ten percent of bridge tolls into a joint relief fund",
+              "response": "Ending: The Sunlit Covenant. All parties sign the covenant scroll. Bridge tolls are no longer diverted in secret; ten percent is lawfully dedicated to a traveler relief fund overseen by Bridgewarden Iris. Mercy and justice become one. Return to the west-bank campfire to finish.",
+              "memory": "You forged a lasting covenant: ten percent of tolls now fund public relief lawfully."
+            },
+            "zh-CN": {
+              "label": "裁定长效共生：过桥税永久划拨一成设立救济金，由守桥人共管",
+              "response": "结局：共生盟约。各方代表共同在盟约卷轴上签名。过桥税款不再被私下挪用，而是依法提取一成注入瓦尔谷行路人救济基金，由守桥人艾芮公正监管。仁慈与法理融为一体。返回西岸营火完成冒险。",
+              "memory": "你促成了三方共生盟约：过桥税一成永久用于公开救济。"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "adventure": {
+    "waypoint": {
+      "regionX": 34,
+      "regionY": 54,
+      "icon": "gate",
+      "region": "The Sunlit Vale",
+      "localized": {
+        "en": {
+          "region": "The Sunlit Vale"
+        },
+        "zh-CN": {
+          "region": "瓦尔谷"
+        }
+      },
+      "roads": [
+        {
+          "to": "courier-crossing",
+          "label": "渡口旧道",
+          "localized": {
+            "en": {
+              "label": "Old Crossing Road"
+            },
+            "zh-CN": {
+              "label": "渡口旧道"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

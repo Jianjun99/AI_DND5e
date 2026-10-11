@@ -22,7 +22,15 @@
           "bonus": 3,
           "range": 5,
           "damage": "1d6+1",
-          "damageType": "slashing"
+          "damageType": "slashing",
+          "localized": {
+            "en": {
+              "name": "Scimitar"
+            },
+            "zh-CN": {
+              "name": "弯刀"
+            }
+          }
         }
       ],
       "loot": {
@@ -34,7 +42,17 @@
           }
         ]
       },
-      "blurb": "A wind-burned cutthroat in scavenged leathers, more dangerous at counting coin than swinging a blade."
+      "blurb": "A wind-burned cutthroat in scavenged leathers, more dangerous at counting coin than swinging a blade.",
+      "localized": {
+        "en": {
+          "name": "Hills Bandit",
+          "blurb": "A wind-burned cutthroat in scavenged leathers, more dangerous at counting coin than swinging a blade."
+        },
+        "zh-CN": {
+          "name": "丘陵匪徒",
+          "blurb": "风晒的杀手身穿捡来的皮衣，数钱比挥刀更在行。"
+        }
+      }
     },
     {
       "id": "dire_wolf",
@@ -58,13 +76,31 @@
           "bonus": 5,
           "range": 5,
           "damage": "2d6+3",
-          "damageType": "piercing"
+          "damageType": "piercing",
+          "localized": {
+            "en": {
+              "name": "Bite"
+            },
+            "zh-CN": {
+              "name": "啮咬"
+            }
+          }
         }
       ],
       "loot": {
         "gold": "1d8"
       },
-      "blurb": "A pony-sized wolf with winter-pale eyes; the warboss's hunt-beasts answer only his drum."
+      "blurb": "A pony-sized wolf with winter-pale eyes; the warboss's hunt-beasts answer only his drum.",
+      "localized": {
+        "en": {
+          "name": "Dire Wolf",
+          "blurb": "A pony-sized wolf with winter-pale eyes; the warboss's hunt-beasts answer only his drum."
+        },
+        "zh-CN": {
+          "name": "恐狼",
+          "blurb": "小马般大的苍眼狼，战酋的猎兽只回应他的鼓声。"
+        }
+      }
     },
     {
       "id": "bandit_captain",
@@ -88,7 +124,15 @@
           "bonus": 5,
           "range": 5,
           "damage": "1d8+3",
-          "damageType": "slashing"
+          "damageType": "slashing",
+          "localized": {
+            "en": {
+              "name": "Longsword"
+            },
+            "zh-CN": {
+              "name": "长剑"
+            }
+          }
         }
       ],
       "loot": {
@@ -100,7 +144,17 @@
           }
         ]
       },
-      "blurb": "A scarred veteran who kept his post out of greed rather than loyalty; he fights like a man with something to prove."
+      "blurb": "A scarred veteran who kept his post out of greed rather than loyalty; he fights like a man with something to prove.",
+      "localized": {
+        "en": {
+          "name": "Bandit Lieutenant",
+          "blurb": "A scarred veteran who kept his post out of greed rather than loyalty; he fights like a man with something to prove."
+        },
+        "zh-CN": {
+          "name": "匪徒副官",
+          "blurb": "满身伤疤的老兵，留守出于贪婪而非忠诚，打斗时总想证明自己。"
+        }
+      }
     },
     {
       "id": "ogre_warboss",
@@ -124,7 +178,15 @@
           "bonus": 8,
           "range": 5,
           "damage": "2d10+4",
-          "damageType": "bludgeoning"
+          "damageType": "bludgeoning",
+          "localized": {
+            "en": {
+              "name": "Drum-Club"
+            },
+            "zh-CN": {
+              "name": "鼓槌巨棒"
+            }
+          }
         }
       ],
       "loot": {
@@ -140,7 +202,23 @@
       "traits": [
         "Bound to the drum: Gorrash never strays from his war-drum."
       ],
-      "blurb": "A mountain of muscle and war-paint beating a drum made from a cart wheel — every beat drives the camp into a frenzy."
+      "blurb": "A mountain of muscle and war-paint beating a drum made from a cart wheel — every beat drives the camp into a frenzy.",
+      "localized": {
+        "en": {
+          "name": "Gorrash the Warboss",
+          "blurb": "A mountain of muscle and war-paint beating a drum made from a cart wheel — every beat drives the camp into a frenzy.",
+          "traits": [
+            "Bound to the drum: Gorrash never strays from his war-drum."
+          ]
+        },
+        "zh-CN": {
+          "name": "战酋戈拉什",
+          "blurb": "肌肉与战彩堆成的巨山，敲着车轮制成的鼓，每声都令营地狂热。",
+          "traits": [
+            "战鼓束缚：戈拉什不会远离他的战鼓。"
+          ]
+        }
+      }
     }
   ]
 }

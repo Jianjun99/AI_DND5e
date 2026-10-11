@@ -2,5 +2,15 @@
   "id": "drowned-vault",
   "name": "The Drowned Vault",
   "author": "Jianjun99",
-  "blurb": "A flooded vault beneath the old mill, guarded by constructs of a forgotten warden. A compact delve for a fresh hero."
+  "blurb": "A flooded vault beneath the old mill, guarded by constructs of a forgotten warden. A compact delve for a fresh hero.",
+  "localized": {
+    "en": {
+      "name": "The Drowned Vault",
+      "blurb": "A flooded vault beneath the old mill, guarded by constructs of a forgotten warden. A compact delve for a fresh hero."
+    },
+    "zh-CN": {
+      "name": "淹没地窟",
+      "blurb": "旧磨坊下积水的地窟，遗忘守墓者的构装体在此巡逻，适合新英雄的小型冒险。"
+    }
+  }
 }

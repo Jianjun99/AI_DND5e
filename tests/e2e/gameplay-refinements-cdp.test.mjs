@@ -301,7 +301,7 @@ try {
   });
   const fl = freeLook.result.value;
   assert(fl.follow === false, 'Clicking the button releases the camera binding');
-  assert(/自由/.test(fl.label), `Button switches to the free-camera label (got "${fl.label}")`);
+  assert(/Free/.test(fl.label), `Button switches to the free-camera label (got "${fl.label}")`);
   assert(fl.heroMoved > 0.5, `The hero kept walking with the camera released (${fl.heroMoved.toFixed(2)} tiles after ${fl.rounds} round(s))`);
   assert(dist(fl.parked, fl.after) < 0.01, `A released camera stays parked while the hero walks (moved ${dist(fl.parked, fl.after).toFixed(2)} tiles)`);
 
@@ -575,7 +575,7 @@ try {
   assert(town.tabs.length === 3, `Three games on the table (${town.tabs.join('/')})`);
   assert(town.chips.includes(5) && town.chips.includes(100), `Stake chips offered (${town.chips.join(',')})`);
   assert(town.hasButton, 'The bet button is present');
-  assert(/幸运币|护身符|屠戮油/.test(town.tokenList), 'The prize-token list is documented on the table');
+  assert(/Lucky Coin|Ward Charm|Slaying Oil|幸运币|护身符|屠戮油/.test(town.tokenList), 'The prize-token list is documented in the active locale');
 
   const betStake = await send('Runtime.evaluate', {
     expression: `(() => {
@@ -594,7 +594,7 @@ try {
   // line (re-clicking the roll button if it never shows) instead of sleeping a fixed 2.5s
   await clickUntil(send,
     `(() => { const b = document.getElementById('gambleRollBtn'); if (b && !b.disabled) { b.click(); return true; } return false; })()`,
-    `/本注 [+-]?\\d+ gp/.test((document.getElementById('gambleResult') || {}).innerText || '')`,
+    `/This bet: [+-]?\\d+ gp/.test((document.getElementById('gambleResult') || {}).innerText || '')`,
     { timeout: 10000, description: 'the gamble result line to render' });
   const betResult = await send('Runtime.evaluate', {
     expression: `(() => {
@@ -603,7 +603,7 @@ try {
         return m ? Number(m[1]) : null;
       };
       const line = document.getElementById('gambleResult').innerText;
-      const diff = line.match(/本注 ([+-]\\d+) gp/);
+      const diff = line.match(/This bet: ([+-]\\d+) gp/);
       return { after: goldText(), line: line.slice(0, 160), net: diff ? Number(diff[1]) : null };
     })()`,
     returnByValue: true
@@ -626,12 +626,12 @@ try {
   await pollUntil(send, `(() => {
     const cards = Array.from(document.querySelectorAll('.buy-item-btn'))
       .filter(b => (b.getAttribute('data-item-id') || '').includes('potion_mystery')).length;
-    return cards === 3 && document.body.innerText.includes('实验性魔药');
+    return cards === 3 && document.body.textContent.includes('Experimental potions');
   })()`, { description: 'the experimental-brew shelf to render' });
   const brews = await send('Runtime.evaluate', {
     expression: `(() => ({
       cards: Array.from(document.querySelectorAll('.buy-item-btn')).filter(b => (b.getAttribute('data-item-id') || '').includes('potion_mystery')).length,
-      shelf: document.body.innerText.includes('实验性魔药')
+      shelf: document.body.textContent.includes('Experimental potions')
     }))()`,
     returnByValue: true
   });
@@ -833,9 +833,9 @@ try {
     next: (document.getElementById('summaryNext') || {}).innerText || '',
     details: !!document.querySelector('#summaryModal .summary-details')
   }))()`, returnByValue: true });
-  assert(outcome.result.value.gains.length > 0 && (outcome.result.value.gains.includes('本次结算') || outcome.result.value.gains.includes('本局已入账')),
+  assert(outcome.result.value.gains.length > 0 && (outcome.result.value.gains.includes('Settlement') || outcome.result.value.gains.includes('Gains saved')),
     `The summary reports what this delve paid (${outcome.result.value.gains.slice(0, 40)})`);
-  assert(outcome.result.value.next.includes('下一目标'), `The summary names the next objective (${outcome.result.value.next.split('\\n')[0].slice(0, 60)})`);
+  assert(outcome.result.value.next.includes('Next objective'), `The summary names the next objective (${outcome.result.value.next.split('\\n')[0].slice(0, 60)})`);
   assert(outcome.result.value.details, 'The raw statistics moved into the details fold');
 
   // reopening the settled summary is read-only: duplicate receipt, no second banking
@@ -883,9 +883,9 @@ try {
       href: link ? link.getAttribute('href') : ''
     };
   })()`, returnByValue: true });
-  assert(!!homeGuide.result.value && /圣物|沉没墓穴/.test(homeGuide.result.value.objective),
+  assert(!!homeGuide.result.value && homeGuide.result.value.objective.includes('Enter the Sunless Crypt') && homeGuide.result.value.objective.includes('sacred relic'),
     `Home shows the current objective (${homeGuide.result.value && homeGuide.result.value.objective.slice(0, 40)})`);
-  assert(!!homeGuide.result.value && /准备出发/.test(homeGuide.result.value.primaryText) && homeGuide.result.value.href.includes('node=crypt'),
+  assert(!!homeGuide.result.value && /Prepare expedition/.test(homeGuide.result.value.primaryText) && homeGuide.result.value.href.includes('node=crypt'),
     `Home's primary action prepares the recommended map (${homeGuide.result.value && homeGuide.result.value.href})`);
 
   await send('Runtime.evaluate', { expression: `location.hash = '#/overworld?char=${guideHero.id}&node=crypt'; 1` });
@@ -903,8 +903,8 @@ try {
     };
   })()`, returnByValue: true });
   assert(rec.result.value.nodeName.includes('Sunless Crypt'), `The recommended node is preselected (${rec.result.value.nodeName})`);
-  assert(rec.result.value.box.includes('主线推荐'), `The destination explains itself (${rec.result.value.box.slice(0, 50)})`);
-  assert(rec.result.value.banner.includes('准备出发'), 'The story banner carries the primary action too');
+  assert(rec.result.value.box.includes('Main story'), `The destination explains itself (${rec.result.value.box.slice(0, 50)})`);
+  assert(rec.result.value.banner.includes('Prepare expedition'), 'The story banner carries the primary action too');
   const savesAfterGuide = await apiReq('GET', '/api/game');
   assert(!savesAfterGuide.some(s => s.characterId === guideHero.id), 'Nothing auto-embarked — the player still presses Embark');
   await apiReq('DELETE', `/api/characters/${guideHero.id}`);
@@ -937,9 +937,9 @@ try {
   })()`, returnByValue: true });
   assert(!!multiCard.result.value && multiCard.result.value.href.endsWith('#/play/' + delveA.state.id),
     `The primary action resumes the older running delve (${multiCard.result.value && multiCard.result.value.href})`);
-  assert(!!multiCard.result.value && /继续冒险/.test(multiCard.result.value.cta),
+  assert(!!multiCard.result.value && /Continue adventure/.test(multiCard.result.value.cta),
     `The primary action is a continue (${multiCard.result.value && multiCard.result.value.cta})`);
-  assert(!!multiCard.result.value && /已结算|进行中/.test(multiCard.result.value.statuses),
+  assert(!!multiCard.result.value && /Settled|In progress/.test(multiCard.result.value.statuses),
     `Both saves keep their status chips (${multiCard.result.value && multiCard.result.value.statuses})`);
   await clickUntil(send,
     `(() => { const card = Array.from(document.querySelectorAll('.char-card')).find(c => c.textContent.includes('T4a Multi Hero')); const l = card && card.querySelector('a.btn.primary'); if (l) { l.click(); return true; } return false; })()`,

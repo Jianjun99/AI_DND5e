@@ -41,7 +41,10 @@ content/my-pack/
 ## Maps (`maps/*.json`)
 
 A map is an ASCII grid. `#` = wall, `.` = floor, `,` = rubble (costs double movement),
-`D` = door (blocks sight and movement until opened).
+`D` = door (blocks sight and movement until opened). A `door` **entity must stand on a `D`
+tile** — T8 rejects an export where the entity and the glyph disagree (`door-tile-mismatch`),
+because the engine reads the grid for passability and the entity for the runtime object.
+A `D` glyph with no entity stays legal (shipped maps decorate doorframes).
 
 ```json
 {
@@ -94,6 +97,95 @@ A map is an ASCII grid. `#` = wall, `.` = floor, `,` = rubble (costs double move
 - Entity IDs are unique within a map, including generated `npc_<id>` actor IDs; `player` and `ally` are reserved runtime IDs.
 - `stairs` entities use `to: {"mapId":"other-map","x":1,"y":2}`. Target maps may come from another installed pack; arrival coordinates must be inside it and off walls.
 - Lever `targetTrapIds` must reference traps on the same map. Loot and wandering monster IDs are checked too.
+
+## Public adventure directory (M1)
+
+Every effective, validated map is listed in both the town's **Adventure directory**
+and **Prepare the delve**. No metadata is required to play an old JSON pack. Search
+by title, map ID or source pack, or filter by pack; the UI shows its public blurb,
+server-provided recommendation and whether complete title/blurb translations exist
+for the selected language. Missing translations display the author's original text.
+Generated endless floors remain one system entry; the weekly trial and town remain
+system destinations. Installing/replacing/deleting content is reflected on normal
+load, or with **Refresh directory** while the page is open. A deleted selection falls
+back to a valid destination. Existing adventures keep their map snapshot and original
+settlement contract; removal does not rewrite player saves.
+
+Optionally add the finite `adventure` object to a map:
+
+```json
+{
+  "adventure": {
+    "levels": { "min": 1, "max": 3 },
+    "waypoint": {
+      "regionX": 72, "regionY": 45,
+      "icon": "dungeon", "region": "Eastern Trail",
+      "localized": { "zh-CN": { "region": "东侧小径" } },
+      "roads": [{ "to": "oakhaven", "label": "Lantern Trail", "localized": { "zh-CN": { "label": "提灯小径" } } }]
+    }
+  }
+}
+```
+
+- `levels` is descriptive, not a restriction or a combat multiplier. Its ordered
+  integer range is 1–99. When omitted, legacy `recommended` text and translations
+  are used; when both are absent the UI says the recommendation is unspecified.
+- `regionX/regionY` are finite 0–100 **region percentages**, independent of dungeon
+  grid `x/y`. The waypoint ID is exactly the map ID; there is no second author ID.
+- `icon` is one of `dungeon/crypt/vault/sewers/mill/dragon/hills/gate/courier`.
+  It defaults to `dungeon`; URLs, markup and arbitrary asset paths are unsupported.
+  `region` and each road's `label` are optional public strings, at most 200 characters.
+- `roads` contains at most 32 `{to,label?,localized?}` entries. `to` names a different
+  positioned map's ID, `oakhaven`, or `endless`. List-only maps and the list-only
+  `weekly` entry are not valid endpoints. Declare each undirected pair once, including
+  across packs; repeated endpoints, unknown/unpositioned endpoints and duplicate pairs
+  reject import. Endpoint dependencies also apply when replacing a pack. Roads are
+  public display metadata and do not change the engine's road encounter rules.
+- Only `levels/waypoint` are supported on `adventure`; only the documented fields are
+  supported on nested objects. T8 validates all metadata before transaction writes.
+  Invalid installed definitions and dependent maps are excluded transitively.
+  `oakhaven/endless/weekly`, `endless_…` and `weekly_…` are reserved system map IDs.
+- The server projects a waypoint DTO and directory summary, never the raw map,
+  room descriptions, NPC knowledge, effects or unchosen story endings. Authors must
+  keep `name/blurb/recommended/region/label` public. The legacy `maps` response also
+  preserves public `objectiveText` and an explicit whitelist of its translations.
+- Export keeps authored metadata in the existing version-1 bundle. The example
+  [adventure-directory-pack.json](tests/fixtures/content/adventure-directory-pack.json)
+  has two new maps, one list-only and one positioned, with original English text.
+
+## Optional bilingual text (T9c)
+
+Each definition or nested text node may add `localized`, for example:
+
+```json
+{
+  "id": "crypt_hound", "name": "Crypt Hound", "blurb": "A hound guards the crypt.",
+  "localized": {
+    "en": { "name": "Crypt Hound", "blurb": "A hound guards the crypt." },
+    "zh-CN": { "name": "墓穴猎犬", "blurb": "一只猎犬守卫着墓穴。" }
+  }
+}
+```
+
+Translations cover existing text fields only (name, desc, blurb, objectiveText,
+persona, knowledge, canned, prompt, label, response, memory and other descriptive
+text). They cannot override IDs, coordinates, dice, prices, effects or other rules.
+Use exactly `en` / `zh-CN`; placeholder names and text-array lengths must match the
+canonical field. Unknown fields/languages or missing text references fail import
+before writing. Old packs remain valid and fall back to their original text when a
+language is absent; content information reports available translations. Display
+text never changes the canonical names or equipment uniqueId used by the engine.
+Room/NPC translations are returned only when their text is available to the player;
+translation resources do not reveal hidden rooms or unchosen outcomes.
+
+API presentation may add `nameDisplay` / `descDisplay` and other text descriptors
+beside canonical fields. Authors should write `localized` in their definitions;
+export keeps the original bundle rather than these synthesized Display fields.
+An event emitted by code may carry `messageKey` + `params` while retaining `text`.
+Use ID-based definitions or a typed text descriptor in params; pass already-rolled
+results, never roll again to translate a log. Historical plain text and player names
+are rendered verbatim. The shipped coverage/terminology and creation-point list live
+in [T9c coverage](docs/T9C_LOCALIZATION_COVERAGE.md).
 
 ## Monsters (`monsters.json`)
 
@@ -277,9 +369,231 @@ to the normal action endpoint. Repeated/completed choices do not repeat consumpt
 combat rewards or facts. The browser renders these server choices without copying rules.
 This is a finite gate encounter protocol, not a general scripting or free-text intent language.
 
+## Finite branching stories (T11)
+
+The shipped [Missing Courier choice table](content/missing-courier/STORY.md) and
+[courier-crossing.json](content/missing-courier/maps/courier-crossing.json) demonstrate
+one map, two NPCs and three sequential decisions. This is an extension of scenes,
+not a script interpreter. Old passage/combat encounters keep their original contract.
+
+- Add map `story: {id, name, localized?}` and `victory: {type: "story", sceneId, campfire}`.
+  A real campfire is still required. The engine grants its existing victory reward only
+  after the final scene has a confirmed ending and the player stands at camp. Evidence,
+  cleared enemies and returning early cannot impersonate an ending.
+- A `kind: "story"` scene can name `requiresScene`, which must reference an earlier
+  scene on this map. It checks this save's resolved instance; roster history cannot
+  unlock a fresh adventure. Scene IDs remain map-scoped; story ID is the stable namespace
+  for remembered reactions. Only story scenes may reuse a named NPC.
+- Story decisions without a door use `guardIds: []`; gate scenes still need a real
+  door, distinct guards, a passage route and an unconditional combat fallback.
+  A short bilingual `objective` gives the next public step; `prompt` is dialogue shown
+  only after the scene is discovered. Do not put secret evidence in the public objective.
+- `decision` resolves immediately. `passage` and `combat` retain T6 behavior. A story
+  noncombat effect may use `costGold` (nonnegative integer), `consumeItem` (one item,
+  matching its `has_item` condition), or `giveItem` (one registered item).
+  Combat uses existing combat rewards only; it accepts no extra resource writes.
+- `check` uses an existing `skill`, integer `dc`, optional `failureGold`, and a mandatory
+  authored `failure: {fact, response, memory, reactions?, ending?, localized?}` on the
+  choice. The engine's skill check applies real buffs/rerolls. Both outcomes resolve
+  the scene; failure can charge the stated fallback fee and continues the story.
+  Availability requires enough gold for the worst-case cost before any roll or consumption.
+- Each choice retains `fact`, `label`, `response`, `memory` and bilingual text. It may
+  add `reactions: {npcId: {text, localized?}}` for map NPCs who know that confirmed event.
+  The final scene must give every outcome an `ending` ID and offer at least two distinct
+  endings. Alternative outcome text is never a client payload or model instruction.
+- T8 rejects forward/cyclic prerequisites, missing item/NPC/ending references, unsupported
+  skills, invalid costs, missing failed-check outcomes and arbitrary effect/failure writes
+  before installation. Import/export keeps the authored bundle unchanged.
+
+Engine-created facts keep the established `saveId:mapId:sceneId` identity and add optional
+story metadata, selected text descriptors, actual cost/items/check and confirmed NPC
+reactions. Settlement unions them into the owning character and stores an immutable
+`receipt.story` summary. Duplicate receipts can heal missing facts without repeating
+charges or rewards. Current scenes start fresh in a new delve; past endings remain
+readable on the character sheet and in NPC reactions. These optional JSON fields need
+no destructive save migration or schema version bump.
+
+## Companion stories (T12a)
+
+The shipped [Bram's pack choice table](content/brams-pack/STORY.md) and
+[brams-pack.json](content/brams-pack/maps/brams-pack.json) extend the finite story
+protocol to a real companion. This is not a companion system rewrite: the loyalty
+kill-quests (`char.companionQuests`) keep their own namespace, and a companion story
+adds exactly three authoring fields plus one effect field.
+
+- `story.companion: "bram"` names the ally this story needs. The start endpoint
+  refuses to run the map without that exact companion in the party (bilingual
+  error; the prepare screen shows a "requires companion" chip and gates the
+  descent button). Nothing is auto-recruited, charged or loyalty-gated.
+- A story scene may use `companion: true` instead of `npcId`: its speaker resolves
+  to the real ally entity, never a lookalike map NPC, and its memory/reactions are
+  keyed by the companion ID. Reactions may additionally use the companion ID as a
+  key (map NPC keys keep working; other allies are rejected).
+- A choice effect (and a check's `failure`) may carry an integer `loyalty` in
+  -25..25. The engine applies it to the real ally entity through the standard
+  morale system exactly once per resolved scene and records `loyaltyDelta` on the
+  fact; duplicates and duplicate settlements never re-apply it. The existing
+  victorious-delve bonus and morale quips keep working on top.
+- Re-entering the story with the same companion opens on the remembered ending:
+  the confirmed reaction text becomes a greeting event and the scene memory shows
+  the past attitude. Memory never unlocks fresh stages; `requiresScene` still reads
+  only this save. A downed companion blocks their own scene with a stated reason
+  until camp recovery or retreat; retreat settles the earned attitude truthfully.
+
+## GLB visual packs (V1 second stage)
+
+Visuals are cosmetic. They never replace monster/class IDs, statblocks, movement,
+damage, drops or save schema. Home → **Models & appearances** previews the original
+CC0 [Visual Starter](content/visual-starter/visuals.json) hero and skeleton; both
+are opt-in. Choose a hero appearance or bind a monster by its registered stable ID,
+then reopen the delve. Companions and NPCs keep procedural models.
+
+Old `ai-dnd-pack` version 1 imports/exports remain valid. A pack with visuals uses
+bundle **version 2**, with ordinary `pack/maps/monsters/gear` fields plus:
+
+```json
+{
+  "visuals": {
+    "version": 1,
+    "models": [{
+      "id": "my-hero", "name": "My Hero", "role": "hero",
+      "file": "assets/hero.glb", "scale": 1, "yaw": 0,
+      "clips": {"idle": "Idle", "walk": "Walk", "attack": "Attack"}
+    }],
+    "bindings": {"monsters": {}}
+  },
+  "assets": {"assets/hero.glb": "CANONICAL_BASE64_OF_THE_COMPLETE_GLB"}
+}
+```
+
+The complete importable [visual-pack.json](tests/fixtures/content/visual-pack.json)
+contains real binaries. `scripts/build-visual-sample.mjs` deterministically rebuilds
+the original samples; it changes no rules. Folder packs use `visuals.json` and the
+declared `assets/*.glb` files. Model IDs must be globally unique; `role` is `hero`
+or `monster`; optional authored `bindings.monsters` maps existing monster IDs to
+this pack's monster models. Explicit UI selection of **Default procedural model**
+overrides that authored binding. `scale` is 0.05–4; `yaw` is degrees -180–180.
+
+Only documented manifest fields are accepted. `idle` must map to a real named
+clip. Optional `walk/attack/hit/death/cast` mappings, when provided, must exist;
+omitted clips safely use idle. Clips and their skeleton ship in the same GLB.
+Automatic retargeting and standalone arbitrary animation files are unsupported.
+
+The initial finite glTF subset is GLB 2 with one embedded BIN buffer, triangle
+meshes, POSITION/NORMAL/TEXCOORD_0/JOINTS_0/WEIGHTS_0, optional skins and named
+LINEAR/STEP transform animations. Skins use float weights and unsigned byte/short
+joints. No external/data URIs, glTF extensions, compression or morph targets.
+Textures, if present, are embedded 8-bit RGB/RGBA non-interlaced PNG, validated for
+dimensions, CRC, decompressed size and row filters. Files use exactly
+`assets/[a-z0-9_-]+.glb`; no directories, URLs or undeclared resources.
+
+Budgets: 16 models/pack; 2 MiB/file and 8 MiB binaries/pack; 256 KiB GLB JSON;
+128 nodes, 50,000 vertices, 150,000 indices, 64 joints/skin, 16 clips and 10,000
+animation time keys/file. Each clip lasts at most 30 seconds; texture side ≤1024
+and total texture pixels ≤4,194,304/file. Import requests are capped at 12 MiB.
+An empty or non-finite loaded scene, or display extent exceeding 12 world units
+after scaling, falls back rather than attaching to the board.
+Oversized, invalid or undeclared assets fail T8 validation before writing. Staged
+binaries are rechecked before the existing atomic rename/rollback transaction.
+
+Exports retain version 2, authored manifest and every binary byte. Missing or
+corrupt visual resources produce an explicit export failure, including unreadable
+`visuals.json`; they never silently become a version 1 export. Resource URLs are
+server-projected model endpoints with SHA-256, no-store and declared-path checks.
+
+External cosmetic preferences live in `data/visual-settings.json`, outside heroes
+and saves; the existing save backup does not include content packs or this file.
+Export/share the resource pack separately. Disabling or deleting a visual pack
+preserves preferences and old saves, which use procedural fallback. Reimporting
+the same stable model IDs restores available choices; new preferences apply when
+the player next opens an adventure. Model loading failure also falls back in-place.
+
+Shared model resources are reference counted; cloned bones and AnimationMixer are
+private to each instance. Leaving the view releases pending leases, mixers, bone
+textures and owned geometry/material/texture resources. Late responses cannot attach.
+Dependencies already allocated by a rejected parse are also released. Authored GLB
+node extras remain in complete exports; runtime clones ignore node metadata so only
+renderer anchors provide tile/entity hit identity.
+Confirmed action replies carry optional `visualEvents` with stable event IDs; reads
+and polling never replay actions. Damage/HP apply immediately. Dead GLB monsters
+leave the selectable board immediately and may display their death clip for up to
+1.1 seconds in a separate non-interactive layer before disposal.
+
+## Natural Language Action Matching (T13a)
+
+Content authored in packs seamlessly participates in the T13a bounded natural language system:
+- **Scene Choices**: Natural player expressions map to scene choices by comparing against `choice.id`, `choice.label`, and bilingual `choice.localized.{lang}.label`. Authored choices requiring items (e.g. `{ type: "has_item", itemId: "potion_healing" }`) or costs are authoritatively checked on mapping.
+- **NPC Dialogue**: Expressions like "talk to <name>" / "和<name>交谈" match map NPCs within distance <= 4.
+- **Item Usage**: "use <item>" / "使用/喝<item>" matches items in the hero's inventory by `itemId` or `item.name`.
+- **Combat**: "attack <monster>" / "攻击<monster>" matches visible enemies by `monster.id` or `monster.name`. Ambiguity across multiple same-named foes automatically presents clarification cards.
+
+## Adventure Authoring Studio (T15a)
+
+The in-game **Author Studio** (`#/author`, accessible from the Content Packs section on the home page) allows anyone to author custom two-chapter branching adventures without editing raw JSON files:
+
+### 1. Starter Template Cloning (`cloneStarterTemplate`)
+- **One-Click Fork**: Fork the official starter adventure (`missing-courier`) into an isolated namespace (`custom_<slug>`).
+- **Recursive Remapping**: target namespace is `custom_<slug>`; maps become `custom_<slug>_ch1` / `_ch2`, story IDs `custom_<slug>_story_ch1` / `_story_ch2`, and every pack-owned gear ID is namespaced (`custom_<slug>_courier_ledger`). Every place the schema can hold an item reference is rewritten together - `condition.itemId`, `effect.giveItem`, `effect.consumeItem` and `entities[].loot.items[].id` - as is the cross-chapter `requiresHistory.storyId`, so chapter 2 binds to the clone's own chapter 1.
+- **Collision Prevention**: Checks against core content, installed packs, and existing drafts.
+- **Semantic ID Preservation**: Standard rules references (`campfire`, `player`, `potion_healing`, `bandit`) remain intact.
+
+### 2. Visual NPC & Dialogue Editing
+- **Pack Manifest**: Edit adventure title, author byline, description, and version.
+- **Chapter Tabs**: Edit each chapter's scenes, NPC persona, dialogue lines, and choices in both Chinese and English (the two language columns edit one node's `localized` buckets; fixed interface text always follows the selected language).
+- **Choice mechanics without JSON**: the per-choice panel writes the fields the schema already allows — effect kind (`decision` / `check` / `passage` / `combat`), `skill`, `dc`, `costGold`, `failureGold`, `giveItem`, `consumeItem` plus its matching `has_item` condition, `condition` kind (`always` / `has_item` / `history_ending`) with its item or ending, the choice `ending` ID, and the failure branch's `response` / `memory` / `ending`. There is no scripting surface, and a field only writes where the schema accepts it (a check-only field never lands on a decision or passage choice).
+
+### 3. Draft Tolerance & Validation
+- **Safe Draft Storage**: Drafts are stored in `data/drafts/<draftId>.json`. The draft ID is a stable path segment: it must match `[a-z0-9_-]+` and resolve inside the drafts directory, so no encoded separator or traversal can reach another file.
+- **Identity**: the filename is authoritative — a draft whose `pack.id` differs is reported as `draft-id-mismatch` and cannot be exported, installed or playtested.
+- **Error Tolerance**: Incomplete drafts with missing fields or invalid DCs can be saved without data loss (tolerance applies only inside a legal draft path).
+- **Live Diagnostics**: The T8 validation engine provides real-time error banners and diagnostics drawers, preventing invalid drafts from being installed or exported.
+
+### 4. Isolated Sandbox Playtesting
+- **Session Zero**: Launch a temporary isolated playtest directly from the editor (`POST /api/content/drafts/:id/playtest`).
+- **Zero Contamination**: the server mints the playtest identity (a dedicated hero owned by that draft) and ignores any client-supplied flag; unpublished draft content travels as a snapshot on the save instead of entering the shared registry, so it survives refresh and restart.
+- **Settlement**: only a run that actually ended (victory, retreat or fall) settles, and its receipt and story facts land on the draft's own playtest hero - formal heroes, ledgers and roster history are untouched. Chapter 2 of that draft then opens on the ending the playtest really reached.
+- **Smooth Return**: the top banner's exit link releases the run on the server and returns to `#/author?draft=<id>`; leaving twice, refreshing, or deleting the draft only cleans up resources that belong to it.
+
+### 5. Export & Install
+- **Export Bundle**: Download a standalone distribution JSON file (`/api/content/drafts/:id/export`). Export first saves the snapshot currently on screen and re-validates it server-side, so a stale draft can never be downloaded pretending to be the current work; if it fails, the editor keeps the scene as it was and stays put.
+- **Install to Game**: One-click install to `data/content/<id>/`, instantly making the adventure playable from the home screen and travel map.
+
+### 6. Small Grid Map Authoring (T15b)
+- **25×15 Grid Matrix**: Visual interactive grid editor for chapter maps with desktop-first viewport.
+- **Palette Tools**:
+  - `Wall` (`#`), `Floor` (`.`), `Door` (`D`): Click or drag to paint tiles.
+  - `Player Start` (`🚶`): Re-anchor the delve entry floor tile.
+  - `Campfire` (`🔥`): Reposition the victory campfire floor tile.
+  - `Entity Selector`: Select existing NPCs (e.g. Iris), monsters, chests, or stairs and place them on valid floor coordinates.
+  - `Select` & `Erase`: Inspect cells or clear non-critical tiles.
+- **Conservative Reachability Pre-check**:
+  - Live BFS evaluates traversal from `playerStart`.
+  - Immediate visual badges report if the campfire, exit stairs, or critical NPCs are blocked by solid walls.
+  - Prevents painting walls directly onto `playerStart` or `victory.campfire`.
+- **Entity & Scene Dependency Protection**:
+  - Moving entities updates coordinates `(x, y)` without changing their unique `id`.
+  - Scene definitions referencing `scene.npcId` or doors stay intact.
+  - Moving a door entity also moves its `D` glyph (the old tile reverts to floor in the same edit, and
+    undo/redo restores tile and entity together), so an authored map can never export a door whose grid
+    contradicts its entity.
+  - Wall, floor and erase brushes refuse to destroy an entity that a scene references through
+    `npcId`, `doorId` or `guardIds`, and say so in the current language; `playerStart` and the
+    victory campfire tiles are likewise protected.
+- **Targeted Isolated Playtest**:
+  - "Playtest this map" button launches directly into the selected chapter map (`api.playtestDraft(draftId, { mapId })`) with a sandboxed hero.
+
 ## Current limitations
 
+- Validated installed maps appear in the shared town/preparation directory. Optional
+  finite `adventure` metadata adds regional waypoints/roads; a map without it still
+  has its list entry. Small grid maps (25×15) can be edited in the Author Studio; dynamic map
+  resizing and online multi-user sharing remain separate work.
 - Packs add maps, monsters, and items — not species/classes yet.
 - Map-to-map travel already works through `stairs` entities with a `to` destination; see the core crypt and drowned-vault maps for real examples.
-- The game has 2D tokens and procedural 3D miniatures. Packs do not currently define their own arbitrary 3D model pipeline.
-- Scenes currently support the two gate effects and two conditions described above. Other NPC effects, relationship simulation and unrestricted AI action interpretation need separate implementation and validation. See [tasks/README.md](tasks/README.md).
+- The game has 2D tokens, procedural 3D miniatures and the finite GLB visual-pack
+  subset above. Automatic retargeting, arbitrary extensions and companion/NPC
+  replacement are outside V1's initial scope.
+- Scenes support the finite gate, branching-story, and natural-language-mapped choices documented
+  above. Other NPC effects, relationship simulation and unrestricted arbitrary JS actions
+  are strictly rejected by the bounded validator. See [tasks/README.md](tasks/README.md).
+

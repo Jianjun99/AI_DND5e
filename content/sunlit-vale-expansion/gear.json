@@ -6,7 +6,17 @@
       "type": "shield",
       "acBonus": 2,
       "cost": 300,
-      "desc": "+2 AC — a shield of polished red dragon scales, warm to the touch."
+      "desc": "+2 AC — a shield of polished red dragon scales, warm to the touch.",
+      "localized": {
+        "en": {
+          "name": "Dragon Scale Shield",
+          "desc": "+2 AC — a shield of polished red dragon scales, warm to the touch."
+        },
+        "zh-CN": {
+          "name": "龙鳞盾",
+          "desc": "护甲 +2，红龙鳞打磨成的盾牌，触摸温热。"
+        }
+      }
     },
     {
       "id": "ember_blade",
@@ -19,7 +29,17 @@
         "type": "fire"
       },
       "cost": 300,
-      "desc": "+1 longsword wreathed in smouldering embers: +1d6 fire damage."
+      "desc": "+1 longsword wreathed in smouldering embers: +1d6 fire damage.",
+      "localized": {
+        "en": {
+          "name": "Ember Blade",
+          "desc": "+1 longsword wreathed in smouldering embers: +1d6 fire damage."
+        },
+        "zh-CN": {
+          "name": "余烬剑",
+          "desc": "+1 长剑缠绕阴燃余烬，额外造成 +1d6 火焰伤害。"
+        }
+      }
     }
   ]
 }

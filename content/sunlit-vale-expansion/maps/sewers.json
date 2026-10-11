@@ -33,7 +33,17 @@
         5,
         8
       ],
-      "desc": "The grate clatters shut behind you."
+      "desc": "The grate clatters shut behind you.",
+      "localized": {
+        "en": {
+          "name": "Drainage Entry",
+          "desc": "The grate clatters shut behind you."
+        },
+        "zh-CN": {
+          "name": "排水入口",
+          "desc": "身后格栅哐当合上。"
+        }
+      }
     },
     {
       "id": "tunnel",
@@ -44,7 +54,17 @@
         22,
         5
       ],
-      "desc": "A wide tunnel riddled with webbing."
+      "desc": "A wide tunnel riddled with webbing.",
+      "localized": {
+        "en": {
+          "name": "Main Tunnel",
+          "desc": "A wide tunnel riddled with webbing."
+        },
+        "zh-CN": {
+          "name": "主隧道",
+          "desc": "遍布蛛网的宽阔隧道。"
+        }
+      }
     },
     {
       "id": "lair",
@@ -55,7 +75,17 @@
         22,
         12
       ],
-      "desc": "Thick webbing and cocoons of past victims."
+      "desc": "Thick webbing and cocoons of past victims.",
+      "localized": {
+        "en": {
+          "name": "Spider Lair",
+          "desc": "Thick webbing and cocoons of past victims."
+        },
+        "zh-CN": {
+          "name": "蜘蛛巢穴",
+          "desc": "厚重蛛网与过去受害者的虫茧。"
+        }
+      }
     },
     {
       "id": "sump",
@@ -66,7 +96,17 @@
         14,
         12
       ],
-      "desc": "A cistern where all the sewage collects."
+      "desc": "A cistern where all the sewage collects.",
+      "localized": {
+        "en": {
+          "name": "The Sump",
+          "desc": "A cistern where all the sewage collects."
+        },
+        "zh-CN": {
+          "name": "集污池",
+          "desc": "全部污水汇集的蓄水池。"
+        }
+      }
     }
   ],
   "rows": [
@@ -93,7 +133,17 @@
       "x": 3,
       "y": 2,
       "icon": "🔥",
-      "desc": "Cold embers."
+      "desc": "Cold embers.",
+      "localized": {
+        "en": {
+          "name": "Makeshift Camp",
+          "desc": "Cold embers."
+        },
+        "zh-CN": {
+          "name": "临时营地",
+          "desc": "冰冷的余烬。"
+        }
+      }
     },
     {
       "type": "monster",
@@ -144,7 +194,15 @@
       "x": 20,
       "y": 12,
       "boss": true,
-      "name": "Broodmother Spawn"
+      "name": "Broodmother Spawn",
+      "localized": {
+        "en": {
+          "name": "Broodmother Spawn"
+        },
+        "zh-CN": {
+          "name": "母巢子嗣"
+        }
+      }
     },
     {
       "type": "chest",
@@ -168,6 +226,14 @@
             "chance": 0.5
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Rusted Strongbox"
+        },
+        "zh-CN": {
+          "name": "锈蚀钱箱"
+        }
       }
     },
     {
@@ -179,7 +245,15 @@
       "dc": 12,
       "save": "dex",
       "damage": "1d6",
-      "damageType": "poison"
+      "damageType": "poison",
+      "localized": {
+        "en": {
+          "name": "Web Snare"
+        },
+        "zh-CN": {
+          "name": "蛛网套索"
+        }
+      }
     },
     {
       "type": "chest",
@@ -196,8 +270,60 @@
             "qty": 1
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Drainage Cache"
+        },
+        "zh-CN": {
+          "name": "排水藏物箱"
+        }
       }
     }
   ],
-  "npcs": {}
+  "npcs": {},
+  "localized": {
+    "en": {
+      "name": "Oakhaven Sewers",
+      "blurb": "Beneath Oakhaven’s cobbled streets, something has been breeding in the dark.",
+      "objectiveText": "Slay the Broodmother Spawn in the Spider Lair, then return to the entry to report.",
+      "recommended": "Levels 3-6"
+    },
+    "zh-CN": {
+      "name": "橡树镇下水道",
+      "blurb": "橡树镇石板街下，有东西在黑暗中繁殖。",
+      "objectiveText": "在蜘蛛巢穴击败母巢子嗣，再返回入口报告。",
+      "recommended": "等级 3–6"
+    }
+  },
+  "adventure": {
+    "waypoint": {
+      "regionX": 28,
+      "regionY": 60,
+      "icon": "sewers",
+      "region": "Beneath Oakhaven",
+      "localized": {
+        "en": {
+          "region": "Beneath Oakhaven"
+        },
+        "zh-CN": {
+          "region": "橡树镇地下"
+        }
+      },
+      "roads": [
+        {
+          "to": "oakhaven",
+          "label": "Beneath the Cobbles",
+          "localized": {
+            "en": {
+              "label": "Beneath the Cobbles"
+            },
+            "zh-CN": {
+              "label": "石路之下"
+            }
+          }
+        }
+      ]
+    }
+  }
 }

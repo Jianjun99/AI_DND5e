@@ -1,16 +1,18 @@
+import { displayLabel,  contentText, contentLabel,  t, label, localizeText, translateDOM, onLocaleChange } from "../i18n.js";
 // creator.js — multi-step character builder (D&D 2024)
 import { api } from '../api.js';
 import { esc, toast, state as appState } from '../app.js';
 
 const ABILS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-const ABIL_NAMES = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
+const ABIL_NAMES = { str: 'ui.creator.strength', dex: 'ui.creator.dexterity', con: 'ui.creator.constitution', int: 'ui.creator.intelligence', wis: 'ui.creator.wisdom', cha: 'ui.creator.charisma' };
 const mod = s => Math.floor((s - 10) / 2);
 const fmt = m => (m >= 0 ? '+' : '') + m;
-const skillName = s => s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+const skillName = s => t('content.skill.'+s);
 
-const STEPS = ['Identity', 'Species', 'Class', 'Background', 'Ability Scores', 'Equipment', 'Review'];
+const STEPS = ['ui.creator.identity', 'ui.creator.species', 'ui.creator.class', 'ui.creator.background', 'ui.creator.ability_scores', 'ui.creator.equipment', 'ui.creator.review'];
 
-export async function creatorView(main) {
+/** @param {import('../navigation.js').Navigation} navigation */
+export async function creatorView(main, navigation) {
   const rules = appState.rules;
   const draft = {
     name: '', species: null, speciesChoices: {}, className: null, background: null,
@@ -23,22 +25,22 @@ export async function creatorView(main) {
 
   function wizardHeader() {
     return `<div class="wizard-steps">${STEPS.map((s, i) =>
-      `<span class="step ${i === step ? 'active' : i < step ? 'done' : ''}">${i + 1}. ${s}</span>`).join('')}</div>`;
+      `<span class="step ${i === step ? 'active' : i < step ? 'done' : ''}">${i + 1}. ${label(s)}</span>`).join('')}</div>`;
   }
 
   function render() {
     main.innerHTML = `
-      <h1>Create Your Hero</h1>
+      <h1>${label("ui.creator.create_your_hero")}</h1>
       ${wizardHeader()}
       <div class="grid creator-layout">
         <div id="stepBody"></div>
         <div class="preview-panel">${previewHtml()}</div>
       </div>
       <div class="creator-footer">
-        <button class="btn" id="backBtn" ${step === 0 ? 'disabled' : ''}>← Back</button>
+        <button class="btn" id="backBtn" ${step === 0 ? 'disabled' : ''}>${label("ui.creator.back")}</button>
         ${step < STEPS.length - 1
-          ? '<button class="btn primary" id="nextBtn">Next →</button>'
-          : '<button class="btn primary big" id="saveBtn">⚔ Forge Hero & Enter the Crypt</button>'}
+          ? `<button class="btn primary" id="nextBtn">${label("ui.creator.next")}</button>`
+          : `<button class="btn primary big" id="saveBtn">${label("ui.creator.forge_hero_enter_the_crypt")}</button>`}
       </div>`;
 
     const body = document.getElementById('stepBody');
@@ -52,33 +54,35 @@ export async function creatorView(main) {
     const next = document.getElementById('nextBtn');
     if (next) next.addEventListener('click', () => {
       const err = validate(step);
-      if (err) return toast(err);
+      if (err) return toast(() => validate(step));
       step++; render();
     });
     const save = /** @type {HTMLButtonElement} */ (document.getElementById('saveBtn'));
     if (save) save.addEventListener('click', async () => {
       const err = validate(6);
-      if (err) return toast(err);
+      if (err) return toast(() => validate(6));
       save.disabled = true;
-      save.textContent = 'Forging Hero…';
+      localizeText(save, () => t("ui.creator.forging_hero"));
       try {
         const char = await api.createCharacter(draft);
-        toast(`${char.name} is ready!`);
+        if (!navigation.isCurrent()) return;
+        toast(() => t('ui.common.ready', { name: (char.nameDisplay || char.name) }));
         location.hash = `#/overworld?char=${char.id}`;
       } catch (e) {
-        toast(e.message);
+        if (!navigation.isCurrent()) return;
+        toast(() => e.message);
         save.disabled = false;
-        save.textContent = '⚔ Descend';
+        localizeText(save, () => t("ui.creator.descend"));
       }
     });
   }
 
   function validate(s) {
-    if (s === 0 && !draft.name.trim()) return 'Give your hero a name.';
-    if (s === 1 && !draft.species) return 'Choose a species.';
-    if (s === 2 && !draft.className) return 'Choose a class.';
-    if (s === 3 && !draft.background) return 'Choose a background.';
-    if (s === 5 && (!draft.armorOption || !draft.weaponOption)) return 'Choose your starting equipment.';
+    if (s === 0 && !draft.name.trim()) return t("ui.creator.give_your_hero_a_name");
+    if (s === 1 && !draft.species) return t("ui.creator.choose_a_species");
+    if (s === 2 && !draft.className) return t("ui.creator.choose_a_class");
+    if (s === 3 && !draft.background) return t("ui.creator.choose_a_background");
+    if (s === 5 && (!draft.armorOption || !draft.weaponOption)) return t("ui.creator.choose_your_starting_equipment");
     return null;
   }
 
@@ -96,17 +100,17 @@ export async function creatorView(main) {
     const armor = cls && (cls.armorOptions || []).find(o => o.id === draft.armorOption);
     return `
       <div class="card">
-        <h3>${draft.name.trim() ? esc(draft.name) : 'Your Hero'}</h3>
-        <p class="muted small">${draft.className ? esc(rules.classes.find(c => c.id === draft.className).name) : 'class?'} ·
-           ${draft.species ? esc(rules.species.find(s => s.id === draft.species).name) : 'species?'} ·
-           ${draft.background ? esc(rules.backgrounds.find(b => b.id === draft.background).name) : 'background?'}</p>
+        <h3>${draft.name.trim() ? esc(draft.name) : label("ui.creator.your_hero")}</h3>
+        <p class="muted small">${draft.className ? esc(rules.classes.find(c => c.id === draft.className).name) : label("ui.creator.class_2")} ·
+           ${draft.species ? esc(rules.species.find(s => s.id === draft.species).name) : label("ui.creator.species_2")} ·
+           ${draft.background ? esc(rules.backgrounds.find(b => b.id === draft.background).name) : label("ui.creator.background_2")}</p>
         <div class="ability-grid">
           ${ABILS.map(k => `<div class="ability-box"><div class="abbr">${k.toUpperCase()}</div><div class="score">${a[k]}</div><div class="mod">${fmt(mod(a[k]))}</div></div>`).join('')}
         </div>
         <div style="margin-top:10px;">
-          <div class="stat-line"><span>Hit Points (L1)</span><span>${hp}</span></div>
-          <div class="stat-line"><span>Armor</span><span>${armor ? esc(armor.label.split(' (')[0]) : '—'}</span></div>
-          <div class="stat-line"><span>Skills</span><span>${(draft.skills.length + 2) || 2}+</span></div>
+          <div class="stat-line"><span>${label("ui.creator.hit_points_l1")}</span><span>${hp}</span></div>
+          <div class="stat-line"><span>${label("ui.creator.armor")}</span><span>${armor ? contentLabel(armor,'label') : '—'}</span></div>
+          <div class="stat-line"><span>${label("ui.creator.skills")}</span><span>${(draft.skills.length + 2) || 2}+</span></div>
         </div>
       </div>`;
   }
@@ -115,25 +119,25 @@ export async function creatorView(main) {
   function stepName(body) {
     body.innerHTML = `
       <div class="card">
-        <h2>What is your hero called?</h2>
-        <div class="field"><label>Character name</label>
-          <input type="text" id="nameInput" value="${esc(draft.name)}" maxlength="40" placeholder="e.g. Kaelen Ashmoor"></div>
-        <p class="small muted">You'll delve into <b>The Sunless Crypt</b> alone — though a certain scout at camp may join you, if you ask nicely.</p>
+        <h2>${label("ui.creator.what_is_your_hero_called")}</h2>
+        <div class="field"><label>${label("ui.creator.character_name")}</label>
+          <input type="text" id="nameInput" value="${esc(contentText(draft,"name"))}" maxlength="40" data-i18n-placeholder="ui.creator.e_g_kaelen_ashmoor" placeholder="${esc(t("ui.creator.e_g_kaelen_ashmoor"))}"></div>
+        <p class="small muted">${label("ui.creator.you_ll_delve_into")} <b>The Sunless Crypt</b> ${label("ui.creator.alone_though_a_certain_scout_at_camp")}</p>
       </div>`;
     document.getElementById('nameInput').addEventListener('input', e => {
       draft.name = /** @type {HTMLInputElement} */ (e.target).value;
-      document.querySelector('.preview-panel h3').textContent = draft.name.trim() || 'Your Hero';
+      localizeText(document.querySelector('.preview-panel h3'), () => draft.name.trim() || t("ui.creator.your_hero"));
     });
   }
 
   // ---------------- step 2: species ----------------
   function stepSpecies(body) {
-    body.innerHTML = `<h2>Choose your species</h2><div class="grid cols3">
+    body.innerHTML = `<h2>${label("ui.creator.choose_your_species")}</h2><div class="grid cols3">
       ${rules.species.map(s => `
         <div class="card selectable ${draft.species === s.id ? 'selected' : ''}" data-species="${s.id}">
-          <h3 style="margin-bottom:2px;">${s.name}</h3>
-          <p class="small muted">${esc(s.blurb)}</p>
-          <ul class="trait-list">${s.traits.map(t => `<li><b>${t.name}</b> — ${esc(t.desc)}</li>`).join('')}</ul>
+          <h3 style="margin-bottom:2px;">${contentLabel(s,"name")}</h3>
+          <p class="small muted">${contentLabel(s,"blurb")}</p>
+          <ul class="trait-list">${s.traits.map(entryText => `<li><b>${contentLabel(entryText,"name")}</b> — ${contentLabel(entryText,"desc")}</li>`).join('')}</ul>
           ${s.choices ? `<div class="small" style="margin-top:6px; color:var(--gold);">${s.choices.map(c => esc(c.label)).join(' · ')}</div>` : ''}
         </div>`).join('')}
     </div>
@@ -153,15 +157,16 @@ export async function creatorView(main) {
     container.innerHTML = sp.choices.map(c => {
       if (c.type === 'skills') {
         const opts = c.options === 'any' ? Object.keys(SKILL_MAP) : c.options;
-        return `<div class="card" style="margin-top:12px;"><h3>${esc(c.label)}</h3>
-          <p class="small muted">Pick ${c.count} skill${c.count > 1 ? 's' : ''}.</p>
-          <select data-spchoice="${c.id}" multiple size="6">${opts.map(o => `<option value="${o}">${skillName(o)}</option>`).join('')}</select></div>`;
+        return `<div class="card" style="margin-top:12px;"><h3>${displayLabel(c.labelDisplay,c.label)}</h3>
+          <p class="small muted">${label("ui.creator.pick_skill_values", {p1: c.count, p2: ''})}</p>
+          <select data-spchoice="${c.id}" multiple size="6">${opts.map(o => `<option value="${o}" data-i18n="content.skill.${o}">${esc(skillName(o))}</option>`).join('')}</select></div>`;
       }
-      return `<div class="card" style="margin-top:12px;"><h3>${esc(c.label)}</h3>
+      return `<div class="card" style="margin-top:12px;"><h3>${displayLabel(c.labelDisplay,c.label)}</h3>
         <select data-spchoice="${c.id}">${c.options.map(o => {
           const v = typeof o === 'string' ? o : o.value;
-          const l = typeof o === 'string' ? `${o[0].toUpperCase() + o.slice(1)} ancestry` : o.label;
-          return `<option value="${v}" ${(draft.speciesChoices[c.id] || '') === v ? 'selected' : ''}>${esc(l)}</option>`;
+          const params = { name: typeof o === 'string' ? {key:'content.damage.'+o,fallback:o[0].toUpperCase()+o.slice(1)} : '' };
+          const l = typeof o === 'string' ? t('ui.creator.ancestry', params) : o.label;
+          return `<option value="${v}" ${(draft.speciesChoices[c.id] || '') === v ? 'selected' : ''} ${typeof o === 'string' ? `data-i18n="ui.creator.ancestry" data-i18n-params="${esc(JSON.stringify(params))}"` : `data-i18n-display="${esc(JSON.stringify(o.labelDisplay || {fallback:l}))}"`}>${esc(l)}</option>`;
         }).join('')}</select></div>`;
     }).join('');
     container.querySelectorAll('[data-spchoice]').forEach(sel => sel.addEventListener('change', () => {
@@ -179,13 +184,13 @@ export async function creatorView(main) {
 
   // ---------------- step 3: class ----------------
   function stepClass(body) {
-    body.innerHTML = `<h2>Choose your class</h2><div class="grid cols3">
+    body.innerHTML = `<h2>${label("ui.creator.choose_your_class")}</h2><div class="grid cols3">
       ${rules.classes.map(c => `
         <div class="card selectable ${draft.className === c.id ? 'selected' : ''}" data-class="${c.id}">
-          <h3 style="margin-bottom:2px;">${c.name} <span class="muted small">d${c.hitDie} · ${c.primary.toUpperCase()}</span></h3>
-          <p class="small muted">${esc(c.blurb)}</p>
-          <ul class="trait-list">${(c.features || []).filter(f => f.level <= 2).map(f => `<li><b>${f.name}</b> <span class="muted">(lv ${f.level})</span></li>`).join('')}</ul>
-          ${c.spellcasting ? `<div class="chip blue">${c.spellcasting.cantrips ? c.spellcasting.cantrips + ' cantrips · ' : ''}spellcaster (${c.spellcasting.ability.toUpperCase()})</div>` : ''}
+          <h3 style="margin-bottom:2px;">${contentLabel(c,"name")} <span class="muted small">d${c.hitDie} · ${c.primary.toUpperCase()}</span></h3>
+          <p class="small muted">${contentLabel(c,"blurb")}</p>
+          <ul class="trait-list">${(c.features || []).filter(f => f.level <= 2).map(f => `<li><b>${contentLabel(f,"name")}</b> <span class="muted">${label("ui.creator.lv_values", {p1: f.level})}</span></li>`).join('')}</ul>
+          ${c.spellcasting ? `<div class="chip blue">${c.spellcasting.cantrips ? label("ui.creator.cantripCount", { count: c.spellcasting.cantrips }) : ""}${label("ui.creator.caster", { ability: c.spellcasting.ability.toUpperCase() })}</div>` : ''}
         </div>`).join('')}
     </div>
     <div id="classOptions"></div>`;
@@ -207,26 +212,26 @@ export async function creatorView(main) {
     const sc = cls.spellcasting;
     container.innerHTML = `
       ${cls.fightingStyles ? `
-      <div class="card" style="margin-top:12px;"><h3>Fighting Style</h3>
-        <select id="styleSel"><option value="">— choose —</option>
-          ${cls.fightingStyles.map(s => `<option value="${s}" ${draft.fightingStyle === s ? 'selected' : ''}>${styleName(s)}</option>`).join('')}
+      <div class="card" style="margin-top:12px;"><h3>${label("ui.creator.fighting_style")}</h3>
+        <select id="styleSel"><option value="">${esc(t("ui.creator.choose"))}</option>
+          ${cls.fightingStyles.map(s => `<option value="${s}" data-i18n="content.style.${s}" ${draft.fightingStyle === s ? 'selected' : ''}>${esc(styleName(s))}</option>`).join('')}
         </select></div>` : ''}
       ${cls.invocations ? `
-      <div class="card" style="margin-top:12px;"><h3>Eldritch Invocations — pick 2</h3>
+      <div class="card" style="margin-top:12px;"><h3>${label("ui.creator.eldritch_invocations_pick_2")}</h3>
         ${cls.invocations.map(i => `<label style="display:block; margin:4px 0; color:var(--text);">
-          <input type="checkbox" data-invoc="${i.id}" ${draft.invocations.includes(i.id) ? 'checked' : ''} style="width:auto"> <b>${i.name}</b> <span class="muted small">— ${esc(i.desc)}</span></label>`).join('')}
+          <input type="checkbox" data-invoc="${i.id}" ${draft.invocations.includes(i.id) ? 'checked' : ''} style="width:auto"> <b>${contentLabel(i,"name")}</b> <span class="muted small">— ${contentLabel(i,"desc")}</span></label>`).join('')}
       </div>` : ''}
       ${sc && sc.cantrips ? `
-      <div class="card" style="margin-top:12px;"><h3>Cantrips — pick ${sc.cantrips}</h3>
+      <div class="card" style="margin-top:12px;"><h3>${label("ui.creator.cantrips_pick_values", {p0: sc.cantrips})}</h3>
         <div class="grid" style="grid-template-columns:1fr 1fr;">
         ${cantripList.map(s => `<label style="display:block; color:var(--text); margin:3px 0;">
-          <input type="checkbox" data-cantrip="${s.id}" ${draft.cantrips.includes(s.id) ? 'checked' : ''} style="width:auto"> <b>${s.name}</b> <span class="muted small">— ${esc(s.desc)}</span></label>`).join('')}
+          <input type="checkbox" data-cantrip="${s.id}" ${draft.cantrips.includes(s.id) ? 'checked' : ''} style="width:auto"> <b>${contentLabel(s,"name")}</b> <span class="muted small">— ${contentLabel(s,"desc")}</span></label>`).join('')}
         </div></div>` : ''}
       ${sc && (sc.spellsKnown || sc.type === 'prepared') ? `
-      <div class="card" style="margin-top:12px;"><h3>First-level spells — pick ${sc.spellsKnown || 3}</h3>
+      <div class="card" style="margin-top:12px;"><h3>${label("ui.creator.first_level_spells_pick_values", {p0: sc.spellsKnown || 3})}</h3>
         <div class="grid" style="grid-template-columns:1fr 1fr;">
         ${spellList.map(s => `<label style="display:block; color:var(--text); margin:3px 0;">
-          <input type="checkbox" data-spell="${s.id}" ${draft.spells.includes(s.id) ? 'checked' : ''} style="width:auto"> <b>${s.name}</b> <span class="muted small">— ${esc(s.desc)}</span></label>`).join('')}
+          <input type="checkbox" data-spell="${s.id}" ${draft.spells.includes(s.id) ? 'checked' : ''} style="width:auto"> <b>${contentLabel(s,"name")}</b> <span class="muted small">— ${contentLabel(s,"desc")}</span></label>`).join('')}
         </div></div>` : ''}
     `;
     const styleSel = document.getElementById('styleSel');
@@ -249,19 +254,19 @@ export async function creatorView(main) {
 
   // ---------------- step 4: background ----------------
   function stepBackground(body) {
-    body.innerHTML = `<h2>Choose your background</h2><p class="small muted">Your past grants ability score increases (+2 and +1 from its three abilities, or +1 to all three), two skills, tools, and an origin feat.</p>
+    body.innerHTML = `<h2>${label("ui.creator.choose_your_background")}</h2><p class="small muted">${label("ui.creator.your_past_grants_ability_score_increases_2")}</p>
       <div class="grid cols3">
       ${rules.backgrounds.map(b => `
         <div class="card selectable ${draft.background === b.id ? 'selected' : ''}" data-bg="${b.id}">
-          <h3 style="margin-bottom:2px;">${b.name}</h3>
-          <p class="small muted">${esc(b.blurb)}</p>
+          <h3 style="margin-bottom:2px;">${contentLabel(b,"name")}</h3>
+          <p class="small muted">${contentLabel(b,"blurb")}</p>
           <div style="margin-top:6px;">
             <span class="chip">${b.abilities.map(a => a.toUpperCase()).join(' +2/+1')}</span>
           </div>
           <ul class="trait-list">
-            <li><b>Skills:</b> ${b.skills.map(skillName).join(', ')}</li>
-            <li><b>Feat:</b> ${esc(b.featNote)}</li>
-            <li><b>Tools:</b> ${esc(b.tools)}</li>
+            <li><b>${label("ui.creator.skills_2")}</b> ${b.skills.map(s=>label('content.skill.'+s)).join(', ')}</li>
+            <li><b>${label("ui.creator.feat")}</b> ${displayLabel(b.featNoteDisplay,b.featNote)}</li>
+            <li><b>${label("ui.creator.tools")}</b> ${displayLabel(b.toolsDisplay,b.tools)}</li>
           </ul>
         </div>`).join('')}
       </div>
@@ -279,16 +284,16 @@ export async function creatorView(main) {
     if (!bg) { container.innerHTML = ''; return; }
     container.innerHTML = `
       <div class="card" style="margin-top:12px;">
-        <h3>Ability Score Increases</h3>
+        <h3>${label("ui.creator.ability_score_increases")}</h3>
         <div class="grid" style="grid-template-columns:1fr 1fr;">
-          <div class="field"><label>+2 to…</label>
-            <select id="plus2"><option value="">—</option>${bg.abilities.map(a => `<option value="${a}" ${draft.bgPlus2 === a ? 'selected' : ''}>${ABIL_NAMES[a]}</option>`).join('')}</select></div>
-          <div class="field"><label>+1 to…</label>
-            <select id="plus1"><option value="">—</option><option value="all3" ${draft.bgPlus1 === 'all3' ? 'selected' : ''}>+1 to all three</option>${bg.abilities.filter(a => a !== draft.bgPlus2).map(a => `<option value="${a}" ${draft.bgPlus1 === a ? 'selected' : ''}>${ABIL_NAMES[a]}</option>`).join('')}</select></div>
+          <div class="field"><label>${label("ui.creator.2_to")}</label>
+            <select id="plus2"><option value="">—</option>${bg.abilities.map(a => `<option value="${a}" ${draft.bgPlus2 === a ? 'selected' : ''} data-i18n="${ABIL_NAMES[a]}">${esc(t(ABIL_NAMES[a]))}</option>`).join('')}</select></div>
+          <div class="field"><label>${label("ui.creator.1_to")}</label>
+            <select id="plus1"><option value="">—</option><option value="all3" ${draft.bgPlus1 === 'all3' ? 'selected' : ''} data-i18n="ui.creator.1_to_all_three">${esc(t("ui.creator.1_to_all_three"))}</option>${bg.abilities.filter(a => a !== draft.bgPlus2).map(a => `<option value="${a}" ${draft.bgPlus1 === a ? 'selected' : ''} data-i18n="${ABIL_NAMES[a]}">${esc(t(ABIL_NAMES[a]))}</option>`).join('')}</select></div>
         </div>
         ${rules.feats[bg.feat] && rules.feats[bg.feat].extraSkillPicks ? `
-        <div class="field"><label>${rules.feats[bg.feat].name}: pick ${rules.feats[bg.feat].extraSkillPicks} extra skills</label>
-          <select id="extraSkills" multiple size="6">${Object.keys(SKILL_MAP).map(s => `<option value="${s}" ${draft.extraSkills.includes(s) ? 'selected' : ''}>${skillName(s)}</option>`).join('')}</select></div>` : ''}
+        <div class="field"><label>${label("ui.creator.pick_extra_skills_values", {p0: (rules.feats[bg.feat].nameDisplay || rules.feats[bg.feat].name), p1: rules.feats[bg.feat].extraSkillPicks})}</label>
+          <select id="extraSkills" multiple size="6">${Object.keys(SKILL_MAP).map(s => `<option value="${s}" data-i18n="content.skill.${s}" ${draft.extraSkills.includes(s) ? 'selected' : ''}>${esc(skillName(s))}</option>`).join('')}</select></div>` : ''}
       </div>`;
     document.getElementById('plus2').addEventListener('change', e => { draft.bgPlus2 = /** @type {HTMLSelectElement} */ (e.target).value || null; if (draft.bgPlus1 === draft.bgPlus2) draft.bgPlus1 = null; renderBgOptions(container); refreshPreview(); });
     document.getElementById('plus1').addEventListener('change', e => { draft.bgPlus1 = /** @type {HTMLSelectElement} */ (e.target).value || null; refreshPreview(); });
@@ -300,17 +305,17 @@ export async function creatorView(main) {
   function stepAbilities(body) {
     body.innerHTML = `
       <div class="card">
-        <h2>Ability Scores</h2>
+        <h2>${label("ui.creator.ability_scores")}</h2>
         <div class="field">
-          <label>Method</label>
+          <label>${label("ui.creator.method")}</label>
           <select id="method">
-            <option value="array" ${draft.method === 'array' ? 'selected' : ''}>Standard array (15, 14, 13, 12, 10, 8)</option>
-            <option value="roll" ${draft.method === 'roll' ? 'selected' : ''}>Roll 4d6, drop lowest</option>
-            <option value="buy" ${draft.method === 'buy' ? 'selected' : ''}>Point buy (27 points)</option>
+            <option value="array" ${draft.method === 'array' ? 'selected' : ''} data-i18n="ui.creator.standard_array_15_14_13_12_10">${esc(t("ui.creator.standard_array_15_14_13_12_10"))}</option>
+            <option value="roll" ${draft.method === 'roll' ? 'selected' : ''} data-i18n="ui.creator.roll_4d6_drop_lowest">${esc(t("ui.creator.roll_4d6_drop_lowest"))}</option>
+            <option value="buy" ${draft.method === 'buy' ? 'selected' : ''} data-i18n="ui.creator.point_buy_27_points">${esc(t("ui.creator.point_buy_27_points"))}</option>
           </select>
         </div>
         <div id="rollRow" style="margin: 8px 0;"></div>
-        <p class="small muted">Assign each score to an ability. Background bonuses are applied on top (see preview).</p>
+        <p class="small muted">${label("ui.creator.assign_each_score_to_an_ability_background")}</p>
         <div class="ability-grid" style="margin-top:10px;">
         ${ABILS.map(k => `
           <div class="ability-box">
@@ -325,9 +330,7 @@ export async function creatorView(main) {
         <p class="small muted" id="buyInfo" style="margin-top:8px;"></p>
       </div>`;
     const refreshValues = () => {
-      document.getElementById('buyInfo').textContent = draft.method === 'buy'
-        ? `Points spent: ${pointCost()} / 27 (costs: 8→0, 9→1, 10→2, 11→3, 12→4, 13→5, 14→7, 15→9)`
-        : '';
+      localizeText(document.getElementById('buyInfo'), () => draft.method === 'buy' ? t('ui.creator.points', { points: pointCost() }) : '');
       refreshPreview();
     };
     document.getElementById('method').addEventListener('change', e => {
@@ -339,8 +342,8 @@ export async function creatorView(main) {
     });
     const rollRow = document.getElementById('rollRow');
     if (draft.method === 'roll') {
-      rollRow.innerHTML = `<button class="btn small" id="rerollBtn">🎲 Re-roll (4d6 drop lowest ×6)</button>
-        <span class="small muted" style="margin-left:8px;">Current roll: ${ABILS.map(k => draft.baseScores[k]).join(', ')}</span>`;
+      rollRow.innerHTML = `<button class="btn small" id="rerollBtn">${label("ui.creator.re_roll_4d6_drop_lowest_6")}</button>
+        <span class="small muted" style="margin-left:8px;">${label("ui.creator.currentRoll")}${ABILS.map(k => draft.baseScores[k]).join(", ")}</span>`;
       document.getElementById('rerollBtn').addEventListener('click', () => { draft.baseScores = roll4d6(); render(); });
     }
     refreshValues();
@@ -382,15 +385,15 @@ export async function creatorView(main) {
   // ---------------- step 6: equipment ----------------
   function stepEquipment(body) {
     const cls = rules.classes.find(c => c.id === draft.className);
-    body.innerHTML = `<h2>Starting equipment</h2><p class="small muted">You also carry 2 Potions of Healing and 50 gold pieces${draft.background === 'crafter' ? ' (Crafter adds 2 more potions)' : ''}.</p>
+    body.innerHTML = `<h2>${label("ui.creator.starting_equipment")}</h2><p class="small muted">${label("ui.creator.startingItems")}${draft.background === 'crafter' ? label("ui.creator.crafter_adds_2_more_potions") : ''}.</p>
       <div class="grid cols2">
-        <div><h3>Armor</h3><div class="grid">
+        <div><h3>${label("ui.creator.armor")}</h3><div class="grid">
           ${(cls.armorOptions || []).map(o => `<div class="card selectable ${draft.armorOption === o.id ? 'selected' : ''}" data-armor="${o.id}">
-            <b>${esc(o.label)}</b></div>`).join('')}
+            <b>${displayLabel(o.labelDisplay,o.label)}</b></div>`).join('')}
         </div></div>
-        <div><h3>Weapons</h3><div class="grid">
+        <div><h3>${label("ui.creator.weapons")}</h3><div class="grid">
           ${(cls.weaponOptions || []).map(o => `<div class="card selectable ${draft.weaponOption === o.id ? 'selected' : ''}" data-weapon="${o.id}">
-            <b>${esc(o.label)}</b></div>`).join('')}
+            <b>${displayLabel(o.labelDisplay,o.label)}</b></div>`).join('')}
         </div></div>
       </div>`;
     body.querySelectorAll('[data-armor]').forEach(el => el.addEventListener('click', () => { draft.armorOption = el.dataset.armor; render(); }));
@@ -409,8 +412,8 @@ export async function creatorView(main) {
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div>
-            <h2 style="margin-bottom:2px;">Review: ${esc(draft.name)} — Level 1 ${sp.name} ${cls.name}</h2>
-            <p class="small muted" style="margin:0;">${bg.name} background · feat: ${esc(bg.featNote)}</p>
+            <h2 style="margin-bottom:2px;">${label("ui.creator.review_level_1_values", {p0: (draft.nameDisplay || draft.name), p1: (sp.nameDisplay || sp.name), p2: (cls.nameDisplay || cls.name)})}</h2>
+            <p class="small muted" style="margin:0;">${label("ui.creator.background_feat_values", {p3: (bg.nameDisplay || bg.name), p4: bg.featNote})}</p>
           </div>
           <div style="display:flex; align-items:center; gap:8px; padding:4px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg2);">
             <span style="font-size:24px;">${{
@@ -418,18 +421,18 @@ export async function creatorView(main) {
               monk: '🥋', paladin: '⚔️', ranger: '🏹', rogue: '🗡️', sorcerer: '🔮',
               warlock: '👁️', wizard: '📜'
             }[draft.className] || '🗡️'}</span>
-            <span class="small" style="color:var(--gold);">🎨 Portrait Ready</span>
+            <span class="small" style="color:var(--gold);">${label("ui.creator.portrait_ready")}</span>
           </div>
         </div>
         <div class="ability-grid" style="margin:10px 0;">
           ${ABILS.map(k => `<div class="ability-box"><div class="abbr">${k.toUpperCase()}</div><div class="score">${a[k]}</div><div class="mod">${fmt(mod(a[k]))}</div></div>`).join('')}
         </div>
-        <div class="stat-line"><span>Hit Points</span><span>${Math.max(1, cls.hitDie + mod(a.con))} + species/feat bonuses</span></div>
-        <div class="stat-line"><span>Equipment</span><span>${esc(((cls.armorOptions || []).find(o => o.id === draft.armorOption) || {}).label || '')} · ${esc(((cls.weaponOptions || []).find(o => o.id === draft.weaponOption) || {}).label || '')}</span></div>
-        <div class="stat-line"><span>Skills</span><span>${allSkills.map(skillName).join(', ')}</span></div>
-        ${draft.cantrips.length ? `<div class="stat-line"><span>Cantrips</span><span>${draft.cantrips.map(c => (rules.spells.find(s => s.id === c) || {}).name).join(', ')}</span></div>` : ''}
-        ${draft.spells.length ? `<div class="stat-line"><span>Spells</span><span>${draft.spells.map(c => (rules.spells.find(s => s.id === c) || {}).name).join(', ')}</span></div>` : ''}
-        <p class="small muted" style="margin-top:10px;">Your hero's unique portrait will be generated on descent and can be viewed or re-rolled on the character sheet.</p>
+        <div class="stat-line"><span>${label("ui.creator.hit_points")}</span><span>${label("ui.creator.species_feat_bonuses_values", {p9: Math.max(1, cls.hitDie + mod(a.con))})}</span></div>
+        <div class="stat-line"><span>${label("ui.creator.equipment")}</span><span>${displayLabel(((cls.armorOptions || []).find(o => o.id === draft.armorOption) || {}).labelDisplay,((cls.armorOptions || []).find(o => o.id === draft.armorOption) || {}).label || '')} · ${displayLabel(((cls.weaponOptions || []).find(o => o.id === draft.weaponOption) || {}).labelDisplay,((cls.weaponOptions || []).find(o => o.id === draft.weaponOption) || {}).label || '')}</span></div>
+        <div class="stat-line"><span>${label("ui.creator.skills")}</span><span>${allSkills.map(s=>label('content.skill.'+s)).join(', ')}</span></div>
+        ${draft.cantrips.length ? `<div class="stat-line"><span>${label("ui.creator.cantrips_2")}</span><span>${draft.cantrips.map(c => (rules.spells.find(s => s.id === c) || {}).name).join(', ')}</span></div>` : ''}
+        ${draft.spells.length ? `<div class="stat-line"><span>${label("ui.creator.spells")}</span><span>${draft.spells.map(c => (rules.spells.find(s => s.id === c) || {}).name).join(', ')}</span></div>` : ''}
+        <p class="small muted" style="margin-top:10px;">${label("ui.creator.your_hero_s_unique_portrait_will_be")}</p>
       </div>`;
   }
 
@@ -437,7 +440,10 @@ export async function creatorView(main) {
     document.querySelector('.preview-panel').innerHTML = previewHtml();
   }
 
+  function refreshLocalizedText() { translateDOM(main); }
+  const stopLocale = onLocaleChange(refreshLocalizedText);
   render();
+  return navigation.onDispose(stopLocale);
 }
 
 const SKILL_MAP = {
@@ -447,9 +453,5 @@ const SKILL_MAP = {
 };
 
 function styleName(s) {
-  return {
-    archery: 'Archery (+2 to hit at range)', defense: 'Defense (+1 AC)',
-    dueling: 'Dueling (+2 damage, one-handed weapon)', great_weapon: 'Great Weapon Fighting (reroll 1s & 2s on damage)',
-    two_weapon: 'Two-Weapon Fighting (add ability mod to off-hand damage)'
-  }[s] || s;
+  return t('content.style.'+s);
 }

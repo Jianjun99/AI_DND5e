@@ -8,7 +8,9 @@ const presets = require('../game/presets');
 const router = express.Router();
 
 router.get('/', (req, res) => {
-  const chars = store.getCharacters();
+  // Playtest heroes are the authoring studio's own scratch run — never part of the roster,
+  // the continue entry or any formal statistic the player sees.
+  const chars = store.getCharacters().filter(c => c.isPlaytest !== true);
   const saves = store.listSaves();
   res.json(chars.map(c => ({
     id: c.id, name: c.name, species: c.species, className: c.className, background: c.background,
@@ -30,11 +32,11 @@ router.post('/', async (req, res) => {
   let name = String(draft.name || '').trim();
   if (draft.presetId) {
     const preset = presets.getPreset(draft.presetId);
-    if (!preset) return res.status(400).json({ error: 'Unknown presetId' });
+    if (!preset) return res.status(400).json({ error: 'Unknown presetId', errorDisplay: { key: "api.unknownPreset" } });
     base = presets.draftFor(draft.presetId);
     if (!name) name = preset.defaultName;
   }
-  if (!name) return res.status(400).json({ error: 'Name is required' });
+  if (!name) return res.status(400).json({ error: 'Name is required', errorDisplay: { key: "api.nameRequired" } });
   try {
     const char = engine.buildCharacter({ ...base, name: name.slice(0, 40) });
     char.id = store.newId('char');
@@ -57,14 +59,14 @@ router.post('/', async (req, res) => {
 
 router.get('/:id', (req, res) => {
   const char = store.getCharacters().find(c => c.id === req.params.id);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
   const view = { ...char, portraitUrl: portraits.characterPortraitUrl(char.id), levelUp: engine.levelUpInfo(char) };
   res.json(view);
 });
 
 router.post('/:id/portrait', async (req, res) => {
   const char = store.getCharacters().find(c => c.id === req.params.id);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
   try {
     const port = await portraits.ensureCharacterPortrait(char, !!(req.body && req.body.force));
     res.json(port);
@@ -76,7 +78,7 @@ router.post('/:id/portrait', async (req, res) => {
 router.put('/:id', (req, res) => {
   const chars = store.getCharacters();
   const char = chars.find(c => c.id === req.params.id);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
   if (req.body && req.body.name) char.name = String(req.body.name).trim().slice(0, 40);
   store.saveCharacters(chars);
   res.json(char);
@@ -88,7 +90,7 @@ router.put('/:id', (req, res) => {
 router.post('/:id/road-encounter', (req, res) => {
   const chars = store.getCharacters();
   const char = chars.find(c => c.id === req.params.id);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
 
   // 1. Trigger an encounter. A live instance (unresolved, or resolved but not yet
   // consumed by a delve start) is returned as-is by the engine — same instanceId, no
@@ -108,7 +110,7 @@ router.post('/:id/road-encounter', (req, res) => {
   // 3. Resolve choice (or legacy outcome parameter)
   const choice = req.body && (req.body.choice || req.body.action || req.body.outcome);
   if (!choice) {
-    return res.status(400).json({ error: 'Missing road-encounter choice' });
+    return res.status(400).json({ error: 'Missing road-encounter choice', errorDisplay: { key: "api.roadChoiceRequired" } });
   }
 
   try {
@@ -139,7 +141,7 @@ router.post('/:id/road-encounter', (req, res) => {
 router.post('/:id/equip', (req, res) => {
   const chars = store.getCharacters();
   const char = chars.find(c => c.id === req.params.id);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
   const { slot, itemId } = req.body || {};
   char.equipped = char.equipped || {};
 
@@ -148,7 +150,7 @@ router.post('/:id/equip', (req, res) => {
   } else {
     // rolled affix gear is equipped by its unique id; plain items by their catalogue id
     const inInv = (char.inventory || []).some(i => (i.itemId === itemId || i.uniqueId === itemId) && i.qty > 0);
-    if (!inInv) return res.status(400).json({ error: 'Item not in inventory' });
+    if (!inInv) return res.status(400).json({ error: 'Item not in inventory', errorDisplay: { key: "api.itemNotInInventory" } });
     char.equipped[slot] = itemId;
   }
 
@@ -241,7 +243,7 @@ const FEAT_CHOICES = [
 
 router.get('/:id/level-up-options', (req, res) => {
   const char = store.getCharacters().find(c => c.id === req.params.id);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
   const currentLvl = char.level || 1;
   const nextLvl = currentLvl + 1;
   const xpNeeded = engine.XP_THRESHOLDS[nextLvl] || null;
@@ -286,13 +288,13 @@ router.get('/:id/level-up-options', (req, res) => {
 router.post('/:id/level-up', (req, res) => {
   const chars = store.getCharacters();
   const char = chars.find(c => c.id === req.params.id);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
 
   const currentLvl = char.level || 1;
   const nextLvl = currentLvl + 1;
   const xpNeeded = engine.XP_THRESHOLDS[nextLvl];
   if (!xpNeeded || (char.xp || 0) < xpNeeded) {
-    return res.status(400).json({ error: `Not enough XP for Level ${nextLvl}. Need ${xpNeeded}, have ${char.xp || 0}.` });
+    return res.status(400).json({ error: `Not enough XP for Level ${nextLvl}. Need ${xpNeeded}, have ${char.xp || 0}.`, errorDisplay: { key: "api.levelXp", params: { level: nextLvl, need: xpNeeded, xp: char.xp || 0 } } });
   }
 
   const { hpChoice, hpRoll, subclass, featOrAsi, chosenAbilities, chosenFeat, chosenSpells } = req.body || {};
@@ -311,10 +313,10 @@ router.post('/:id/level-up', (req, res) => {
     gainedHp = Math.max(1, Math.floor(cls.hitDie / 2) + 1 + conMod);
   }
 
-  // Check extra HP per level (Tough feat or Hill Dwarf)
-  const isTough = char.feat === 'tough' || (char.unlockedFeats && char.unlockedFeats.includes('tough')) || (featOrAsi === 'feat' && chosenFeat === 'tough');
-  if (isTough) gainedHp += 2;
-  if (char.species === 'hill_dwarf') gainedHp += 1;
+  // Use the engine's species/feat bonuses. A newly selected Tough feat is applied
+  // retroactively below, including this level, rather than added twice here.
+  const hadTough = char.feat === 'tough' || (char.unlockedFeats || []).includes('tough');
+  gainedHp += engine.hpPerLevelBonus(char);
 
   // 2. Subclass
   if (nextLvl >= 3) {
@@ -339,7 +341,7 @@ router.post('/:id/level-up', (req, res) => {
       if (!char.unlockedFeats.includes(chosenFeat)) {
         char.unlockedFeats.push(chosenFeat);
       }
-      if (chosenFeat === 'tough') {
+      if (chosenFeat === 'tough' && !hadTough) {
         // Tough gives +2 HP per level retroactively
         char.hpMax = (char.hpMax || 10) + (2 * nextLvl);
       }
@@ -378,9 +380,13 @@ router.post('/:id/level-up', (req, res) => {
       if (s.characterId === char.id) {
         const saveState = store.getSave(s.id);
         if (saveState) {
+          const tempHpMod = saveState.character?.tempHpMod || 0;
           saveState.character = JSON.parse(JSON.stringify(char));
+          saveState.character.tempHpMod = tempHpMod;
+          engine.applyClassAndSpecies(saveState.character, cls, null, char.level, true);
+          saveState.character.hp = saveState.character.hpMax;
           const pe = engine.playerEntity(saveState);
-          if (pe) { pe.hpMax = char.hpMax; pe.hp = char.hp; pe.ac = char.acBase; }
+          if (pe) { pe.hpMax = saveState.character.hpMax; pe.hp = pe.hpMax; pe.ac = char.acBase; }
           store.saveGame(saveState);
         }
       }
@@ -395,7 +401,7 @@ router.delete('/:id', (req, res) => {
   let chars = store.getCharacters();
   const before = chars.length;
   chars = chars.filter(c => c.id !== req.params.id);
-  if (chars.length === before) return res.status(404).json({ error: 'Character not found' });
+  if (chars.length === before) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
   store.saveCharacters(chars);
   store.listSaves().forEach(s => { if (s.characterId === req.params.id) store.deleteSave(s.id); });
   res.json({ ok: true });

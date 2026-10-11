@@ -16,32 +16,34 @@ const ACTS = [
     objective: '潜入沉没墓穴，从祭坛上取回沉没圣物并活着回到营地。',
     blurb: '酒馆里没人愿意谈那座墓穴。你去了，而且带回了圣物——一件不该存在于日光下的东西。',
     reward: { xp: 150, gold: 50 }
-  },
+  , localized:{"en":{"name":"Act I · The Relic","mapName":"The Sunless Crypt","objective":"Enter the Sunless Crypt, recover the sacred relic from its altar, and return alive to camp.","blurb":"Nobody in the tavern would speak of the crypt. You went, and returned with something that should never have seen daylight."},"zh-CN":{"name":"第一幕 · 圣物","mapName":"无光墓穴","objective":"潜入无光墓穴，从祭坛取回圣物并活着回到营地。","blurb":"酒馆里没人愿意谈那座墓穴。你去了，带回一件不该存在于日光下的圣物。"}}},
   {
     id: 'key', act: 2, name: '第二幕 · 地窟钥匙', icon: '🗝️',
     mapIds: ['drowned-vault'], mapName: '淹没地窟',
     objective: '圣物指向墓穴之下——深入淹没地窟，击败它的守卫，取回地窟钥匙。',
     blurb: '钥匙沉在水里几百年。它打开的不是门，而是一串更深的线索。',
     reward: { xp: 250, gold: 80 }
-  },
+  , localized:{"en":{"name":"Act II · The Vault Key","mapName":"The Drowned Vault","objective":"Follow the relic beneath the crypt. Defeat the vault's guardian and recover its key.","blurb":"The key lay underwater for centuries. It opens a trail of deeper clues."},"zh-CN":{"name":"第二幕 · 地窟钥匙","mapName":"淹没地窟","objective":"圣物指向墓穴之下——深入淹没地窟，击败守卫并取回钥匙。","blurb":"钥匙沉在水里几百年。它打开的不是门，而是一串更深的线索。"}}},
   {
     id: 'clues', act: 3, name: '第三幕 · 三条线索', icon: '🧭',
     mapIds: ['howling-hills', 'sewers', 'mill'], mapName: '嚎叫丘陵 / 下水道 / 磨坊',
     objective: '钥匙上的刻痕指向三处：嚎叫丘陵的酋长、下水道的母巢、废弃磨坊的守卫。三条线索可以任意顺序取得。',
     blurb: '三条线索终于拼成一张地图——龙巢在火山的脊背上，而它的女主人已经醒了。',
     reward: { xp: 400, gold: 120 }
-  },
+  , localized:{"en":{"name":"Act III · Three Clues","mapName":"Howling Hills / Sewers / Mill","objective":"Find the hill chieftain, the sewer brood, and the abandoned mill's guardian. Recover their clues in any order.","blurb":"The clues form a map: the dragon's roost sits on a volcanic ridge, and its mistress has awakened."},"zh-CN":{"name":"第三幕 · 三条线索","mapName":"嚎叫丘陵 / 下水道 / 磨坊","objective":"刻痕指向三处：丘陵酋长、下水道母巢与废弃磨坊守卫。可按任意顺序取得线索。","blurb":"线索拼成一张地图——龙巢位于火山脊背，它的女主人已经苏醒。"}}},
   {
     id: 'queen', act: 4, name: '第四幕 · 烬后', icon: '🐉',
     mapIds: ['roost'], mapName: '阳光龙巢',
     objective: '带着三条线索登上阳光龙巢，终结 Yzmerith the Ember Queen。',
     blurb: '烬后倒下了。阳光第一次照进那座巢穴，而你的名字被写进了歌里。',
     reward: { xp: 600, gold: 200 }
-  }
+  , localized:{"en":{"name":"Act IV · The Ember Queen","mapName":"The Sun Dragon's Roost","objective":"Take the three clues to the Sun Dragon's Roost and defeat Yzmerith the Ember Queen.","blurb":"The queen falls. Sunlight enters her roost, and your name enters the songs."},"zh-CN":{"name":"第四幕 · 烬后","mapName":"日龙巢穴","objective":"带着三条线索登上日龙巢穴，击败烬后伊兹梅莉丝。","blurb":"烬后倒下，阳光第一次照进巢穴，你的名字被写进歌里。"}}}
 ];
 
 const CLUE_MAPS = { 'howling-hills': 'hills', sewers: 'sewers', mill: 'mill' };
 const CLUE_LABELS = { hills: '嚎叫丘陵的酋长', sewers: '下水道的母巢', mill: '磨坊的守卫' };
+const clueDisplay = id => ({key:'content.clue.'+id,fallback:CLUE_LABELS[id]});
+const display = (node,field) => ({localized:Object.fromEntries(['en','zh-CN'].map(locale=>[locale,node.localized[locale][field]])),fallback:node[field]});
 
 function newCampaign() {
   return {
@@ -77,16 +79,16 @@ function actDone(campaign, actId) {
 // Current objective line for the region map banner / delve HUD.
 function objective(campaign) {
   const c = ensure(campaign);
-  if (c.completedAt) return { done: true, text: '主线已完成——烬后已死，瓦尔谷重归安宁。' };
-  if (c.stage === 0) return { act: 1, text: ACTS[0].objective };
-  if (c.stage === 1) return { act: 2, text: ACTS[1].objective };
+  if (c.completedAt) return { done: true, text: '主线已完成——烬后已死，瓦尔谷重归安宁。',textDisplay:{key:'content.campaign.done'} };
+  if (c.stage === 0) return { act: 1, text: ACTS[0].objective,textDisplay:display(ACTS[0],'objective') };
+  if (c.stage === 1) return { act: 2, text: ACTS[1].objective,textDisplay:display(ACTS[1],'objective') };
   if (c.stage === 2) {
     const cl = c.acts.clues;
     const missing = Object.keys(CLUE_LABELS).filter(k => !cl[k]).map(k => CLUE_LABELS[k]).join('、');
-    return { act: 3, text: `${ACTS[2].objective}（还差：${missing}）` };
+    return { act: 3, text: `${ACTS[2].objective}（还差：${missing}）`,textDisplay:{key:'content.campaign.missing',params:{objective:display(ACTS[2],'objective'),missing:{parts:Object.keys(CLUE_LABELS).filter(k=>!cl[k]).map(clueDisplay),separator:' / '}}} };
   }
-  if (c.stage === 3) return { act: 4, text: ACTS[3].objective };
-  return { done: true, text: '主线已完成。' };
+  if (c.stage === 3) return { act: 4, text: ACTS[3].objective,textDisplay:display(ACTS[3],'objective') };
+  return { done: true, text: '主线已完成。',textDisplay:{key:'content.campaign.done'} };
 }
 
 function progress(campaign) {
@@ -97,6 +99,7 @@ function progress(campaign) {
     total: 4,
     cluesDone: cluesDone(c),
     cluesTotal: Object.keys(CLUE_LABELS).length,
+    labelDisplay: c.completedAt ? { key: 'guidance.complete.label' } : null,
     label: c.completedAt ? '主线完成' : `${Math.min(stage + (stage < 3 ? 1 : 0), 4)}/4`
   };
 }
@@ -125,7 +128,7 @@ function advance(campaign, mapId, opts = {}) {
   if (c.stage === 2 && CLUE_MAPS[mapId]) {
     const clue = CLUE_MAPS[mapId];
     if (c.acts.clues[clue]) {
-      return { advanced: false, campaign: c, reason: 'already_done', text: `${CLUE_LABELS[clue]} 已经记录在案。` };
+      return { advanced: false, campaign: c, reason: 'already_done', text: `${CLUE_LABELS[clue]} 已经记录在案。`,textDisplay:{key:'content.campaign.recorded',params:{clue:clueDisplay(clue)}} };
     }
     c.acts.clues[clue] = true;
     const remaining = cluesDone(c);
@@ -135,7 +138,7 @@ function advance(campaign, mapId, opts = {}) {
     }
     return {
       advanced: true, act: 3, partial: true, campaign: c,
-      text: `线索 ${remaining}/3 已确认：${CLUE_LABELS[clue]}。`
+      text: `线索 ${remaining}/3 已确认：${CLUE_LABELS[clue]}。`,textDisplay:{key:'content.campaign.clue',params:{count:remaining,clue:clueDisplay(clue)}}
     };
   }
   // Act 4
@@ -157,6 +160,7 @@ function finish(c, act, opts) {
     actId: act.id,
     actName: act.name,
     text: `${act.name} 完成 — ${act.blurb}`,
+    textDisplay:{key:'content.campaign.finish',params:{name:display(act,'name'),blurb:display(act,'blurb')}},
     reward,
     completed: !!opts.completed || c.stage >= 4,
     campaign: c

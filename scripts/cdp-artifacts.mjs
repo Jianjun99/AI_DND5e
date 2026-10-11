@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-function request(ws, id, method, params = {}, timeoutMs = 2500) {
+// CPU-capped software WebGL can delay even Page.enable/DOM replies while drawing.
+// Keep capture bounded and diagnostic, but allow the same scheduling as the suites.
+function request(ws, id, method, params = {}, timeoutMs = 10000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => finish(new Error('CDP artifact request timed out: ' + method)), timeoutMs);
     function finish(error, value) {
@@ -21,7 +23,7 @@ function request(ws, id, method, params = {}, timeoutMs = 2500) {
   });
 }
 
-export async function captureBrowserArtifacts(prefix, ports = [9224, 9225, 9226, 9227, 9228, 9229]) {
+export async function captureBrowserArtifacts(prefix, ports = [9224, 9225, 9226, 9227, 9228, 9229, 9231, 9232, 9233, 9234, 9235, 9236, 9237, 9238, 9239, 9240]) {
   const directory = process.env.VERIFY_ARTIFACT_DIR;
   if (!directory) return;
   const output = path.join(directory, 'screenshots');
@@ -41,16 +43,23 @@ export async function captureBrowserArtifacts(prefix, ports = [9224, 9225, 9226,
           ws.addEventListener('error', () => { clearTimeout(timer); reject(new Error('CDP connection failed')); }, { once: true });
         });
         const file = path.join(output, prefix + '-' + port + '-' + index);
-        await request(ws, 1, 'Page.enable');
+        // These connections only request snapshots; they never consume Page
+        // notifications. No Page.enable subscription is needed for either read.
         // Software WebGL under the CPU cap can need several seconds to produce
         // its first surface. Give screenshot capture more time than a DOM probe.
-        const shot = await request(ws, 2, 'Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }, 8000);
+        // PNG remains lossless. Avoid expensive compression on software-rendered
+        // desktop captures, and read the DOM while the compositor produces it.
+        const captureStarted = performance.now();
+        const [shot, dom] = await Promise.all([
+          request(ws, 2, 'Page.captureScreenshot', { format: 'png', captureBeyondViewport: false, optimizeForSpeed: true }, 20000),
+          request(ws, 3, 'Runtime.evaluate', {
+            expression: '({ url: location.href, html: document.documentElement.outerHTML })', returnByValue: true
+          })
+        ]);
+        const captureMs = Math.round(performance.now() - captureStarted);
         fs.writeFileSync(file + '.png', Buffer.from(shot.data, 'base64'));
-        const dom = await request(ws, 3, 'Runtime.evaluate', {
-          expression: '({ url: location.href, html: document.documentElement.outerHTML })', returnByValue: true
-        });
         fs.writeFileSync(file + '.json', JSON.stringify(dom, null, 2));
-        diagnostics.push({ port, url: page.url, screenshot: file + '.png' });
+        diagnostics.push({ port, url: page.url, screenshot: file + '.png', captureMs });
         ws.close();
       }
     } catch (error) {

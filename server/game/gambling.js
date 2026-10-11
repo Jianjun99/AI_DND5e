@@ -1,3 +1,4 @@
+const presentation = require("./presentation");
 // gambling.js — Oakhaven gambling tables (roulette, sic bo, slot machine).
 //
 // All odds are the real-table odds, so the house edge is authentic rather than invented:
@@ -34,6 +35,7 @@ function rouletteColor(n) {
 }
 
 // Pure: does this spin win the bet? Returns the NET gold change for a stake.
+/** @returns {{game:string,won?:boolean,delta:number,text:string,messageKey?:string,params?:Record<string,any>,payout?:number,prizeTokens?:string[],potionDrop?:{tier:string,count:number},curse?:string,[key:string]:any}} */
 function evalRoulette(bet, stake, spin) {
   const number = spin;
   const color = rouletteColor(number);
@@ -48,10 +50,11 @@ function evalRoulette(bet, stake, spin) {
   return {
     game: 'roulette', number, color, won, odds,
     delta: won ? stake * odds : -stake,
-    text: `轮盘停在 ${number}（${color === 'green' ? '绿' : color === 'red' ? '红' : '黑'}）— ${won ? `赢了 ${stake * odds} gp` : `输了 ${stake} gp`}。`
+    ...presentation.eventMessage("event.gambling.evalRoulette.1",[number,(color === 'green' ? presentation.eventMessage("event.gambling.evalRoulette.2",[],["绿"]) : (color === 'red' ? presentation.eventMessage("event.gambling.evalRoulette.3",[],["红"]) : presentation.eventMessage("event.gambling.evalRoulette.4",[],["黑"]))),(won ? presentation.eventMessage("event.gambling.evalRoulette.5",[stake * odds],["赢了 "," gp"]) : presentation.eventMessage("event.gambling.evalRoulette.6",[stake],["输了 "," gp"]))],["轮盘停在 ","（","）— ","。"])
   };
 }
 
+/** @returns {{game:string,won?:boolean,delta:number,text:string,messageKey?:string,params?:Record<string,any>,payout?:number,prizeTokens?:string[],potionDrop?:{tier:string,count:number},curse?:string,[key:string]:any}} */
 function evalSicBo(bet, stake, dice) {
   const [a, b, c] = dice;
   const total = a + b + c;
@@ -65,7 +68,7 @@ function evalSicBo(bet, stake, dice) {
   return {
     game: 'sicbo', dice, total, triple, won, odds,
     delta: won ? stake * odds : -stake,
-    text: `骰子 ${a} + ${b} + ${c} = ${total}${triple ? '（豹子！）' : ''} — ${won ? `赢了 ${stake * odds} gp` : `输了 ${stake} gp`}。`
+    ...presentation.eventMessage("event.gambling.evalSicBo.7",[a,b,c,total,(triple ? presentation.eventMessage("event.gambling.evalSicBo.8",[],["（豹子！）"]) : presentation.eventMessage("event.gambling.evalSicBo.9",[],[""])),(won ? presentation.eventMessage("event.gambling.evalSicBo.10",[stake * odds],["赢了 "," gp"]) : presentation.eventMessage("event.gambling.evalSicBo.11",[stake],["输了 "," gp"]))],["骰子 "," + "," + "," = ",""," — ","。"])
   };
 }
 
@@ -101,6 +104,7 @@ const SLOT_TIERS = {
 };
 
 // Pure evaluation of a symbol result.
+/** @returns {{game:string,won?:boolean,delta:number,text:string,messageKey?:string,params?:Record<string,any>,payout?:number,prizeTokens?:string[],potionDrop?:{tier:string,count:number},curse?:string,[key:string]:any}} */
 function evalSlots(tier, symbols) {
   const t = SLOT_TIERS[tier] || SLOT_TIERS.standard;
   const [a, b, c] = symbols;
@@ -110,31 +114,29 @@ function evalSlots(tier, symbols) {
   const pair = !triple && Math.max(...Object.values(counts)) >= 2;
   const out = {
     game: 'slots', tier: t.id, stake: t.stake, symbols, triple, pair,
-    payout: 0, delta: -t.stake, prizeTokens: [], potionDrop: null, curse: null, text: ''
+    payout: 0, delta: -t.stake, prizeTokens: [], potionDrop: null, curse: null, ...presentation.eventMessage("event.gambling.evalSlots.12",[],[""])
   };
   const icons = symbols.map(s => (SLOT_SYMBOLS.find(x => x.id === s) || SLOT_SYMBOLS[0]).icon).join(' ');
   if (triple) {
     if (a === 'coin') {
       out.payout = t.pay.coinTriple;
-      out.text = `${icons} — 三枚钱币！赢得 ${t.pay.coinTriple} gp。`;
+      Object.assign(out,presentation.eventMessage("content.slots.coin",[icons,t.pay.coinTriple],[""," — 三枚钱币！赢得 "," gp。"]));
     } else if (a === 'skull') {
       out.curse = t.curseOnSkull ? 'rolled' : null;
-      out.text = t.curseOnSkull
-        ? `${icons} — 三个骷髅！恶魔记下了你的名字……`
-        : `${icons} — 三个骷髅。庄家笑了。`;
+      Object.assign(out,presentation.eventMessage(t.curseOnSkull?'content.slots.curse':'content.slots.skull',[icons],t.curseOnSkull?['',' — 三个骷髅！恶魔记下了你的名字……']:['',' — 三个骷髅。庄家笑了。']));
     } else if (a === 'potion') {
       out.potionDrop = t.potionDrop;
-      out.text = `${icons} — 三瓶药！获得 ${t.potionDrop.count} 瓶随机魔药。`;
+      Object.assign(out,presentation.eventMessage("content.slots.potion",[icons,t.potionDrop.count],[""," — 三瓶药！获得 "," 瓶随机魔药。"]));
     } else {
       out.prizeTokens = t.prizes[a] || [];
       const names = out.prizeTokens.map(id => (potions.DELVE_TOKENS[id] || {}).name || id).join('、');
-      out.text = `${icons} — 三同！获得奖励：${names}。`;
+      Object.assign(out,presentation.eventMessage("content.slots.prize",[icons,{parts:out.prizeTokens.map(id=>presentation.name(potions.DELVE_TOKENS[id])),separator:', ',fallback:names}],[""," — 三同！获得奖励：","。"]));
     }
   } else if (pair) {
     out.payout = t.pay.pair;
-    out.text = `${icons} — 一对！赢得 ${t.pay.pair} gp。`;
+    Object.assign(out,presentation.eventMessage("content.slots.pair",[icons,t.pay.pair],[""," — 一对！赢得 "," gp。"]));
   } else {
-    out.text = `${icons} — 什么也没有。`;
+    Object.assign(out,presentation.eventMessage("content.slots.none",[icons],[""," — 什么也没有。"]));
   }
   out.delta = out.payout - t.stake;   // net gold change, same convention as the other tables
   return out;
@@ -159,17 +161,19 @@ const GAMBLE_CURSES = {
   frailty: {
     id: 'frailty', name: '衰朽之咒',
     desc: '本场地牢最大生命 -5',
+    localized:{en:{name:'Curse of Frailty',desc:'−5 max HP this delve'},'zh-CN':{name:'衰朽之咒',desc:'本场地牢最大生命 -5'}},
     apply: ({ engine, state, events }) => {
       engine.adjustTempHp(state, -5, events, 'the curse');
-      events.push({ type: 'curse', narrate: true, text: 'The house marks you: -5 max HP for this delve.' });
+      events.push({ type: 'curse', narrate: true, ...presentation.eventMessage("event.gambling.handler.13",[],["The house marks you: -5 max HP for this delve."]) });
     }
   },
   unrest: {
     id: 'unrest', name: '不安之咒',
     desc: '本场地牢少一段休息',
+    localized:{en:{name:'Curse of Unrest',desc:'One fewer rest this delve'},'zh-CN':{name:'不安之咒',desc:'本场地牢少一段休息'}},
     apply: ({ engine, state, events }) => {
       engine.blockRest(state, 1);
-      events.push({ type: 'curse', narrate: true, text: 'Something follows you out of the tavern: one rest lost this delve.' });
+      events.push({ type: 'curse', narrate: true, ...presentation.eventMessage("event.gambling.handler.14",[],["Something follows you out of the tavern: one rest lost this delve."]) });
     }
   }
 };

@@ -18,9 +18,16 @@ fs.writeFileSync(path.join(process.env.DATA_DIR, 'settings.json'), JSON.stringif
   llm: { enabled: false, baseUrl: '', apiKey: '', model: '' },
   portraits: { enabled: false, sdUrl: '' }
 }));
-const seconds = Number(process.env.VERIFY_TIMEOUT_SECONDS || 900);
+const defaultSeconds = process.env.VERIFY_QUICK === '1' ? 900 : 1800;
+const seconds = Number(process.env.VERIFY_TIMEOUT_SECONDS || defaultSeconds);
 if (!Number.isFinite(seconds) || seconds <= 0) throw new Error('Invalid verification timeout');
-const proc = spawn('npm', ['run', 'verify'], { stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+// VERIFY_QUICK=1 selects the fail-fast partial dev check; the acceptance run
+// stays `npm run verify`. Both share this entrypoint's isolation plumbing.
+const npmScript = process.env.VERIFY_QUICK === '1' ? 'check' : 'verify';
+const runStarted = Date.now();
+const quickArgs = process.env.VERIFY_QUICK === '1' && process.env.VERIFY_QUICK_BROWSERS
+  ? ['--', '--browsers=' + process.env.VERIFY_QUICK_BROWSERS] : [];
+const proc = spawn('npm', ['run', npmScript, ...quickArgs], { stdio: ['ignore', 'pipe', 'pipe'], detached: true });
 const logPath = path.join(directory, 'container.log');
 const tee = data => { fs.appendFileSync(logPath, data); process.stdout.write(data); };
 proc.stdout.on('data', tee);
@@ -50,5 +57,5 @@ const exitCode = await new Promise(resolve => {
 });
 clearTimeout(timer);
 clearTimeout(killTimer);
-fs.writeFileSync(path.join(directory, 'container-result.json'), JSON.stringify({ exitCode, timeout: forcedCode === 124 }, null, 2));
+fs.writeFileSync(path.join(directory, 'container-result.json'), JSON.stringify({ exitCode, timeout: forcedCode === 124, seconds: Number(((Date.now() - runStarted) / 1000).toFixed(2)) }, null, 2));
 process.exitCode = exitCode;

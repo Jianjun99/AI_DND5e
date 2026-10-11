@@ -1,0 +1,30 @@
+{
+  "monsters": [
+    {
+      "id": "hollow_hound",
+      "name": "Hollow Hound",
+      "xp": 50,
+      "ac": 13,
+      "hp": "2d8+2",
+      "speed": 40,
+      "darkvision": 60,
+      "abilities": { "str": 12, "dex": 15, "con": 12, "int": 3, "wis": 12, "cha": 6 },
+      "attacks": [
+        {
+          "name": "Bite",
+          "bonus": 4,
+          "range": 5,
+          "damage": "1d6+2",
+          "damageType": "piercing",
+          "localized": { "en": { "name": "Bite" }, "zh-CN": { "name": "啮咬" } }
+        }
+      ],
+      "blurb": "A lean hound of the hollows, ribs showing under bristled fur, drawn by the smell of supplies.",
+      "loot": { "gold": "1d4" },
+      "localized": {
+        "en": { "name": "Hollow Hound", "blurb": "A lean hound of the hollows, ribs showing under bristled fur, drawn by the smell of supplies." },
+        "zh-CN": { "name": "谷中猎犬", "blurb": "谷地里瘦骨嶙峋的猎犬，炸起的毛下肋骨分明，循着补给的气味而来。" }
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 // api.js — thin fetch wrappers
+import { getLocale, displayText, rememberDefinitions } from './i18n.js';
 
 /**
  * Options for POST /api/game/start. The server validates every field and falls back to
@@ -14,17 +15,40 @@
 async function req(method, url, body) {
   const res = await fetch(url, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: { 'X-Game-Locale': getLocale(), ...(body ? { 'Content-Type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (url === '/api/rules') for (const kind of ['species','classes','backgrounds','feats','weapons','armor','spells','gear','allies','shop']) rememberDefinitions(kind,data[kind]);
+  if (!res.ok) {
+    const error = new Error(displayText(data.errorDisplay, data.error || `HTTP ${res.status}`));
+    Object.assign(error, { display: data.errorDisplay, diagnostics:data.diagnostics });
+    if (data.errorDisplay) Object.defineProperty(error, 'message', {
+      configurable: true, get: () => displayText(data.errorDisplay, data.error)
+    });
+    throw error;
+  }
   return data;
 }
 
 export const api = {
   rules: () => req('GET', '/api/rules'),
   health: () => req('GET', '/api/health'),
+  locale: () => req('GET', '/api/locale'),
+  content: () => req('GET', '/api/content'),
+  importContent: data => req('POST', '/api/content/import', data),
+  visuals: () => req('GET','/api/content/visuals'),
+  setVisual: data => req('PUT','/api/content/visuals',data),
+  deletePack: id => req('DELETE','/api/content/pack/'+encodeURIComponent(id)),
+  listDrafts: () => req('GET', '/api/content/drafts'),
+  getDraft: (id) => req('GET', `/api/content/drafts/${encodeURIComponent(id)}`),
+  cloneDraft: (data) => req('POST', '/api/content/drafts/clone', data),
+  saveDraft: (id, draft) => req('PUT', `/api/content/drafts/${encodeURIComponent(id)}`, { draft }),
+  deleteDraft: (id) => req('DELETE', `/api/content/drafts/${encodeURIComponent(id)}`),
+  validateDraft: (id) => req('POST', `/api/content/drafts/${encodeURIComponent(id)}/validate`),
+  installDraft: (id) => req('POST', `/api/content/drafts/${encodeURIComponent(id)}/install`),
+  playtestDraft: (id, data) => req('POST', `/api/content/drafts/${encodeURIComponent(id)}/playtest`, data),
+  exitPlaytest: (id, saveId) => req('POST', `/api/content/drafts/${encodeURIComponent(id)}/playtest/exit`, { saveId }),
 
   listCharacters: () => req('GET', '/api/characters'),
   createCharacter: (draft) => req('POST', '/api/characters', draft),

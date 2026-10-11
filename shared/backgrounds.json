@@ -1,162 +1,592 @@
 {
   "backgrounds": [
     {
-      "id": "acolyte", "name": "Acolyte",
+      "id": "acolyte",
+      "name": "Acolyte",
       "blurb": "You devoted yourself to service in a temple, learning rites and dogma.",
-      "abilities": ["int", "wis", "cha"],
+      "abilities": [
+        "int",
+        "wis",
+        "cha"
+      ],
       "feat": "magic_initiate_cleric",
-      "skills": ["insight", "religion"],
+      "skills": [
+        "insight",
+        "religion"
+      ],
       "tools": "Calligrapher's Tools",
-      "featNote": "Magic Initiate (Cleric): 2 cleric cantrips + 1 first-level cleric spell (1/Long Rest)."
+      "featNote": "Magic Initiate (Cleric): 2 cleric cantrips + 1 first-level cleric spell (1/Long Rest).",
+      "localized": {
+        "en": {
+          "name": "Acolyte",
+          "blurb": "You devoted yourself to service in a temple, learning rites and dogma."
+        },
+        "zh-CN": {
+          "name": "侍僧",
+          "blurb": "你曾在神殿中侍奉，学习仪式与教义。"
+        }
+      }
     },
     {
-      "id": "artisan", "name": "Artisan",
+      "id": "artisan",
+      "name": "Artisan",
       "blurb": "You spent years learning a craft, gaining expertise with tools of the trade.",
-      "abilities": ["str", "dex", "int"],
+      "abilities": [
+        "str",
+        "dex",
+        "int"
+      ],
       "feat": "crafter",
-      "skills": ["investigation", "persuasion"],
+      "skills": [
+        "investigation",
+        "persuasion"
+      ],
       "tools": "Artisan's Tools",
-      "featNote": "Crafter: You begin with two extra healing potions and a knack for quick repairs."
+      "featNote": "Crafter: You begin with two extra healing potions and a knack for quick repairs.",
+      "localized": {
+        "en": {
+          "name": "Artisan",
+          "blurb": "You spent years learning a craft, gaining expertise with tools of the trade."
+        },
+        "zh-CN": {
+          "name": "工匠",
+          "blurb": "你多年钻研一门手艺，熟悉所用工具。"
+        }
+      }
     },
     {
-      "id": "charlatan", "name": "Charlatan",
+      "id": "charlatan",
+      "name": "Charlatan",
       "blurb": "You learned to read people and lie with a smile — a silver tongue is a weapon.",
-      "abilities": ["dex", "con", "cha"],
+      "abilities": [
+        "dex",
+        "con",
+        "cha"
+      ],
       "feat": "skilled",
-      "skills": ["deception", "sleight_of_hand"],
+      "skills": [
+        "deception",
+        "sleight_of_hand"
+      ],
       "tools": "Disguise Kit",
-      "featNote": "Skilled: Gain proficiency in two additional skills of your choice."
+      "featNote": "Skilled: Gain proficiency in two additional skills of your choice.",
+      "localized": {
+        "en": {
+          "name": "Charlatan",
+          "blurb": "You learned to read people and lie with a smile — a silver tongue is a weapon."
+        },
+        "zh-CN": {
+          "name": "骗子",
+          "blurb": "你善于察言观色、笑着撒谎，巧舌也是武器。"
+        }
+      }
     },
     {
-      "id": "criminal", "name": "Criminal",
+      "id": "criminal",
+      "name": "Criminal",
       "blurb": "You lived a life of burglary and quiet footsteps in the city's underbelly.",
-      "abilities": ["dex", "con", "int"],
+      "abilities": [
+        "dex",
+        "con",
+        "int"
+      ],
       "feat": "alert",
-      "skills": ["sleight_of_hand", "stealth"],
+      "skills": [
+        "sleight_of_hand",
+        "stealth"
+      ],
       "tools": "Thieves' Tools",
-      "featNote": "Alert: +3 to Initiative."
+      "featNote": "Alert: +3 to Initiative.",
+      "localized": {
+        "en": {
+          "name": "Criminal",
+          "blurb": "You lived a life of burglary and quiet footsteps in the city's underbelly."
+        },
+        "zh-CN": {
+          "name": "罪犯",
+          "blurb": "你在城市暗处靠盗窃与无声的脚步谋生。"
+        }
+      }
     },
     {
-      "id": "entertainer", "name": "Entertainer",
+      "id": "entertainer",
+      "name": "Entertainer",
       "blurb": "You performed for crowds — songs, acrobatics, and glittering showmanship.",
-      "abilities": ["str", "dex", "cha"],
+      "abilities": [
+        "str",
+        "dex",
+        "cha"
+      ],
       "feat": "musician",
-      "skills": ["acrobatics", "performance"],
+      "skills": [
+        "acrobatics",
+        "performance"
+      ],
       "tools": "Musical Instrument",
-      "featNote": "Musician: Heroic Inspiration — reroll one d20 per Short Rest."
+      "featNote": "Musician: Heroic Inspiration — reroll one d20 per Short Rest.",
+      "localized": {
+        "en": {
+          "name": "Entertainer",
+          "blurb": "You performed for crowds — songs, acrobatics, and glittering showmanship."
+        },
+        "zh-CN": {
+          "name": "艺人",
+          "blurb": "你用歌声、杂技和舞台技艺吸引观众。"
+        }
+      }
     },
     {
-      "id": "farmer", "name": "Farmer",
+      "id": "farmer",
+      "name": "Farmer",
       "blurb": "You worked the land, tougher than the soil and sturdier than the storms.",
-      "abilities": ["str", "con", "wis"],
+      "abilities": [
+        "str",
+        "con",
+        "wis"
+      ],
       "feat": "tough",
-      "skills": ["animal_handling", "nature"],
+      "skills": [
+        "animal_handling",
+        "nature"
+      ],
       "tools": "Carpenter's Tools",
-      "featNote": "Tough: +2 Hit Points per level."
+      "featNote": "Tough: +2 Hit Points per level.",
+      "localized": {
+        "en": {
+          "name": "Farmer",
+          "blurb": "You worked the land, tougher than the soil and sturdier than the storms."
+        },
+        "zh-CN": {
+          "name": "农夫",
+          "blurb": "你耕种土地，练就了能承受风雨的体魄。"
+        }
+      }
     },
     {
-      "id": "guard", "name": "Guard",
+      "id": "guard",
+      "name": "Guard",
       "blurb": "You watched city walls and tavern doors, ever alert for trouble.",
-      "abilities": ["str", "con", "wis"],
+      "abilities": [
+        "str",
+        "con",
+        "wis"
+      ],
       "feat": "alert",
-      "skills": ["athletics", "perception"],
+      "skills": [
+        "athletics",
+        "perception"
+      ],
       "tools": "Gaming Set",
-      "featNote": "Alert: +3 to Initiative."
+      "featNote": "Alert: +3 to Initiative.",
+      "localized": {
+        "en": {
+          "name": "Guard",
+          "blurb": "You watched city walls and tavern doors, ever alert for trouble."
+        },
+        "zh-CN": {
+          "name": "守卫",
+          "blurb": "你守过城墙与酒馆大门，始终警惕麻烦。"
+        }
+      }
     },
     {
-      "id": "guide", "name": "Guide",
+      "id": "guide",
+      "name": "Guide",
       "blurb": "You led travelers through wild places, reading land and weather alike.",
-      "abilities": ["dex", "con", "wis"],
+      "abilities": [
+        "dex",
+        "con",
+        "wis"
+      ],
       "feat": "magic_initiate_druid",
-      "skills": ["stealth", "survival"],
+      "skills": [
+        "stealth",
+        "survival"
+      ],
       "tools": "Navigator's Tools",
-      "featNote": "Magic Initiate (Druid): 2 druid cantrips + 1 first-level druid spell (1/Long Rest)."
+      "featNote": "Magic Initiate (Druid): 2 druid cantrips + 1 first-level druid spell (1/Long Rest).",
+      "localized": {
+        "en": {
+          "name": "Guide",
+          "blurb": "You led travelers through wild places, reading land and weather alike."
+        },
+        "zh-CN": {
+          "name": "向导",
+          "blurb": "你引领旅人穿越荒野，懂得地形与天气。"
+        }
+      }
     },
     {
-      "id": "hermit", "name": "Hermit",
+      "id": "hermit",
+      "name": "Hermit",
       "blurb": "You lived apart from society, seeking wisdom in solitude and study.",
-      "abilities": ["con", "wis", "int"],
+      "abilities": [
+        "con",
+        "wis",
+        "int"
+      ],
       "feat": "healer",
-      "skills": ["medicine", "religion"],
+      "skills": [
+        "medicine",
+        "religion"
+      ],
       "tools": "Herbalism Kit",
-      "featNote": "Healer: Use Healer's Kits (start with 3) to mend wounds: heal 1d4 + 2 + level."
+      "featNote": "Healer: Use Healer's Kits (start with 3) to mend wounds: heal 1d4 + 2 + level.",
+      "localized": {
+        "en": {
+          "name": "Hermit",
+          "blurb": "You lived apart from society, seeking wisdom in solitude and study."
+        },
+        "zh-CN": {
+          "name": "隐士",
+          "blurb": "你远离人群，在独居与研习中寻求智慧。"
+        }
+      }
     },
     {
-      "id": "merchant", "name": "Merchant",
+      "id": "merchant",
+      "name": "Merchant",
       "blurb": "You traded goods along lonely roads, weighing every word like coin.",
-      "abilities": ["con", "int", "cha"],
+      "abilities": [
+        "con",
+        "int",
+        "cha"
+      ],
       "feat": "lucky",
-      "skills": ["animal_handling", "persuasion"],
+      "skills": [
+        "animal_handling",
+        "persuasion"
+      ],
       "tools": "Navigator's Tools",
-      "featNote": "Lucky: Reroll a d20 twice per Short Rest."
+      "featNote": "Lucky: Reroll a d20 twice per Short Rest.",
+      "localized": {
+        "en": {
+          "name": "Merchant",
+          "blurb": "You traded goods along lonely roads, weighing every word like coin."
+        },
+        "zh-CN": {
+          "name": "商人",
+          "blurb": "你沿着孤独的道路交易货物，像衡量钱币一样斟酌言语。"
+        }
+      }
     },
     {
-      "id": "noble", "name": "Noble",
+      "id": "noble",
+      "name": "Noble",
       "blurb": "Raised in halls of privilege, you carry a name that opens doors — or closes them.",
-      "abilities": ["str", "int", "cha"],
+      "abilities": [
+        "str",
+        "int",
+        "cha"
+      ],
       "feat": "skilled",
-      "skills": ["history", "persuasion"],
+      "skills": [
+        "history",
+        "persuasion"
+      ],
       "tools": "Gaming Set",
-      "featNote": "Skilled: Gain proficiency in two additional skills of your choice."
+      "featNote": "Skilled: Gain proficiency in two additional skills of your choice.",
+      "localized": {
+        "en": {
+          "name": "Noble",
+          "blurb": "Raised in halls of privilege, you carry a name that opens doors — or closes them."
+        },
+        "zh-CN": {
+          "name": "贵族",
+          "blurb": "你在优渥的府邸中长大，家族名号既能打开门，也会关上门。"
+        }
+      }
     },
     {
-      "id": "sage", "name": "Sage",
+      "id": "sage",
+      "name": "Sage",
       "blurb": "You spent decades among books and scrolls, unlocking lore's deepest secrets.",
-      "abilities": ["con", "int", "wis"],
+      "abilities": [
+        "con",
+        "int",
+        "wis"
+      ],
       "feat": "magic_initiate_wizard",
-      "skills": ["arcana", "history"],
+      "skills": [
+        "arcana",
+        "history"
+      ],
       "tools": "Calligrapher's Tools",
-      "featNote": "Magic Initiate (Wizard): 2 wizard cantrips + 1 first-level wizard spell (1/Long Rest)."
+      "featNote": "Magic Initiate (Wizard): 2 wizard cantrips + 1 first-level wizard spell (1/Long Rest).",
+      "localized": {
+        "en": {
+          "name": "Sage",
+          "blurb": "You spent decades among books and scrolls, unlocking lore's deepest secrets."
+        },
+        "zh-CN": {
+          "name": "学者",
+          "blurb": "你长年与书籍卷轴为伴，探寻知识深处的秘密。"
+        }
+      }
     },
     {
-      "id": "sailor", "name": "Sailor",
+      "id": "sailor",
+      "name": "Sailor",
       "blurb": "You worked rigging and decks on long voyages, thriving on salt and brawls.",
-      "abilities": ["str", "dex", "wis"],
+      "abilities": [
+        "str",
+        "dex",
+        "wis"
+      ],
       "feat": "tavern_brawler",
-      "skills": ["acrobatics", "perception"],
+      "skills": [
+        "acrobatics",
+        "perception"
+      ],
       "tools": "Navigator's Tools",
-      "featNote": "Tavern Brawler: Reroll 1s on unarmed damage; on a hit, shove the target 5 ft."
+      "featNote": "Tavern Brawler: Reroll 1s on unarmed damage; on a hit, shove the target 5 ft.",
+      "localized": {
+        "en": {
+          "name": "Sailor",
+          "blurb": "You worked rigging and decks on long voyages, thriving on salt and brawls."
+        },
+        "zh-CN": {
+          "name": "水手",
+          "blurb": "你在漫长航程中攀索掌帆，熟悉海盐与斗殴。"
+        }
+      }
     },
     {
-      "id": "scribe", "name": "Scribe",
+      "id": "scribe",
+      "name": "Scribe",
       "blurb": "You copied documents and found the truth hidden between their lines.",
-      "abilities": ["dex", "int", "wis"],
+      "abilities": [
+        "dex",
+        "int",
+        "wis"
+      ],
       "feat": "skilled",
-      "skills": ["investigation", "perception"],
+      "skills": [
+        "investigation",
+        "perception"
+      ],
       "tools": "Calligrapher's Tools",
-      "featNote": "Skilled: Gain proficiency in two additional skills of your choice."
+      "featNote": "Skilled: Gain proficiency in two additional skills of your choice.",
+      "localized": {
+        "en": {
+          "name": "Scribe",
+          "blurb": "You copied documents and found the truth hidden between their lines."
+        },
+        "zh-CN": {
+          "name": "抄写员",
+          "blurb": "你抄录文书，发现字里行间隐藏的真相。"
+        }
+      }
     },
     {
-      "id": "soldier", "name": "Soldier",
+      "id": "soldier",
+      "name": "Soldier",
       "blurb": "Trained in a militia or army, you know discipline, ranks, and warfare.",
-      "abilities": ["str", "dex", "con"],
+      "abilities": [
+        "str",
+        "dex",
+        "con"
+      ],
       "feat": "savage_attacker",
-      "skills": ["athletics", "intimidation"],
+      "skills": [
+        "athletics",
+        "intimidation"
+      ],
       "tools": "Gaming Set",
-      "featNote": "Savage Attacker: Once per turn, reroll weapon damage dice and use the higher total."
+      "featNote": "Savage Attacker: Once per turn, reroll weapon damage dice and use the higher total.",
+      "localized": {
+        "en": {
+          "name": "Soldier",
+          "blurb": "Trained in a militia or army, you know discipline, ranks, and warfare."
+        },
+        "zh-CN": {
+          "name": "士兵",
+          "blurb": "你受过军队训练，熟悉纪律、军阶与战争。"
+        }
+      }
     },
     {
-      "id": "wayfarer", "name": "Wayfarer",
+      "id": "wayfarer",
+      "name": "Wayfarer",
       "blurb": "You survived the streets or the wilds alone, trusting luck and sharp eyes.",
-      "abilities": ["dex", "wis", "cha"],
+      "abilities": [
+        "dex",
+        "wis",
+        "cha"
+      ],
       "feat": "lucky",
-      "skills": ["insight", "stealth"],
+      "skills": [
+        "insight",
+        "stealth"
+      ],
       "tools": "Thieves' Tools",
-      "featNote": "Lucky: Reroll a d20 twice per Short Rest."
+      "featNote": "Lucky: Reroll a d20 twice per Short Rest.",
+      "localized": {
+        "en": {
+          "name": "Wayfarer",
+          "blurb": "You survived the streets or the wilds alone, trusting luck and sharp eyes."
+        },
+        "zh-CN": {
+          "name": "流浪者",
+          "blurb": "你独自在街头或荒野求生，依靠运气与敏锐目光。"
+        }
+      }
     }
   ],
   "feats": {
-    "magic_initiate_cleric": { "name": "Magic Initiate (Cleric)", "type": "magic" },
-    "magic_initiate_druid": { "name": "Magic Initiate (Druid)", "type": "magic" },
-    "magic_initiate_wizard": { "name": "Magic Initiate (Wizard)", "type": "magic" },
-    "crafter": { "name": "Crafter", "type": "passive" },
-    "alert": { "name": "Alert", "type": "passive", "initBonus": 3 },
-    "healer": { "name": "Healer", "type": "button", "desc": "Action: use a Healer's Kit to heal 1d4 + 2 + level HP." },
-    "lucky": { "name": "Lucky", "type": "passive", "rerollsPerRest": 2 },
-    "musician": { "name": "Musician", "type": "passive", "rerollsPerRest": 1 },
-    "savage_attacker": { "name": "Savage Attacker", "type": "passive", "rerollDamage": true },
-    "skilled": { "name": "Skilled", "type": "passive", "extraSkillPicks": 2 },
-    "tavern_brawler": { "name": "Tavern Brawler", "type": "passive", "tavernBrawler": true },
-    "tough": { "name": "Tough", "type": "passive", "hpPerLevel": 2 }
+    "magic_initiate_cleric": {
+      "name": "Magic Initiate (Cleric)",
+      "type": "magic",
+      "localized": {
+        "en": {
+          "name": "Magic Initiate (Cleric)"
+        },
+        "zh-CN": {
+          "name": "魔法学徒（牧师）"
+        }
+      }
+    },
+    "magic_initiate_druid": {
+      "name": "Magic Initiate (Druid)",
+      "type": "magic",
+      "localized": {
+        "en": {
+          "name": "Magic Initiate (Druid)"
+        },
+        "zh-CN": {
+          "name": "魔法学徒（德鲁伊）"
+        }
+      }
+    },
+    "magic_initiate_wizard": {
+      "name": "Magic Initiate (Wizard)",
+      "type": "magic",
+      "localized": {
+        "en": {
+          "name": "Magic Initiate (Wizard)"
+        },
+        "zh-CN": {
+          "name": "魔法学徒（法师）"
+        }
+      }
+    },
+    "crafter": {
+      "name": "Crafter",
+      "type": "passive",
+      "localized": {
+        "en": {
+          "name": "Crafter"
+        },
+        "zh-CN": {
+          "name": "巧匠"
+        }
+      }
+    },
+    "alert": {
+      "name": "Alert",
+      "type": "passive",
+      "initBonus": 3,
+      "localized": {
+        "en": {
+          "name": "Alert"
+        },
+        "zh-CN": {
+          "name": "警觉"
+        }
+      }
+    },
+    "healer": {
+      "name": "Healer",
+      "type": "button",
+      "desc": "Action: use a Healer's Kit to heal 1d4 + 2 + level HP.",
+      "localized": {
+        "en": {
+          "name": "Healer",
+          "desc": "Action: use a Healer's Kit to heal 1d4 + 2 + level HP."
+        },
+        "zh-CN": {
+          "name": "医者",
+          "desc": "动作：使用医疗包恢复 1d4 + 2 + 等级点生命。"
+        }
+      }
+    },
+    "lucky": {
+      "name": "Lucky",
+      "type": "passive",
+      "rerollsPerRest": 2,
+      "localized": {
+        "en": {
+          "name": "Lucky"
+        },
+        "zh-CN": {
+          "name": "幸运"
+        }
+      }
+    },
+    "musician": {
+      "name": "Musician",
+      "type": "passive",
+      "rerollsPerRest": 1,
+      "localized": {
+        "en": {
+          "name": "Musician"
+        },
+        "zh-CN": {
+          "name": "乐师"
+        }
+      }
+    },
+    "savage_attacker": {
+      "name": "Savage Attacker",
+      "type": "passive",
+      "rerollDamage": true,
+      "localized": {
+        "en": {
+          "name": "Savage Attacker"
+        },
+        "zh-CN": {
+          "name": "凶蛮打击者"
+        }
+      }
+    },
+    "skilled": {
+      "name": "Skilled",
+      "type": "passive",
+      "extraSkillPicks": 2,
+      "localized": {
+        "en": {
+          "name": "Skilled"
+        },
+        "zh-CN": {
+          "name": "熟练"
+        }
+      }
+    },
+    "tavern_brawler": {
+      "name": "Tavern Brawler",
+      "type": "passive",
+      "tavernBrawler": true,
+      "localized": {
+        "en": {
+          "name": "Tavern Brawler"
+        },
+        "zh-CN": {
+          "name": "酒馆斗殴者"
+        }
+      }
+    },
+    "tough": {
+      "name": "Tough",
+      "type": "passive",
+      "hpPerLevel": 2,
+      "localized": {
+        "en": {
+          "name": "Tough"
+        },
+        "zh-CN": {
+          "name": "强韧"
+        }
+      }
+    }
   }
 }

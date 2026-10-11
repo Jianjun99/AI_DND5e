@@ -1,5 +1,30 @@
 import fs from 'node:fs';
+import { once } from 'node:events';
 export { captureBrowserArtifacts } from '../../scripts/cdp-artifacts.mjs';
+
+// Callers launch Chromium with detached:true, giving its children a private
+// process group. Let Browser.close finish, then reap that group before deleting
+// its unique profile; killing only the root can leave cache writers orphaned.
+export async function closeBrowser(browser, ws, send, profile) {
+  let exited, timer;
+  if (browser && browser.exitCode === null && browser.signalCode === null) exited = once(browser, 'exit');
+  if (ws?.readyState === 1 && exited) {
+    // Chromium can exit before its close reply reaches the page connection.
+    // Process exit is sufficient: do not wait out the caller's CDP timer after
+    // shutdown. A reply alone still proceeds to the existing process wait.
+    await Promise.race([send('Browser.close').catch(() => {}), exited]);
+  }
+  ws?.close();
+  if (exited) {
+    await Promise.race([exited, new Promise(resolve => { timer = setTimeout(resolve, 5000); })]);
+    clearTimeout(timer);
+  }
+  if (browser?.pid && process.platform !== 'win32') {
+    try { process.kill(-browser.pid, 'SIGKILL'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+  } else if (browser && browser.exitCode === null && browser.signalCode === null) browser.kill('SIGKILL');
+  if (exited) await exited;
+  fs.rmSync(profile, { recursive:true, force:true, maxRetries:8, retryDelay:100 });
+}
 
 export function browserBinary() {
   const paths = process.env.CHROMIUM_PATH ? [process.env.CHROMIUM_PATH] : [

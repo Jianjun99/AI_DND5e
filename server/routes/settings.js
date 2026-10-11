@@ -20,7 +20,15 @@ const PRESETS = {
 const { DM_PERSONAS } = require('../game/dm');
 
 router.get('/', (req, res) => {
-  res.json({ settings: store.getSettings(), presets: PRESETS, personas: DM_PERSONAS });
+  res.json({ settings: store.getSettings(),
+    presets: Object.fromEntries(Object.entries(PRESETS).map(([id, value]) => [id, {
+      ...value, labelDisplay: { key: 'settings.preset.' + id + '.label' }, noteDisplay: { key: 'settings.preset.' + id + '.note' }
+    }])),
+    personas: Object.fromEntries(Object.entries(DM_PERSONAS).map(([id, value]) => [id, {
+      ...value, nameDisplay: { key: 'settings.persona.' + id + '.name' },
+      taglineDisplay: { key: 'settings.persona.' + id + '.tagline' }, blurbDisplay: { key: 'settings.persona.' + id + '.blurb' }
+    }]))
+  });
 });
 
 router.put('/', (req, res) => {

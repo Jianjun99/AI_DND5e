@@ -224,8 +224,8 @@ try {
         returnByValue: true
       }).then(r => r.result.value);
 
-      assert(playable.mapHeight >= 200 && playable.mapHeight <= 480,
-        `Phone: the 3D board shrank for the screen (${playable.mapWidth}x${playable.mapHeight}, desktop is 560)`);
+      assert(playable.mapHeight >= 200 && playable.mapHeight <= device.height,
+        `Phone: the map-first board fits the available screen (${playable.mapWidth}x${playable.mapHeight})`);
       assert(playable.minimapShare <= 0.45,
         `Phone: the minimap no longer covers the board (${Math.round(playable.minimapShare * 100)}% of the width)`);
       assert(playable.actions >= 4, `Phone: the action buttons are present (${playable.actions})`);
@@ -276,7 +276,7 @@ try {
     }))()`,
     returnByValue: true
   }).then(r => r.result.value);
-  assert(banner.banner && /主线/.test(banner.text), 'The main story banner is on the region map');
+  assert(banner.banner && /Story/i.test(banner.text), 'The main story banner is on the region map');
   assert(banner.ring, 'The next story step is marked on the map');
 
   const town = await send('Runtime.evaluate', {

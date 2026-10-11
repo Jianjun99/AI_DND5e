@@ -72,14 +72,14 @@ export function createCharacterModel(ent, track = (o) => o) {
   const isDragon = monsterId === 'young_fire_dragon' || (isBoss && ent.name && ent.name.toLowerCase().includes('dragon'));
   const isElite = !!(ent.isElite) && !isBoss;
   if (kind === 'monster') {
-    const bar = makeHpBar();
+    const bar = makeHpBar(track);
     bar.sprite.position.y = isDragon ? 2.4 : (isBoss ? 1.9 : (isElite ? 1.6 : 1.35));
     root.add(bar.sprite);
     root.userData.bar = bar;
   }
 
   if (isBoss) {
-    const bossTag = makeBossBadge(ent.name);
+    const bossTag = makeBossBadge(ent.name, track);
     bossTag.position.y = isDragon ? 2.65 : 2.1;
     root.add(bossTag);
     root.userData.bossBadge = bossTag;
@@ -89,7 +89,7 @@ export function createCharacterModel(ent, track = (o) => o) {
   if (isElite) {
     root.scale.set(1.15, 1.15, 1.15);
     const affixColor = (ent.affix && ent.affix.color) || '#f59e0b';
-    const eliteBadge = makeEliteBadge(ent.name, affixColor);
+    const eliteBadge = makeEliteBadge(ent.name, affixColor, track);
     eliteBadge.position.y = 1.75;
     root.add(eliteBadge);
     root.userData.eliteBadge = eliteBadge;
@@ -1174,11 +1174,11 @@ function createExecutionerBlade(track) {
   return g;
 }
 
-function makeHpBar() {
+export function makeHpBar(track) {
   const c = document.createElement('canvas');
   c.width = 64; c.height = 7;
-  const tex = new THREE.CanvasTexture(c);
-  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  const tex = track(new THREE.CanvasTexture(c));
+  const spr = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false })));
   spr.scale.set(0.85, 0.09, 1);
   const draw = (frac) => {
     const g = c.getContext('2d');
@@ -1192,7 +1192,7 @@ function makeHpBar() {
   return { sprite: spr, draw };
 }
 
-function makeBossBadge(name) {
+function makeBossBadge(name, track) {
   const c = document.createElement('canvas');
   c.width = 160; c.height = 24;
   const g = c.getContext('2d');
@@ -1200,13 +1200,13 @@ function makeBossBadge(name) {
   g.textAlign = 'center';
   g.fillStyle = '#ef4444';
   g.fillText(`☠ ${name || 'CHAMPION'} ☠`, 80, 18);
-  const tex = new THREE.CanvasTexture(c);
-  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  const tex = track(new THREE.CanvasTexture(c));
+  const spr = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false })));
   spr.scale.set(1.8, 0.28, 1);
   return spr;
 }
 
-function makeEliteBadge(name, color = '#f59e0b') {
+function makeEliteBadge(name, color = '#f59e0b', track = value => value) {
   const c = document.createElement('canvas');
   c.width = 180; c.height = 24;
   const g = c.getContext('2d');
@@ -1216,8 +1216,8 @@ function makeEliteBadge(name, color = '#f59e0b') {
   g.shadowColor = 'rgba(0,0,0,0.8)';
   g.shadowBlur = 4;
   g.fillText(`★ ${name || 'ELITE'} ★`, 90, 17);
-  const tex = new THREE.CanvasTexture(c);
-  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  const tex = track(new THREE.CanvasTexture(c));
+  const spr = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false })));
   spr.scale.set(1.9, 0.28, 1);
   return spr;
 }
@@ -1228,14 +1228,17 @@ function makeEliteBadge(name, color = '#f59e0b') {
 export function updateModelAnimation(node, now, delta) {
   const grp = (node && node.group) ? node.group : node;
   if (!grp || !grp.userData) return;
-  const rig = grp.userData.rig;
-  if (!rig) return;
+  updateModelPose(grp, now, delta, updateModelMotion(grp, delta));
+}
 
+// Shared anchor traversal works with any visual, including models with no joints.
+export function updateModelMotion(grp, delta) {
   const anim = grp.userData.anim;
+  let walking = false;
 
   // Waypoint Path Traversal
   if (anim && anim.waypoints && anim.waypoints.length > 0) {
-    rig.isWalking = true;
+    walking = true;
     const wp = anim.waypoints[anim.currentWpIndex || 0];
 
     if (wp) {
@@ -1262,16 +1265,21 @@ export function updateModelAnimation(node, now, delta) {
         anim.currentWpIndex = (anim.currentWpIndex || 0) + 1;
         if (anim.currentWpIndex >= anim.waypoints.length) {
           delete grp.userData.anim;
-          rig.isWalking = false;
+          walking = false;
         }
       } else {
         curPos.x += (dx / dist) * step;
         curPos.z += (dz / dist) * step;
       }
     }
-  } else {
-    rig.isWalking = false;
   }
+  return walking;
+}
+
+export function updateModelPose(grp, now, delta, walking) {
+  const rig = grp.userData.rig;
+  if (!rig) return;
+  rig.isWalking = walking;
 
   // Articulated Walk Cycle / Idle Respiration
   if (rig.isWalking) {

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { browserBinary, softwareWebGLFlags, requireWebGL, captureBrowserArtifacts } from './_browser-runtime.mjs';
+import { browserBinary, softwareWebGLFlags, requireWebGL, captureBrowserArtifacts, closeBrowser } from './_browser-runtime.mjs';
 const BASE = process.env.BASE_URL || 'http://localhost:' + (process.env.PORT || 3000);
 const PORT = 9229;
 let passed = 0, failed = 0, ws, browser;
@@ -58,7 +58,7 @@ async function open(id) {
 async function screenshot(name) { await captureBrowserArtifacts(name, [PORT]); }
 const saves = [], chars = [];
 try {
-  browser = spawn(browserBinary(), ['--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=' + PORT, '--user-data-dir=' + profile, '--window-size=1280,900', ...softwareWebGLFlags(), BASE + '/#/'], { stdio: 'ignore' });
+  browser = spawn(browserBinary(), ['--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=' + PORT, '--user-data-dir=' + profile, '--window-size=1280,900', ...softwareWebGLFlags(), BASE + '/#/'], { stdio: 'ignore', detached:true });
   let target;
   for (let n = 0; n < 70 && !target; n++) {
     try { target = (await (await fetch('http://127.0.0.1:' + PORT + '/json')).json()).find(t => t.type === 'page'); } catch {}
@@ -74,7 +74,7 @@ try {
   };
   await send('Page.enable'); await send('Runtime.enable'); await requireWebGL(send);
   await wait("document.getElementById('quickStartCard') || document.querySelector('.char-card')", 'initial home');
-  await evaluate("localStorage.setItem('dnd_default_view','2d'); localStorage.setItem('dnd_3d','off'); true");
+  await evaluate("import('/js/i18n.js').then(m=>{m.setLocale('zh-CN'); localStorage.setItem('dnd_default_view','2d'); localStorage.setItem('dnd_3d','off');})");
 
   for (const branch of ['show_seal', 'fight']) {
     const char = await api('POST', '/api/characters', { name: 'T6 Browser ' + branch, species: 'human', className: 'fighter', background: 'soldier', baseScores: { str: 16, dex: 14, con: 14, int: 10, wis: 12, cha: 10 }, bgPlus2: 'str', bgPlus1: 'con', skills: ['athletics', 'perception'], fightingStyle: 'defense', armorOption: 'chain_mail', weaponOption: 'sword_board' });
@@ -135,7 +135,7 @@ try {
         const guard = state.entities.find(e => e.id === 'vale_guard'); await tile(guard.x, guard.y);
         await wait("document.querySelector('[data-act=attack]') && !document.querySelector('[data-act=attack]').disabled", 'attack available');
         await click('[data-act=attack]');
-        await wait("document.querySelector('[data-act=attack]')?.disabled || document.querySelector('[data-scene-open]')?.textContent.includes('记得什么')", 'attack result adopted by UI');
+        await wait('window.__dndDebug?.rev() > '+state.rev, 'attack result adopted by UI');
         state = (await api('GET', '/api/game/' + id)).state;
         if (state.mode === 'combat') {
           const rev = state.rev; await click('[data-act=endturn]');
@@ -145,7 +145,7 @@ try {
         }
       }
       check(state.mode === 'explore' && state.encounterFacts[0].fact === 'forced_passage', 'real UI attack resolves combat with force fact');
-      await wait("document.querySelector('[data-scene-open]')?.textContent.includes('记得什么')", 'combat result adopted by UI');
+      await wait("!document.querySelector('[data-act=attack]') && document.querySelector('[data-scene-open]')", 'combat result adopted by UI');
       await click('[data-scene-open]'); await wait("document.querySelector('[data-scene-memory]')", 'combat memory');
       check(await evaluate("document.querySelector('[data-scene-memory]').textContent.includes('用武力通过')"), 'combat NPC memory visible');
       await screenshot('t6-combat-result'); await click('[data-scene-close]');
@@ -174,11 +174,14 @@ try {
   failed++; console.error('  FAIL: ' + error.stack);
   await screenshot('t6-failure').catch(e => console.error(e.message));
 } finally {
-  if (ws?.readyState === 1) await send('Browser.close').catch(() => {});
-  ws?.close(); browser?.kill('SIGKILL');
-  for (const id of saves) await api('DELETE', '/api/game/' + id).catch(e => console.error(e.message));
-  for (const id of chars) await api('DELETE', '/api/characters/' + id).catch(e => console.error(e.message));
-  fs.rmSync(profile, { recursive: true, force: true });
+  try {
+    await closeBrowser(browser, ws, send, profile);
+  } catch (error) {
+    failed++;
+    console.error('Browser/profile cleanup failed:', error.stack);
+  }
+  for (const id of saves) await api('DELETE', '/api/game/' + id).catch(e => { failed++; console.error(e.message); });
+  for (const id of chars) await api('DELETE', '/api/characters/' + id).catch(e => { failed++; console.error(e.message); });
 }
 console.log('T6 CDP: ' + passed + ' assertions passed, ' + failed + ' failed.');
 process.exitCode = failed ? 1 : 0;

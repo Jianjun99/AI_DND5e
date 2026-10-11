@@ -5,11 +5,13 @@
 //             → { render(game), dispose(), tileToScreen(x, y), setFollow(v), isFollowing(), debugState() }
 
 import * as THREE from '/vendor/three.module.js';
-import { createCharacterModel, updateModelAnimation } from './models3d.js';
+import { createVisualInstance } from './visual-instance.js';
 import { isEntityOnBoard, stepCameraTowards, clampToMap } from './entity-visibility.js';
 
 const TILE = 1;
 const WALL_H = 0.72;
+const resources = { renderers:0, observers:0 };
+export function map3DResources() { return { ...resources }; }
 
 function hash(x, y) {
   let h = (x * 374761393 + y * 668265263) ^ 0x5bf03635;
@@ -58,8 +60,10 @@ export function createMap3D(container, opts = {}) {
   scene.fog = new THREE.FogExp2(0x0a0806, 0.034);
 
   const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 100);
-  let zoom = 1;
+  let zoom = Number.isFinite(opts.initialZoom) ? Math.max(.55,Math.min(2.2,opts.initialZoom)) : 1;
   const renderer = new THREE.WebGLRenderer({ antialias: true });
+  let alive = true;
+  resources.renderers++;
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   container.appendChild(renderer.domElement);
   renderer.domElement.style.width = '100%';
@@ -108,6 +112,10 @@ export function createMap3D(container, opts = {}) {
   };
 
   let entityNodes = new Map(); // entId -> { group, target: Vector3 }
+  let visualFactory = opts.visualFactory || createVisualInstance;
+  let replacementPoses = new Map();
+  const dyingVisuals=new Set(),dyingGroup=new THREE.Group();scene.add(dyingGroup);
+  function clearDying(){for(const entry of dyingVisuals)entry.visual.dispose();dyingVisuals.clear();}
   let camTarget = new THREE.Vector3();
   // Camera binding: while following, the view rides the walking hero; unfollow to survey the map
   let following = opts.follow !== false;
@@ -490,6 +498,9 @@ export function createMap3D(container, opts = {}) {
       const ent = game.entities.find(e => e.id === id);
       if (!ent || !isEntityOnBoard(ent)) {
         entitiesGroup.remove(node.group);
+        if(node.deathAt && ent?.alive===false && node.visual.state().status==='ready') {
+          node.group.userData={};node.visual.move([]);dyingGroup.add(node.group);dyingVisuals.add({visual:node.visual,until:node.deathAt+1100});
+        } else node.visual.dispose();
         entityNodes.delete(id);
       }
     }
@@ -498,8 +509,24 @@ export function createMap3D(container, opts = {}) {
       if (!disc.has(key) || !isEntityOnBoard(e)) return;
       let node = entityNodes.get(e.id);
       if (!node) {
-        node = { group: createCharacterModel(e, track) };
+        let visual;
+        try {
+          visual = visualFactory(e);
+          if (visual?.then) {
+            // First-stage factories are synchronous. Never attach a late result.
+            visual.then(value=>value?.dispose?.()).catch(error=>console.warn('Late visual cleanup failed',error));
+            throw new TypeError('Visual factories must be synchronous');
+          }
+          if (!visual?.root?.isObject3D || ['sync','move','update','play','motion','state','dispose'].some(key=>typeof visual[key]!=='function')) throw new TypeError('Invalid visual instance');
+        } catch(error) {
+          if (!visual?.then) try { visual?.dispose?.(); } catch(cleanupError) { console.warn('Invalid visual cleanup failed',cleanupError); }
+          console.warn('Visual factory failed; using procedural model',error);
+          visual=createVisualInstance(e);
+        }
+        node = { group: visual.root, visual };
         node.group.position.set(e.x + 0.5, 0, e.y + 0.5);
+        const pose=replacementPoses.get(e.id);
+        if(pose){node.group.position.copy(pose.position);node.group.rotation.y=pose.heading;}
         node.target = new THREE.Vector3(e.x + 0.5, 0, e.y + 0.5);
         entitiesGroup.add(node.group);
         entityNodes.set(e.id, node);
@@ -508,13 +535,7 @@ export function createMap3D(container, opts = {}) {
       node.group.userData.tile = { x: e.x, y: e.y };
       node.group.userData.entityId = e.id;
       const dimmed = !vis.has(key) && e.kind !== 'player';
-      node.group.visible = !dimmed;
-      if (e.kind === 'monster' && node.group.userData.bar && !dimmed) {
-        node.group.userData.bar.draw(e.hp / e.hpMax);
-      }
-      if (opts.isSelected && opts.isSelected(e)) {
-        node.group.children.forEach(ch => { if (ch.material && ch.material.color) ch.material.emissive = new THREE.Color(0x443300); });
-      }
+      node.visual.sync(e,!dimmed,!!(opts.isSelected && opts.isSelected(e)));
     });
   }
 
@@ -582,7 +603,13 @@ export function createMap3D(container, opts = {}) {
   }
 
   function render(game) {
-    if (!game) return;
+    if (!alive || !game) return;
+    const boardKey = state => state?.mapId || state?.map?.id || null;
+    if (currentGame && boardKey(currentGame)!==boardKey(game)) {
+      clearDying();
+      for (const node of entityNodes.values()) node.visual.dispose();
+      entityNodes.clear(); replacementPoses.clear();
+    }
     const th = THEMES[(game.map && game.map.theme) || 'crypt'] || THEMES.crypt;
     scene.background = new THREE.Color(th.bg);
     scene.fog.color = new THREE.Color(th.bg);
@@ -623,6 +650,11 @@ export function createMap3D(container, opts = {}) {
         cameraReady = true;
       }
       lastMapKey = mapKey;
+    } else if(!cameraReady || lastMapKey!==(game.mapId||game.map?.id||null)) {
+      // Author previews can contain monsters without a hero to anchor the camera.
+      camTarget.set(game.map.width/2,0,game.map.height/2);
+      torch.position.set(camTarget.x,1.4,camTarget.z);
+      cameraReady=true;lastMapKey=game.mapId||game.map?.id||null;
     }
 
     // Update target reticle
@@ -677,7 +709,7 @@ export function createMap3D(container, opts = {}) {
       const dist = Math.hypot(tx - curX, tz - curZ);
 
       // If already navigating to this exact destination, keep going
-      if (node.target && Math.abs(node.target.x - tx) < 0.01 && Math.abs(node.target.z - tz) < 0.01 && node.group.userData.anim) {
+      if (node.target && Math.abs(node.target.x - tx) < 0.01 && Math.abs(node.target.z - tz) < 0.01 && node.visual.motion().animating) {
         return;
       }
 
@@ -685,34 +717,34 @@ export function createMap3D(container, opts = {}) {
         const sx = Math.floor(curX);
         const sy = Math.floor(curZ);
         const waypoints = findTilePath(sx, sy, ent.x, ent.y, game.map);
-        node.group.userData.anim = {
-          waypoints,
-          currentWpIndex: 0,
-          speed: 4.6
-        };
+        node.visual.move(waypoints,4.6);
         node.target.set(tx, 0, tz);
       } else {
         node.group.position.set(tx, 0, tz);
-        delete node.group.userData.anim;
+        node.visual.move([]);
         node.target.set(tx, 0, tz);
       }
     });
   }
 
+  let resizeCount = 0, renderCost = 0, renderFrames = 0;
   function resize() {
-    const w = container.clientWidth || 800, h = container.clientHeight || 560;
+    if (!alive || !container.clientWidth || !container.clientHeight) return;
+    const w = container.clientWidth, h = container.clientHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     const dist = 8.5 / zoom;
     camera.position.set(camTarget.x, camTarget.y + dist * 0.86, camTarget.z + dist * 0.62);
     camera.lookAt(camTarget);
     camera.updateProjectionMatrix();
+    resizeCount++;
   }
 
   let raf = null;
   let lastTime = performance.now();
   function loop(now) {
     raf = requestAnimationFrame(loop);
+    if (!container.clientWidth || !container.clientHeight) { lastTime = now; return; }
     const delta = Math.min(0.08, Math.max(0.001, (now - lastTime) / 1000));
     lastTime = now;
 
@@ -742,8 +774,9 @@ export function createMap3D(container, opts = {}) {
 
     // Animate character models & walk cycles
     entityNodes.forEach(node => {
-      updateModelAnimation(node, now, delta);
+      node.visual.update(now, delta);
     });
+    for(const entry of dyingVisuals){if(now>=entry.until){entry.visual.dispose();dyingVisuals.delete(entry);}else entry.visual.update(now,delta);}
 
     // Dynamic torchlight flicker & smooth camera tracking on player
     const p = currentGame && currentGame.entities && currentGame.entities.find(e => e.kind === 'player');
@@ -775,7 +808,9 @@ export function createMap3D(container, opts = {}) {
 
     camera.position.set(camTarget.x, camTarget.y + (8.5 / zoom) * 0.86, camTarget.z + (8.5 / zoom) * 0.62);
     camera.lookAt(camTarget);
+    const renderStarted = performance.now();
     renderer.render(scene, camera);
+    renderCost += performance.now() - renderStarted; renderFrames++;
   }
   raf = requestAnimationFrame(loop);
 
@@ -909,6 +944,9 @@ export function createMap3D(container, opts = {}) {
   }, { passive: true });
 
 
+  const resizeObserver = new ResizeObserver(() => resize());
+  resources.observers++;
+  resizeObserver.observe(container);
   window.addEventListener('resize', resize);
 
   function tileToScreen(x, y) {
@@ -922,12 +960,20 @@ export function createMap3D(container, opts = {}) {
   }
 
   function dispose() {
+    if (!alive) return;
+    alive = false;
+    resources.renderers--; resources.observers--;
     if (raf) cancelAnimationFrame(raf);
+    resizeObserver.disconnect();
     window.removeEventListener('resize', resize);
     if (renderer.domElement && renderer.domElement.parentNode) {
       renderer.domElement.parentNode.removeChild(renderer.domElement);
     }
     renderer.dispose();
+    renderer.forceContextLoss();
+    for (const node of entityNodes.values()) node.visual.dispose();
+    clearDying();
+    entityNodes.clear(); replacementPoses.clear();
     for (const d of disposables) {
       if (d && typeof d.dispose === 'function') d.dispose();
     }
@@ -940,24 +986,42 @@ export function createMap3D(container, opts = {}) {
     tileToScreen,
     setFollow,
     isFollowing: () => following,
+    // Code-only first-stage sample seam; no saved binding or resource package API.
+    setVisualFactory(factory = createVisualInstance) {
+      if(!alive)return false;
+      replacementPoses=new Map([...entityNodes].map(([id,node])=>[id,{position:node.group.position.clone(),heading:node.group.rotation.y}]));
+      for(const node of entityNodes.values())node.visual.dispose();
+      clearDying();
+      entityNodes.clear(); visualFactory=factory;
+      if(currentGame){layoutEntities(currentGame);animateFrom(currentGame);}
+      replacementPoses.clear(); return true;
+    },
+    playVisual: (id,action,eventId) => {
+      if(!alive)return false;const node=entityNodes.get(id),played=node?.visual.play(action,eventId)||false;
+      if(played&&action==='death')node.deathAt=performance.now();return played;
+    },
+    visualState: () => [...entityNodes].map(([id,node])=>({id,...node.visual.state()})),
+    visualBounds: () => [...entityNodes].map(([id,node])=>{
+      const box=new THREE.Box3().setFromObject(node.group),rect=renderer.domElement.getBoundingClientRect(),points=[];
+      for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]){const p=new THREE.Vector3(x,y,z).project(camera);points.push({x:(p.x*.5+.5)*rect.width,y:(-.5*p.y+.5)*rect.height});}
+      return {id,left:Math.min(...points.map(p=>p.x)),right:Math.max(...points.map(p=>p.x)),top:Math.min(...points.map(p=>p.y)),bottom:Math.max(...points.map(p=>p.y)),width:rect.width,height:rect.height};
+    }),
     debugState: () => ({
       follow: following,
       zoom: +zoom.toFixed(2),
       camTarget: { x: +camTarget.x.toFixed(2), z: +camTarget.z.toFixed(2) },
-      entityNodes: entityNodes.size
+      entityNodes: entityNodes.size,
+      resizeCount, renderFrames, renderMeanMs: renderFrames ? renderCost / renderFrames : 0
     }),
     // where the hero miniature actually stands (lags the logical tile while walking)
     modelState: () => {
       const p = currentGame && currentGame.entities && currentGame.entities.find(e => e.kind === 'player');
       const node = p ? entityNodes.get(p.id) : null;
       if (!node) return null;
-      const anim = node.group.userData.anim;
       return {
         x: +node.group.position.x.toFixed(2),
         z: +node.group.position.z.toFixed(2),
-        animating: !!anim,
-        waypoint: anim ? anim.currentWpIndex : null,
-        waypoints: anim ? anim.waypoints.length : 0
+        ...node.visual.motion()
       };
     }
   };

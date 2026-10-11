@@ -250,18 +250,27 @@ try {
   // T7a deterministic setup: the live instance is authoritative, so an unwanted type must
   // be cheap-resolved and consumed (throwaway start) before the next trigger can roll.
   async function ensureEncounterType(heroId, wanted) {
-    for (let i = 0; i < 12; i++) {
-      const t = await apiReq('POST', `/api/characters/${heroId}/road-encounter`, { action: 'trigger', force: true });
-      const enc = t.encounter;
-      if (enc && enc.id === wanted && !enc.resolved) return enc;
-      if (enc && !enc.resolved) {
-        const cheap = enc.id === 'peddler' ? 'leave' : enc.id === 'shrine' ? 'proceed' : 'fight';
-        await apiReq('POST', `/api/characters/${heroId}/road-encounter`, { choice: cheap, encounterId: enc.instanceId });
-      }
-      const d = await apiReq('POST', '/api/game/start', { characterId: heroId, bringAlly: false, mapId: 'crypt', difficulty: 'normal' });
-      await apiReq('DELETE', `/api/game/${d.state.id}`);
-    }
-    throw new Error('never rolled a ' + wanted + ' encounter');
+    // Deterministic staging (Q1): the old 12-roll loop re-rolled the unseeded road
+    // table and threw ~0.8% of runs when `wanted` never came up. The staged shape is
+    // exactly what engine triggerRoadEncounter writes, so the authoritative
+    // live-instance path returns it untouched — no RNG, no retries.
+    if (!process.env.DATA_DIR) throw new Error('DATA_DIR is required to stage the ' + wanted + ' encounter');
+    const optionsByKind = { ambush: ['fight', 'bribe', 'sneak'], shrine: ['pray', 'offer', 'proceed'], peddler: ['leave'] };
+    if (!optionsByKind[wanted]) throw new Error('no staged option template for ' + wanted);
+    const rosterFile = path.join(process.env.DATA_DIR, 'characters.json');
+    const roster = JSON.parse(fs.readFileSync(rosterFile, 'utf8'));
+    const hero = roster.find(c => c.id === heroId);
+    if (!hero) throw new Error('staged hero not found: ' + heroId);
+    hero.currentRoadEncounter = {
+      id: wanted,
+      instanceId: 're_staged_' + wanted + '_' + Date.now().toString(36),
+      options: optionsByKind[wanted].slice(),
+      resolved: false,
+      resolvedChoice: null,
+      result: null
+    };
+    fs.writeFileSync(rosterFile, JSON.stringify(roster));
+    return hero.currentRoadEncounter;
   }
 
   // ---------------- Check 2: embark → ONE trigger, ONE live instance, refresh restore ----------------
@@ -408,6 +417,12 @@ try {
   await send('Page.reload', {});
   await patchFetch({});
   assert(await waitFor(`document.getElementById('roadEncounterModal') && document.getElementById('continueDelveBtn')`, 'the restored resolved modal'), 'refresh restores the resolved result with Enter Delve');
+  const roadBeforeLocale = await apiReq('GET', `/api/characters/${heroB.id}`);
+  await evalValue(`window.__roadContinue=document.getElementById('continueDelveBtn');import('/js/i18n.js').then(m=>m.setLocale('zh-CN'))`, { awaitPromise:true });
+  assert(await evalValue(`document.querySelector('.encounter-res-box').textContent.includes('黎明母亲') && document.querySelector('.encounter-res-box').textContent.includes('+5') && document.getElementById('continueDelveBtn')===window.__roadContinue`), 'restored road result switches prose with the same actual reward and control');
+  await evalValue(`import('/js/i18n.js').then(m=>m.setLocale('en'))`, { awaitPromise:true });
+  assert(await evalValue(`document.querySelector('.encounter-res-box').textContent.includes("Dawnmother's Vitality")`), 'restored road result returns to English');
+  assert(JSON.stringify(await apiReq('GET', `/api/characters/${heroB.id}`))===JSON.stringify(roadBeforeLocale), 'road locale switching does not replay resolution, consume RNG or award a boon');
   const resolvesBeforeStart = await evalValue(`(window.__t7aState || {}).resolveCalls || 0`);
   // fail the next start request once (client-visible failure — the app must keep the modal)
   await patchFetch({ failNextStart: true });

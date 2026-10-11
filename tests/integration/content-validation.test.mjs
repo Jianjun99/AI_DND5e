@@ -72,11 +72,11 @@ async function completeExample() {
 }
 
 try {
-  await test('All six original maps and the T6 scene map load; core dire_wolf wins with source evidence', () => {
+  await test('All six original maps, the T6 scene map, the T11 story and the T12a companion pack load; core dire_wolf wins with source evidence', () => {
     const reg = content.reload();
     check(!reg.diagnostics.some(d => d.severity === 'error'), JSON.stringify(reg.diagnostics));
-    check(['crypt', 'drowned-vault', 'howling-hills', 'sewers', 'mill', 'roost', 'vale-gate'].every(id => reg.maps[id]), 'all original maps and scene map');
-    check(Object.keys(reg.monsters).length === 19, 'existing bestiary remains intact');
+    check(['crypt', 'drowned-vault', 'howling-hills', 'sewers', 'mill', 'roost', 'vale-gate', 'courier-crossing', 'brams-pack'].every(id => reg.maps[id]), 'all original maps, scene map and story packs');
+    check(Object.keys(reg.monsters).length === 20, 'existing bestiary remains intact plus the companion pack hound');
     check(reg.maps.crypt.victory.type === 'fetch_relic', 'legacy victoryTile normalized');
     const duplicate = reg.diagnostics.find(d => d.packId === 'howling-hills' && d.code === 'duplicate-definition' && d.message.includes('dire_wolf'));
     check(duplicate?.severity === 'warning' && duplicate.winner.packId === 'core' && duplicate.winner.file === 'shared/monsters.json', 'explicit winning provenance');
@@ -138,7 +138,7 @@ try {
     ['unsafe pack folder', b => { b.pack.id = '../../escape'; }, 'pack.id'],
     ['malformed maps collection', b => { b.maps = {}; }, 'maps'],
     ['duplicate bundle map', b => { b.maps.push(structuredClone(b.maps[0])); }, 'maps[1].id'],
-    ['unsupported version', b => { b.version = 2; }, 'version']
+    ['unsupported version', b => { b.version = 99; }, 'version']
   ];
   for (const [name, mutate, field] of badCases) await test('Reject ' + name + ' with pack/file/field', () => {
     const b = copy(); mutate(b);
@@ -174,7 +174,11 @@ try {
     check((await api('DELETE', '/api/content/pack/' + b.pack.id)).status === 200, 'legacy fixture removed');
   });
   await test('Locked doors are optimistic; genuinely disconnected geometry is only a warning', () => {
-    const locked = copy(); locked.maps[0].entities.push({ type: 'door', id: 'locked', x: 4, y: 2, locked: true, forceDc: 15 });
+    // A door entity must stand on a 'D' tile (R8 grid/entity contract), so the fixture paints
+    // the crossing it adds. What stays under test is that `locked` itself is not fatal.
+    const locked = copy();
+    locked.maps[0].rows[2] = locked.maps[0].rows[2].substring(0, 4) + 'D' + locked.maps[0].rows[2].substring(5);
+    locked.maps[0].entities.push({ type: 'door', id: 'locked', x: 4, y: 2, locked: true, forceDc: 15 });
     check(content.validateBundle(locked).ok, 'lock is not fatal');
     const isolated = copy(); isolated.maps[0].rows = ['#########', '#..#....#', '#..#....#', '#..#....#', '#########']; isolated.maps[0].entities[2].x = 2;
     const report = content.validateBundle(isolated);

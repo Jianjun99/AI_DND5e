@@ -1,0 +1,20 @@
+{
+  "gear": [
+    {
+      "id": "courier_ledger",
+      "type": "quest",
+      "name": "渡口原账册",
+      "desc": "里奥交出的真实账册。每笔税款和难民支出都有签名；作为证据交给艾芮，不可购买。",
+      "localized": {
+        "en": {
+          "name": "Original Crossing Ledger",
+          "desc": "The real ledger entrusted by Lio. Signed toll and relief entries; deliver it to Iris as evidence. It cannot be purchased."
+        },
+        "zh-CN": {
+          "name": "渡口原账册",
+          "desc": "里奥交出的真实账册。每笔税款和难民支出都有签名；作为证据交给艾芮，不可购买。"
+        }
+      }
+    }
+  ]
+}

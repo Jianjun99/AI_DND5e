@@ -129,6 +129,8 @@ try {
   await send('Page.enable');
   await send('Runtime.enable');
   await requireWebGL(send);
+  // This tutorial regression deliberately checks Chinese instructional copy.
+  await send('Runtime.evaluate', { expression: "import('/js/i18n.js').then(i => i.setLocale('zh-CN'))", awaitPromise: true });
 
   async function waitFor(expr, label, timeoutMs = 15000) {
     const deadline = Date.now() + timeoutMs;

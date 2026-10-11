@@ -1,8 +1,9 @@
+import { contentLabel, contentText, messageText, messageLabel, getLocale, t, label, localizeText, localizeAttribute, translateDOM, onLocaleChange, displayText, displayLabel } from "../i18n.js";
 // play.js — the delve: canvas map, combat HUD, log, chat
 import { api } from '../api.js';
 import { esc, toast, state as appState, charObjective, campaignObjective } from '../app.js';
 import { createMapRenderer } from '../map.js';
-import { createMap3D } from '../map3d.js';
+import { createMap3D, map3DResources } from '../map3d.js';
 import { openSettingsModal } from './settings.js';
 import { createPanels } from './play/panels.js';
 import { createDelveTutorial } from './play/tutorial.js';
@@ -13,13 +14,20 @@ import { sfx } from '../sfx.js';
 import { tts } from '../tts.js';
 import { initTooltips } from '../tooltip.js';
 import { openLevelUpModal } from './levelup.js';
+import { createPanelManager } from './play/panel-manager.js';
+import { patchHud } from './play/hud-patch.js';
+import { dismissModal } from '../modal.js';
+import { createAdventureDirectory } from '../adventure-directory.js';
+import { createFullscreenControls } from '../fullscreen.js';
+import { packVisualFactory } from '../visual-packs.js';
 
 // Level-up readiness comes from the server (game.levelUp) so the badge can never claim a
 // level the level-up endpoint would refuse — see engine.levelUpInfo.
 
 let game = null;
 let selectedTarget = null;
-/** @type {{ id: string, name: string } | null} */ let activeNpc = null;
+/** @type {{ id: string, name: string, nameDisplay?: any } | null} */
+let activeNpc = null;
 let appearanceShown = null;
 let appearanceLoading = null; // monsterId/npcId whose describe is waiting on the DM right now
 // portrait cache is keyed by creature id and lives OUTSIDE the game object: an adopted
@@ -28,6 +36,8 @@ let appearanceLoading = null; // monsterId/npcId whose describe is waiting on th
 const portraitCache = {};
 let summaryShown = false;
 let questObjectiveFolded = false;
+let pendingClarification = null;
+let pendingConfirmation = null;
 // last tile whose shared-object selection we cycled (click path in handleTileClick);
 // module-level like the rest of the click state, reset by the next different tile
 const tilePick = { key: '', idx: 0 };
@@ -45,87 +55,145 @@ function adoptState(next) {
   if (next.id !== game.id) return false;
   if ((next.rev || 0) < ((game && game.rev) || 0)) return false;
   game = next;
+  // Entity selection follows its stable ID across confirmed snapshot replacement.
+  // Keep the HUD/reticle consistent with the same entity the visual synchronizes.
+  if (selectedTarget?.kind) selectedTarget=game.entities.find(e=>e.id===selectedTarget.id)||selectedTarget;
   return true;
 }
 
-export async function playView(main, saveRef) {
+/** @param {import('../navigation.js').Navigation} navigation */
+export async function playView(main, saveRef, navigation) {
   const token = ++viewToken;
+  summaryShown = false;
   let viewAlive = true; // async callbacks stop adopting once the view ended (T2a)
+  navigation.onDispose(() => {
+    viewAlive = false;
+    if (token === viewToken) viewToken++;
+  });
   let busy = false; // an old view's pending choice cannot lock/unlock another hero's view
   // Start a fresh delve: show the setup modal (map + difficulty + companion)
   if (saveRef === 'new') {
     const charId = new URLSearchParams(location.hash.split('?')[1] || '').get('char');
     if (!charId) { location.hash = '#/'; return undefined; }
-    const chars = await api.listCharacters();
-    const char = chars.find(c => c.id === charId);
+    let char = null;
+    try { char = await api.getCharacter(charId); } catch {}
+    if (!navigation.isCurrent()) return undefined;
+    if (!char) { location.hash = '#/'; return undefined; }
     const rules = appState.rules;
     let maps = [];
-    try { maps = (await (await fetch('/api/content')).json()).maps || []; } catch {}
+    try { maps = (await api.content()).adventures || []; } catch (error) { if (navigation.isCurrent()) toast(() => error.message); }
+    if (!navigation.isCurrent()) return undefined;
     main.innerHTML = `
       <div class="modal-back" style="position:static; background:none; display:block; padding-top:30px;">
         <div class="modal" style="max-width:680px; margin:0 auto;">
-          <h2>Prepare the delve</h2>
-          <p class="muted small">${esc(char ? char.name : 'Your hero')} gathers supplies. Choose where to descend:</p>
+          <h2>${label("ui.play.prepare_the_delve")}</h2>
+          <p class="muted small">${label("ui.play.gathers_supplies_choose_where_to_descend_values", {p1: char ? char.name : t("ui.play.your_hero")})}</p>
+          <div class="card" style="margin:12px 0;" data-prepare-adventures></div>
           <div class="card" style="margin:12px 0;">
-            <h3>Destination</h3>
-            ${maps.map((m, i) => `
-              <label style="display:block; margin:8px 0; color:var(--text); cursor:pointer;">
-                <input type="radio" name="mapPick" value="${esc(m.id)}" ${i === 0 ? 'checked' : ''} style="width:auto">
-                <b>${esc(m.name)}</b> <span class="chip">${esc(m.pack)}</span>
-                ${m.recommended ? `<span class="chip blue">${esc(m.recommended)}</span>` : ''}
-                <span class="muted small">— ${esc(m.blurb || m.objectiveText || '')}</span>
-              </label>`).join('')}
-          </div>
-          <div class="card" style="margin:12px 0;">
-            <h3>Difficulty</h3>
+            <h3>${label("ui.play.difficulty")}</h3>
             ${Object.entries(rules.difficulty || {}).map(([id, d]) => `
               <label style="display:block; margin:8px 0; color:var(--text);">
                 <input type="radio" name="difficulty" value="${id}" ${id === 'normal' ? 'checked' : ''} style="width:auto">
-                <b>${d.label}</b> <span class="muted small">— ${esc(d.blurb)}</span>
+                <b>${displayLabel(d.labelDisplay, d.label)}</b> <span class="muted small">— ${displayLabel(d.blurbDisplay, d.blurb)}</span>
               </label>`).join('')}
           </div>
           <div class="card" style="margin:12px 0;">
-            <h3 style="margin-top:0;">Mercenary Companion</h3>
+            <h3 style="margin-top:0;">${label("ui.play.mercenary_companion")}</h3>
             ${((rules.allies && rules.allies.length) ? rules.allies : [{ id: 'bram', name: 'Bram the Scout', role: 'Ranger / Archer', icon: '🏹', blurb: 'A wiry hunter who strikes from the dark with a longbow.' }]).map((a, i) => `
               <label style="display:block; margin:8px 0; color:var(--text); cursor:pointer;">
                 <input type="radio" name="companionPick" value="${a.id}" ${i === 0 ? 'checked' : ''} style="width:auto">
-                ${a.icon || '🏹'} <b>${esc(a.name)}</b> <span class="chip blue" style="font-size:11px; padding:1px 6px;">${esc(a.role || 'Companion')}</span>
-                <div class="muted small" style="margin-left:22px;">${esc(a.blurb || '')}</div>
+                ${a.icon || '🏹'} <b>${contentLabel(a,"name")}</b> <span class="chip blue" style="font-size:11px; padding:1px 6px;">${displayLabel(a.roleDisplay,a.role || t("ui.play.companion"))}</span>
+                <div class="muted small" style="margin-left:22px;">${displayLabel(a.blurbDisplay,a.blurb || '')}</div>
               </label>`).join('')}
             <label style="display:block; margin:8px 0; color:var(--text); cursor:pointer;">
               <input type="radio" name="companionPick" value="none" style="width:auto">
-              👤 <b>Solo Expedition</b> <span class="muted small">— Brave the crypt alone (hardcore challenge)</span>
+              👤 <b>${label("ui.play.solo_expedition")}</b> <span class="muted small">${label("ui.play.brave_the_crypt_alone_hardcore_challenge")}</span>
             </label>
           </div>
-          <button class="btn primary big" id="beginBtn" style="width:100%;">⚔ Descend</button>
+          <button class="btn primary big" id="beginBtn" style="width:100%;">${label("ui.play.descend")}</button>
+          <p class="small" data-companion-note role="alert" hidden style="margin-top:8px; color:#e8b26a;"></p>
+          <p class="small" data-history-note role="status" hidden style="margin-top:8px; color:#8ab4f8;"></p>
         </div>
       </div>`;
     const beginBtn = /** @type {HTMLButtonElement} */ (document.getElementById('beginBtn'));
+    const companionNote = main.querySelector('[data-companion-note]');
+    const historyNote = main.querySelector('[data-history-note]');
+    const directory = createAdventureDirectory(main.querySelector('[data-prepare-adventures]'), {
+      entries: maps, selectedId: maps[0]?.id, onSelect: () => syncCompanionRequirement(), onRefresh: refreshDirectory
+    });
+    navigation.onDispose(directory.dispose);
+    // T12a: companion stories gate the descent on the real ally — visible reason,
+    // no guessing why the button is dark, and the server still enforces the rule.
+    function syncCompanionRequirement() {
+      const selection = directory.getSelection();
+      const need = selection?.requiresCompanion || null;
+      const picked = (/** @type {HTMLInputElement} */ (document.querySelector('input[name="companionPick"]:checked')) || {}).value || 'bram';
+      const blocked = !!need && picked !== need;
+      beginBtn.disabled = !selection || blocked;
+      if (companionNote) {
+        companionNote.hidden = !blocked;
+        if (blocked) companionNote.textContent = t('ui.play.requires_companion', { name: selection.requiresCompanionName ? contentText(selection, 'requiresCompanionName') : selection.requiresCompanion });
+      }
+      if (historyNote) {
+        if (selection?.requiresHistory) {
+          const targetStory = selection.requiresHistory.storyId;
+          const hasHistory = (char?.settlements || []).some(s => s.mode === 'victory' && (s.encounterFacts || []).some(f => f.storyId === targetStory && f.ending))
+            || (char?.encounterFacts || []).some(f => f.storyId === targetStory && f.ending);
+          historyNote.hidden = !!hasHistory;
+          if (!hasHistory) historyNote.textContent = t('ui.play.no_history_notice');
+        } else {
+          historyNote.hidden = true;
+        }
+      }
+    }
+    syncCompanionRequirement();
+    main.querySelectorAll('input[name="companionPick"]').forEach(input => input.addEventListener('change', syncCompanionRequirement));
+    async function refreshDirectory() {
+      directory.setDisabled(true);
+      beginBtn.disabled = true;
+      const previous = directory.getSelection()?.id;
+      try {
+        const result = await api.content();
+        if (!navigation.isCurrent()) return;
+        const selected = directory.setEntries(result.adventures || []);
+        toast(() => t(previous && previous !== selected?.id ? 'adventure.removed' : 'adventure.updated'));
+      } catch (error) { if (navigation.isCurrent()) toast(() => error.message); }
+      finally { if (navigation.isCurrent()) { directory.setDisabled(false); syncCompanionRequirement(); } }
+    }
     beginBtn.addEventListener('click', async () => {
       if (beginBtn.disabled) return;
-      const mapId = (/** @type {HTMLInputElement} */ (document.querySelector('input[name="mapPick"]:checked') || {})).value || 'crypt';
+      const mapId = directory.getSelection()?.mapId;
+      if (!mapId) return;
       const difficulty = /** @type {'easy' | 'normal' | 'hard'} */ ((/** @type {HTMLInputElement} */ (document.querySelector('input[name="difficulty"]:checked') || {})).value || 'normal');
       const companionChoice = (/** @type {HTMLInputElement} */ (document.querySelector('input[name="companionPick"]:checked') || {})).value || 'bram';
       const bringAlly = /** @type {false | 'bram' | 'valeria' | 'aldous'} */ (companionChoice === 'none' ? false : companionChoice);
       beginBtn.disabled = true;
-      beginBtn.textContent = '⚔ Descending…';
+      directory.setDisabled(true);
+      localizeText(beginBtn, () => t("ui.play.descending"));
       try {
         const { state } = await api.startGame(charId, { bringAlly, difficulty, mapId });
+        if (!navigation.isCurrent()) return;
         location.hash = `#/play/${state.id}`;
       } catch (e) {
-        toast(e.message);
+        if (!navigation.isCurrent()) return;
+        toast(() => e.message);
         beginBtn.disabled = false;
-        beginBtn.textContent = '⚔ Descend';
+        directory.setDisabled(false);
+        localizeText(beginBtn, () => t("ui.play.descend"));
+        if (e.display?.key === 'api.unknownMap') await refreshDirectory();
       }
     });
-    return () => {};
+    return navigation.onDispose(onLocaleChange(() => { translateDOM(main); directory.refreshLocale(); }));
   }
   const data = await api.getGame(saveRef);
   // initialization boundary: the only place a whole state is assigned without the rev/id
   // gate — a newer view may have mounted while this GET was in flight, in which case we
   // stand down and leave the board alone (T2a)
-  if (token !== viewToken) return () => {};
+  if (!navigation.isCurrent() || token !== viewToken) return undefined;
   game = data.state;
+  let visualCatalog=null;
+  try{visualCatalog=await api.visuals();}catch(error){console.warn('Visual catalog unavailable; using procedural models',error);}
+  if(!navigation.isCurrent()||token!==viewToken)return undefined;
   const mapTheme = (game.map && game.map.theme) || (game.mapId && game.mapId.includes('vault') ? 'vault' : game.mapId && game.mapId.includes('hills') ? 'hills' : 'crypt');
   if (game.mode === 'combat') {
     sfx.startAmbient('combat');
@@ -133,35 +201,46 @@ export async function playView(main, saveRef) {
     sfx.startAmbient(mapTheme);
   }
   selectedTarget = null; activeNpc = null; appearanceShown = null;
+  pendingClarification = null; pendingConfirmation = null;
 
   main.innerHTML = `
     <div class="play-layout">
-      <button class="btn small" id="immersiveBtn" title="Immersive mode — hide the top bar, maximize the board (V)">⛶ Immersive</button>
-      <button class="btn small" id="pauseMenuBtn" title="Menu (Esc)">☰ Menu</button>
-      <button class="btn small" id="sidePanelBtn" title="Toggle the side panel overlay">📋 Panel</button>
+      ${game.isPlaytest ? `
+        <div class="playtest-banner" style="grid-column:1 / -1; background:#3b1e54; color:#f3e8ff; padding:8px 110px 8px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #7c3aed; z-index:100; font-size:13px; font-weight:500;">
+          <span>🛠️ <b>${label("ui.play.playtest_mode")}</b> · ${label("ui.play.playtest_isolated_notice")}</span>
+          <a href="#/author?draft=${esc(game.ownerDraftId || '')}" data-exit-playtest class="btn small" style="background:#6d28d9; color:#fff; border:1px solid #a78bfa; text-decoration:none;">${label("ui.play.exit_playtest")}</a>
+        </div>
+      ` : ''}
+      <button class="btn small" id="immersiveBtn" data-i18n-title="ui.play.immersive_mode_hide_the_top_bar_maximize" title="${esc(t("ui.play.immersive_mode_hide_the_top_bar_maximize"))}">${label("ui.play.immersive")}</button>
+      <button class="btn small" id="pauseMenuBtn" data-i18n-title="ui.play.menu_esc" title="${esc(t("ui.play.menu_esc"))}">${label("ui.play.menu")}</button>
+      <button class="btn small" id="sidePanelBtn" data-i18n-title="ui.play.toggle_the_side_panel_overlay" title="${esc(t("ui.play.toggle_the_side_panel_overlay"))}">${label("ui.play.panel")}</button>
+      <button class="btn small" id="fullscreenBtn" type="button" data-app-fullscreen>${label('ui.fullscreen.enter')}</button>
         <div class="pause-menu hidden" id="pauseMenu">
           <div class="pause-menu-card">
-            <h3>⚔ Paused</h3>
-            <a href="#/">🏠 Characters</a>
-            <a href="#/overworld">🗺️ Overworld</a>
-            <a href="#/create">✨ Create Character</a>
-            <button id="pauseSettingsBtn">⚙️ Settings</button>
-            <button id="pauseExitImmersive">✕ Exit Immersive</button>
+            <h3>${label("ui.play.paused")}</h3>
+            ${game.isPlaytest ? `<a href="#/author?draft=${esc(game.ownerDraftId || '')}" data-exit-playtest style="color:#c084fc; font-weight:bold;">🛠️ ${label("ui.play.exit_playtest")}</a>` : ''}
+            <a href="#/">${label("ui.play.characters")}</a>
+            <a href="#/visuals">${label('visual.title')}</a>
+            <a href="#/overworld">${label("ui.play.overworld")}</a>
+            <a href="#/create">${label("ui.play.create_character")}</a>
+            <button id="pauseSettingsBtn">${label("ui.play.settings")}</button>
+            <button id="pauseExitImmersive">${label("ui.play.exit_immersive")}</button>
+            <button type="button" data-app-fullscreen>${label('ui.fullscreen.enter')}</button>
           </div>
         </div>
         <div id="questTrackerHost" class="hidden"></div>
-      <div>
+      <div class="map-main">
         <div class="map-wrap" id="mapWrap">
           <div id="map3d"></div>
           
           <!-- 2D Minimap (Corner overlay in 3D mode, full in 2D mode) -->
           <div id="minimapContainer" class="minimap-container">
             <div class="minimap-header">
-              <span class="minimap-title">🧭 ${esc(game.mapName)}</span>
+              <span class="minimap-title">🧭 ${contentLabel(game,"mapName")}</span>
               <div class="minimap-controls">
-                <button class="minimap-btn" id="cameraFollowBtn" title="Camera follows your hero (click for a free camera · right-drag to pan · F)">🎥 跟随</button>
-                <button class="minimap-btn" id="minimapExpandBtn" title="Toggle Minimap Size">⤢</button>
-                <button class="minimap-btn" id="viewToggleMinimap" title="Switch to Full 2D View">2D Full</button>
+                <button class="minimap-btn" id="cameraFollowBtn" data-i18n-title="ui.play.camera_follows_your_hero_click_for_a" title="${esc(t("ui.play.camera_follows_your_hero_click_for_a"))}">${label("ui.play.follow")}</button>
+                <button class="minimap-btn" id="minimapExpandBtn" data-i18n-title="ui.play.toggle_minimap_size" title="${esc(t("ui.play.toggle_minimap_size"))}">⤢</button>
+                <button class="minimap-btn" id="viewToggleMinimap" data-i18n-title="ui.play.switch_to_full_2d_view" title="${esc(t("ui.play.switch_to_full_2d_view"))}">${label("ui.play.2d_full")}</button>
               </div>
             </div>
             <div class="minimap-body">
@@ -169,36 +248,51 @@ export async function playView(main, saveRef) {
             </div>
           </div>
 
-          <!-- Tactical Combat Initiative Tracker Ribbon -->
-          <div class="initiative-ribbon-container" id="initiativeRibbonContainer" style="display:none;"></div>
-
           <div id="fctLayer" class="fct-layer"></div>
+          <div class="map-top-hud" id="mapTopHud">
+          <div id="heroHud" class="hero-hud"></div>
           <div class="delve-guidance-hud" id="delveGuidanceHud">
             <div class="guidance-main-row">
               <div class="guidance-status-group">
-                <span class="guidance-mode-pill" id="guidanceModePill">🧭 Exploration</span>
-                <span class="guidance-movement-pill" id="guidanceMovementPill">👣 30 ft (6 tiles)</span>
+                <span class="guidance-mode-pill" id="guidanceModePill">${label("ui.play.exploration")}</span>
+                <span class="guidance-movement-pill" id="guidanceMovementPill">${label("ui.play.30_ft_6_tiles")}</span>
                 <span class="guidance-objective-pill" id="guidanceObjectivePill">🎯 ${esc(charObjective(game))}</span>
               </div>
             </div>
             <div class="guidance-hover-bar" id="guidanceHoverBar">
               <span class="guidance-hover-icon" id="guidanceHoverIcon">💡</span>
-              <span class="guidance-hover-text" id="guidanceHoverText">Click a highlighted tile to move · Click a monster or chest to interact · WASD to step</span>
+              <span class="guidance-hover-text" id="guidanceHoverText">${label("ui.play.click_a_highlighted_tile_to_move_click")}</span>
             </div>
           </div>
-          <button class="btn small" id="viewToggle2D" style="display:none; position:absolute; top:8px; right:10px; z-index:5;">🏰 3D View</button>
+          <div class="initiative-ribbon-container" id="initiativeRibbonContainer" style="display:none;"></div>
+          <div id="encounterTools" class="encounter-tools"></div>
+          </div>
+          <div id="coreHud" class="core-hud"></div>
+          <button class="btn small" id="viewToggle2D" style="display:none; position:absolute; top:8px; right:10px; z-index:30;">${label("ui.play.3d_view")}</button>
         </div>
         <div class="log-panel" id="logPanel">
-          <button class="btn small log-min-btn" id="logMinBtn" title="Minimize / expand the log">▼</button>
+          <button class="btn small log-min-btn" id="logMinBtn" data-i18n-title="ui.play.minimize_expand_the_log" title="${esc(t("ui.play.minimize_expand_the_log"))}">▼</button>
           <div class="log-entries" id="logEntries"></div>
           <div class="chat-bar">
-            <input type="text" id="chatInput" placeholder="${activeNpc ? 'Speak to ' + esc(activeNpc.name) + '…' : 'Describe an action — "search the room", "listen at the door", "hide in the shadows"…'}">
-            <button class="btn primary" id="chatSend">Send</button>
-            ${activeNpc ? '<button class="btn small" id="chatExit">End chat</button>' : ''}
+            <input type="text" id="chatInput" placeholder="${esc(activeNpc ? t("ui.play.speakTo", { name: (activeNpc.nameDisplay || activeNpc.name) }) : t("ui.play.describe_an_action_search_the_room_listen"))}">
+            <button class="btn primary" id="chatSend">${label("ui.play.send")}</button>
+            ${activeNpc ? `<button class="btn small" id="chatExit">${label("ui.play.end_chat")}</button>` : ''}
           </div>
         </div>
       </div>
       <div class="side-panel" id="sidePanel"></div>
+      <button id="logPreview" class="log-preview" data-panel="log" aria-expanded="false"></button>
+      <nav class="delve-tools" data-i18n-aria-label="ui.layout.tools" aria-label="${esc(t('ui.layout.tools'))}">
+        <button class="btn small" data-panel="character">${label('ui.layout.character')}</button>
+        <button class="btn small" data-panel="inventory">${label('ui.layout.backpack')}</button>
+        <button class="btn small" data-panel="quests">${label('ui.layout.quests')}</button>
+        <button class="btn small" data-panel="log">${label('ui.layout.log')}</button>
+        <button class="btn small" data-panel="chat">${label('ui.layout.chat')}</button>
+      </nav>
+      <section id="delvePanel" class="delve-panel" hidden data-i18n-aria-label="ui.layout.panel" aria-label="${esc(t('ui.layout.panel'))}">
+        <header><span>${label('ui.layout.panel')}</span><button class="btn small" id="delvePanelClose" data-i18n-aria-label="ui.layout.close" aria-label="${esc(t('ui.layout.close'))}">✕</button></header>
+        <div class="delve-panel-content"></div>
+      </section>
     </div>
   `;
 
@@ -263,23 +357,17 @@ export async function playView(main, saveRef) {
 
   // T4a: the retreat button must not claim completion — standing on the campfire tile with
   // the goal is what fires the victory (story advance); a retreat only settles current spoils.
-  function retreatButtonLabel() {
-    if (game.mode === 'retreat' || game.mode === 'victory') return '🏆 View Summary / Return to Town';
-    if (game.guidance && game.guidance.stage === 'objective') return '🏃 提前撤退（走回营火才算完成）';
-    if (isAreaCleared(game)) return '🏃 主动撤退（只结算已有收获）';
-    return '🏰 Retreat to Oakhaven';
+  function retreatButtonKey() {
+    if (game.mode === 'retreat' || game.mode === 'victory') return "ui.play.view_summary_return_to_town";
+    if (game.guidance && game.guidance.stage === 'objective') return "ui.play.retreat_early_walk_to_campfire_for_victory";
+    if (isAreaCleared(game)) return "ui.play.retreat_settle_current_gains_only";
+    return "ui.play.retreat_to_oakhaven";
   }
   // the exit beacon highlights a safe way out; with the goal in hand the way forward is the
   // campfire, so the beacon yields to the objective guidance
   function retreatBeacon() {
     return game.mode !== 'retreat' && game.mode !== 'victory'
       && isAreaCleared(game) && !(game.guidance && game.guidance.stage === 'objective');
-  }
-
-  // The objective line shown in the side panel: the server guidance wins (T4), the local
-  // fallback keeps the panel useful if an older payload ever lacks it.
-  function delveObjectiveText() {
-    return (game.guidance && game.guidance.objective) || charObjective(game);
   }
 
   let currentHoverTile = null;
@@ -298,47 +386,47 @@ export async function playView(main, saveRef) {
       const myTurn = !game.combat || game.combat.order[game.combat.turnIdx]?.id === 'player';
       if (myTurn) {
         modePill.className = 'guidance-mode-pill combat-player';
-        modePill.textContent = `⚔️ Your Turn (Rnd ${game.combat.round})`;
+        localizeText(modePill, () => t('ui.play.yourRound', { round: game.combat.round }));
       } else {
         modePill.className = 'guidance-mode-pill combat-enemy';
-        modePill.textContent = `🛡️ Enemies Acting (Rnd ${game.combat.round})`;
+        localizeText(modePill, () => t('ui.play.enemyRound', { round: game.combat.round }));
       }
       const mvLeft = game.combat?.movementLeft ?? 0;
-      movePill.textContent = `👣 ${mvLeft} ft (${Math.floor(mvLeft / 5)} tiles)`;
+      localizeText(movePill, () => t('ui.play.movement', { ft: mvLeft, tiles: Math.floor(mvLeft / 5) }));
     } else if (game.mode === 'over') {
       modePill.className = 'guidance-mode-pill combat-enemy';
-      modePill.textContent = '💀 Defeated';
+      localizeText(modePill, () => t("ui.play.defeated"));
       movePill.textContent = '👣 0 ft';
     } else if (game.mode === 'victory') {
       modePill.className = 'guidance-mode-pill';
-      modePill.textContent = '🏆 Victorious';
-      movePill.textContent = '👣 Complete';
+      localizeText(modePill, () => t("ui.play.victorious"));
+      localizeText(movePill, () => t("ui.play.complete"));
     } else if (game.guidance && game.guidance.stage === 'objective') {
       // goal in hand but still explore: the victory fires on the campfire tile, not before
       modePill.className = 'guidance-mode-pill';
       modePill.style.background = 'rgba(201, 169, 89, 0.25)';
       modePill.style.color = 'var(--gold)';
       modePill.style.borderColor = 'var(--gold)';
-      modePill.textContent = '✅ 目标已到手';
+      localizeText(modePill, () => t("ui.play.goal_secured"));
       const sp = player()?.speedFt || game.character?.speedFt || 30;
-      movePill.textContent = `👣 ${sp} ft (${Math.floor(sp / 5)} tiles)`;
+      localizeText(movePill, () => t('ui.play.movement', { ft: sp, tiles: Math.floor(sp / 5) }));
     } else if (cleared) {
       // cleared ≠ victory — the goal may still be pending, so don't claim the delve is done
       modePill.className = 'guidance-mode-pill';
       modePill.style.background = 'rgba(201, 169, 89, 0.25)';
       modePill.style.color = 'var(--gold)';
       modePill.style.borderColor = 'var(--gold)';
-      modePill.textContent = '🛡️ 区域安全';
+      localizeText(modePill, () => t("ui.play.area_safe"));
       const sp = player()?.speedFt || game.character?.speedFt || 30;
-      movePill.textContent = `👣 ${sp} ft (${Math.floor(sp / 5)} tiles)`;
+      localizeText(movePill, () => t('ui.play.movement', { ft: sp, tiles: Math.floor(sp / 5) }));
     } else {
       modePill.className = 'guidance-mode-pill';
       modePill.style.background = '';
       modePill.style.color = '';
       modePill.style.borderColor = '';
-      modePill.textContent = '🧭 Exploration';
+      localizeText(modePill, () => t("ui.play.exploration"));
       const sp = player()?.speedFt || game.character?.speedFt || 30;
-      movePill.textContent = `👣 ${sp} ft (${Math.floor(sp / 5)} tiles)`;
+      localizeText(movePill, () => t('ui.play.movement', { ft: sp, tiles: Math.floor(sp / 5) }));
     }
 
     if (objPill) {
@@ -347,12 +435,12 @@ export async function playView(main, saveRef) {
       if (guide && guide.objective) {
         // the server's deterministic objective line leads (T4): it knows goal-vs-cleared
         // and the return-to-camp prompt without re-deriving map rules in the client
-        objPill.textContent = guide.objective;
+        localizeText(objPill, () => displayText(game.guidance.objectiveDisplay, game.guidance.objective));
       } else if (cleared && game.mode !== 'over') {
-        objPill.innerHTML = `🌟 <b>Delve Cleared:</b> Head to Campfire / Entrance to Return to Town`;
+        objPill.innerHTML = `🌟 <b>${label("ui.play.delve_cleared")}</b> ${label("ui.play.backToCamp")}`;
       } else if (mainStep) {
         // the main story takes precedence over the local dungeon objective
-        objPill.innerHTML = `📜 <b>${esc(game.campaign.actName || '主线')}</b> ${esc(mainStep.text)}`;
+        objPill.innerHTML = `📜 <b>${esc(game.campaign.actName || t("ui.play.main_story"))}</b> ${contentLabel(mainStep,"text")}`;
       } else {
         objPill.textContent = `🎯 ${charObjective(game)}`;
       }
@@ -361,17 +449,17 @@ export async function playView(main, saveRef) {
     if (!tile) {
       hoverIcon.textContent = '💡';
       if (game.guidance && game.guidance.hint) {
-        hoverText.textContent = game.guidance.hint;
+        localizeText(hoverText, () => displayText(game.guidance.hintDisplay, game.guidance.hint));
       } else if (cleared && game.mode !== 'combat' && game.mode !== 'over') {
         hoverIcon.textContent = '🌟';
-        hoverText.innerHTML = '<b>Delve Cleared!</b> All monsters slain. Follow the golden beacon light back to the Campfire or click <b>"Return to Oakhaven"</b>.';
+        hoverText.innerHTML = `<b>${label("ui.play.delve_cleared_2")}</b> ${label("ui.play.all_monsters_slain_follow_the_golden_beacon")} <b>${label("ui.play.return_to_oakhaven")}</b>.`;
       } else if (game.mode === 'combat') {
         const myTurn = !game.combat || game.combat.order[game.combat.turnIdx]?.id === 'player';
         hoverText.innerHTML = myTurn
-          ? '<b>Your Turn!</b> Click a blue tile to move, click a monster to target, or select an action. Press <span class="guidance-action-key">SPACE</span> to end turn.'
-          : 'Enemies are currently executing their actions...';
+          ? `<b>${label("ui.play.your_turn")}</b> ${label("ui.play.click_a_blue_tile_to_move_click")} <span class="guidance-action-key">${label("ui.play.space")}</span> ${label("ui.play.endTurnHelp")}`
+          : t("ui.play.enemies_are_currently_executing_their_actions");
       } else {
-        hoverText.innerHTML = 'Click any floor tile or use <span class="guidance-action-key">WASD</span> to move. Click monsters, chests, or doors to interact.';
+        hoverText.innerHTML = label("ui.play.moveHelp");
       }
       return;
     }
@@ -386,19 +474,19 @@ export async function playView(main, saveRef) {
       hoverIcon.textContent = '⚔️';
       const dist = p ? Math.max(Math.abs(p.x - x), Math.abs(p.y - y)) : 99;
       const inMelee = dist <= 1;
-      hoverText.innerHTML = `<b>${esc(ent.name)}</b> (${ent.hp}/${ent.hpMax} HP, AC ${ent.ac || 10}) — ${inMelee ? 'In Melee Range! <b>Click to Target / Attack</b>' : `Distance: ${dist * 5} ft. <b>Click to Target</b>`}`;
+      hoverText.innerHTML = `<b>${contentLabel(ent,"name")}</b> (${ent.hp}/${ent.hpMax} HP, AC ${ent.ac || 10}) — ${inMelee ? `${label("ui.play.meleeRange")} <b>${label("ui.play.click_to_target_attack")}</b>` : `${label("ui.play.distance", { ft: dist * 5 })} <b>${label("ui.play.click_to_target")}</b>`}`;
       return;
     }
 
     if (ent && ent.kind === 'npc' && isLit) {
       hoverIcon.textContent = '🗣️';
-      hoverText.innerHTML = `<b>${esc(ent.name)}</b> — Click to Talk / Trade`;
+      hoverText.innerHTML = `<b>${contentLabel(ent,"name")}</b> — ${label("ui.play.talkTrade")}`;
       return;
     }
 
     if (ent && ent.kind === 'ally') {
       hoverIcon.textContent = '🏹';
-      hoverText.innerHTML = `<b>${esc(ent.name)}</b> (${ent.hp}/${ent.hpMax} HP) — Companion`;
+      hoverText.innerHTML = `<b>${contentLabel(ent,"name")}</b> (${ent.hp}/${ent.hpMax} HP) — ${label("ui.play.companion")}`;
       return;
     }
 
@@ -407,39 +495,39 @@ export async function playView(main, saveRef) {
       const dist = p ? Math.abs(p.x - x) + Math.abs(p.y - y) : 99;
       if (obj.type === 'door') {
         hoverIcon.textContent = '🚪';
-        hoverText.innerHTML = `<b>Door (${obj.open ? 'Open' : 'Closed'})</b> — ${dist <= 1 ? 'Click to Open / Close' : 'Move closer to open'}`;
+        hoverText.innerHTML = `<b>${label("ui.play.door")} (${obj.open ? label("ui.play.open") : label("ui.play.closed")})</b> — ${dist <= 1 ? label("ui.play.click_to_open_close") : label("ui.play.move_closer_to_open")}`;
         return;
       }
       if (obj.type === 'chest') {
         hoverIcon.textContent = '🧰';
-        if (obj.looted) hoverText.innerHTML = `<b>Empty Chest</b> (Already looted)`;
-        else if (obj.locked && !obj.unlocked) hoverText.innerHTML = `<b>Locked Chest</b> — ${dist <= 1 ? 'Click to Pick Lock or Force Open' : 'Move closer to unlock'}`;
-        else hoverText.innerHTML = `<b>Unlocked Chest</b> — ${dist <= 1 ? 'Click to Open & Loot' : 'Move closer to loot'}`;
+        if (obj.looted) hoverText.innerHTML = `<b>${label("ui.play.empty_chest")}</b> (${label("ui.play.looted")})`;
+        else if (obj.locked && !obj.unlocked) hoverText.innerHTML = `<b>${label("ui.play.locked_chest")}</b> — ${dist <= 1 ? label("ui.play.click_to_pick_lock_or_force_open") : label("ui.play.move_closer_to_unlock")}`;
+        else hoverText.innerHTML = `<b>${label("ui.play.unlocked_chest")}</b> — ${dist <= 1 ? label("ui.play.click_to_open_loot") : label("ui.play.move_closer_to_loot")}`;
         return;
       }
       if (obj.type === 'barrel') {
         hoverIcon.textContent = '🛢️';
-        hoverText.innerHTML = obj.exploded ? `<b>Shattered Barrel</b>` : `<b>Explosive Powder Keg</b> — Click to Target / Detonate with Attack`;
+        hoverText.innerHTML = obj.exploded ? `<b>${label("ui.play.shattered_barrel")}</b>` : `<b>${label("ui.play.explosive_powder_keg")}</b> — ${label("ui.play.detonate")}`;
         return;
       }
       if (obj.type === 'trap') {
         hoverIcon.textContent = '⚠️';
-        hoverText.innerHTML = `<b>Concealed Trap</b> — ${dist <= 1 ? 'Click to Disarm (DC ' + (obj.dc || 12) + ')' : 'Hazardous mechanism'}`;
+        hoverText.innerHTML = `<b>${label("ui.play.concealed_trap")}</b> — ${dist <= 1 ? label("ui.play.click_to_disarm_dc") + (obj.dc || 12) + ')' : label("ui.play.hazardous_mechanism")}`;
         return;
       }
       if (obj.type === 'font') {
         hoverIcon.textContent = '⛲';
-        hoverText.innerHTML = `<b>Ancient Shrine Font</b> — ${obj.used ? 'Depleted' : 'Click to Drink & receive blessing'}`;
+        hoverText.innerHTML = `<b>${label("ui.play.ancient_shrine_font")}</b> — ${obj.used ? label("ui.play.depleted") : label("ui.play.click_to_drink_receive_blessing")}`;
         return;
       }
       if (obj.type === 'lever') {
         hoverIcon.textContent = '🕹️';
-        hoverText.innerHTML = `<b>Iron Lever</b> — Click to Pull`;
+        hoverText.innerHTML = `<b>${label("ui.play.iron_lever")}</b> — ${label("ui.play.pull")}`;
         return;
       }
       if (obj.type === 'stairs') {
         hoverIcon.textContent = '🪜';
-        hoverText.innerHTML = `<b>Stone Stairway</b> — Descend deeper into the dungeon`;
+        hoverText.innerHTML = `<b>${label("ui.play.stone_stairway")}</b> — ${label("ui.play.descend")}`;
         return;
       }
     }
@@ -448,27 +536,48 @@ export async function playView(main, saveRef) {
     if (rSet.has(x + ',' + y)) {
       hoverIcon.textContent = '👣';
       const steps = p ? Math.abs(x - p.x) + Math.abs(y - p.y) : 0;
-      hoverText.innerHTML = `<b>Move to (${x}, ${y})</b> — ${steps * 5} ft (${steps} tiles). <b>Click to Move</b>`;
+      hoverText.innerHTML = `<b>${label("ui.play.move_to_values", {p0: x, p1: y})}</b> ${label("ui.play.ft_tiles_values", {p2: steps * 5, p3: steps})} <b>${label("ui.play.click_to_move")}</b>`;
       return;
     }
 
     if (game.map?.rows[y]?.[x] === '#') {
       hoverIcon.textContent = '🧱';
-      hoverText.innerHTML = `<b>Dungeon Wall</b> — Impassable solid stone`;
+      hoverText.innerHTML = `<b>${label("ui.play.dungeon_wall")}</b> — ${label("ui.play.wall")}`;
       return;
     }
 
     hoverIcon.textContent = '🚫';
-    hoverText.innerHTML = `<b>Tile (${x}, ${y})</b> — Beyond current movement range this turn`;
+    hoverText.innerHTML = `<b>${label("ui.play.tile_values", {p0: x, p1: y})}</b> — ${label("ui.play.outOfRange")}`;
   }
 
-  // immersive mode: hide the page chrome, maximize the board (toggle: ⛶ button or V)
-  function toggleImmersive() {
-    document.body.classList.toggle('immersive');
-    window.dispatchEvent(new Event('resize'));
-    relayoutQuestTracker();
+  const panelManager = createPanelManager(main, () => delveInv.openDelveInventoryModal());
+  createFullscreenControls(main, navigation, toast);
+  let mapFirst = localStorage.getItem('dnd_delve_layout') !== 'tactical';
+  function applyLayout() {
+    document.body.classList.toggle('immersive', mapFirst);
+    document.body.classList.toggle('map-first', mapFirst);
+    panelManager.layout(mapFirst);
+    relayoutTutorial();
     const btn = document.getElementById('immersiveBtn');
-    if (btn) btn.textContent = document.body.classList.contains('immersive') ? '✕ Exit Immersive' : '⛶ Immersive';
+    localizeText(btn, () => t(mapFirst ? 'ui.layout.tactical' : 'ui.layout.mapFirst'));
+    localizeText(document.getElementById('pauseExitImmersive'), () => t(mapFirst ? 'ui.layout.tactical' : 'ui.layout.mapFirst'));
+    window.dispatchEvent(new Event('resize'));
+  }
+  applyLayout();
+  function relayoutTutorial() {
+    const coach = main.querySelector('.delve-tutorial-card');
+    if (coach) main.querySelector(mapFirst ? '#mapTopHud' : '.play-layout').appendChild(coach);
+  }
+  // The former immersive shortcut now selects the same persisted layout.
+  function toggleImmersive() {
+    if (panelManager.blocked()) return;
+    mapFirst = !mapFirst;
+    localStorage.setItem('dnd_delve_layout', mapFirst ? 'map-first' : 'tactical');
+    applyLayout();
+    // Movers change containers on a layout toggle — rebuild the HUD the plain way
+    // (no press can be in flight: the toggle click itself just completed).
+    renderSide(true);
+    relayoutQuestTracker();
   }
   // HUD layout: in immersive mode the quest tracker lives top-left as its own overlay
   function relayoutQuestTracker() {
@@ -489,19 +598,31 @@ export async function playView(main, saveRef) {
   if (immersiveBtn) immersiveBtn.onclick = toggleImmersive;
   const sidePanelBtn = document.getElementById('sidePanelBtn');
   if (sidePanelBtn) sidePanelBtn.onclick = () => {
-    const sp = document.getElementById('sidePanel');
-    if (sp) sp.classList.toggle('immersive-hidden');
+    panelManager.open('character', sidePanelBtn);
   };
   function togglePauseMenu() {
-    const menu = document.getElementById('pauseMenu');
-    if (menu) menu.classList.toggle('hidden');
+    panelManager.togglePause();
   }
   const pauseMenuBtn = document.getElementById('pauseMenuBtn');
   if (pauseMenuBtn) pauseMenuBtn.onclick = togglePauseMenu;
   const pauseSettingsBtn = document.getElementById('pauseSettingsBtn');
   if (pauseSettingsBtn) pauseSettingsBtn.onclick = () => { togglePauseMenu(); openSettingsModal(); };
   const pauseExitImmersive = document.getElementById('pauseExitImmersive');
-  if (pauseExitImmersive) pauseExitImmersive.onclick = () => { togglePauseMenu(); if (document.body.classList.contains('immersive')) toggleImmersive(); };
+  if (pauseExitImmersive) pauseExitImmersive.onclick = () => { document.getElementById('pauseMenu').classList.add('hidden'); toggleImmersive(); };
+  // Exiting a playtest is a server-side release of the temporary run, not just a hash change:
+  // the anchor keeps its href so it degrades to plain navigation if the request never lands.
+  main.querySelectorAll('[data-exit-playtest]').forEach(link => {
+    link.addEventListener('click', async event => {
+      if (!game.isPlaytest || !game.ownerDraftId || !game.id) return;
+      event.preventDefault();
+      const target = link.getAttribute('href') || '#/author';
+      let failure = null;
+      try { await api.exitPlaytest(game.ownerDraftId, game.id); }
+      catch (error) { failure = error; }
+      location.hash = target;
+      if (failure) toast(() => `${t('ui.play.exit_playtest_failed')}: ${failure.message}`);
+    });
+  });
   const logMinBtn = document.getElementById('logMinBtn');
   if (logMinBtn) logMinBtn.onclick = () => {
     const lp = document.getElementById('logPanel');
@@ -512,7 +633,7 @@ export async function playView(main, saveRef) {
   const canvas = document.getElementById('mapCanvas');
   const renderer = createMapRenderer(canvas, {
     isSelected: e => selectedTarget && e.id === selectedTarget.id,
-    onTileHover: t => updateHoverCues(t)
+    onTileHover: entryText => updateHoverCues(entryText)
   });
   let renderer3d = null;
   // Default to 3D mode unless explicitly configured otherwise
@@ -552,11 +673,11 @@ export async function playView(main, saveRef) {
     if (!followBtn) return;
     const wrap = document.getElementById('mapWrap');
     if (wrap) wrap.dataset.camFollow = camFollow ? 'on' : 'off';
-    followBtn.textContent = camFollow ? '🎥 跟随' : '🎥 自由';
+    localizeText(followBtn, () => camFollow ? t("ui.play.follow") : t("ui.play.free"));
     followBtn.classList.toggle('active', camFollow);
-    followBtn.title = camFollow
-      ? 'Camera is bound to your hero — click to free it (right-drag to pan, F)'
-      : 'Free camera — right-drag to pan, wheel to zoom, click to re-centre on your hero (F)';
+    localizeAttribute(followBtn, "title", () => camFollow
+      ? t("ui.play.camera_is_bound_to_your_hero_click")
+      : t("ui.play.free_camera_right_drag_to_pan_wheel"));
     followBtn.style.display = activeView === '3d' ? '' : 'none';
   }
   function setFollow(next) {
@@ -582,8 +703,9 @@ export async function playView(main, saveRef) {
     if (activeView === '3d') {
       if (!renderer3d) {
         renderer3d = createMap3D(map3dEl, {
+          visualFactory:packVisualFactory(visualCatalog,game.characterId),
           onTileClick: (x, y) => handleTileClick(x, y),
-          onTileHover: t => updateHoverCues(t),
+          onTileHover: entryText => updateHoverCues(entryText),
           isSelected: e => selectedTarget && e.id === selectedTarget.id,
           getSelected: () => selectedTarget,
           follow: camFollow,
@@ -613,8 +735,8 @@ export async function playView(main, saveRef) {
   }
 
   canvas.addEventListener('click', ev => {
-    const t = renderer.tileFromEvent(ev);
-    if (t) handleTileClick(t.x, t.y);
+    const entryText = renderer.tileFromEvent(ev);
+    if (entryText) handleTileClick(entryText.x, entryText.y);
   });
 
   // Test seam: the e2e suite inspects camera binding and the board through here.
@@ -629,24 +751,41 @@ export async function playView(main, saveRef) {
     rev: () => (game && game.rev) || null,
     portraits: () => Object.assign({}, portraitCache),
     appearance: () => appearanceShown,
-    loadingAppearance: () => appearanceLoading
+    loadingAppearance: () => appearanceLoading,
+    panel: () => panelManager.current(),
+    resources: () => map3DResources(),
+    tileToScreen: (x, y) => renderer3d?.tileToScreen(x, y),
+    visuals: () => renderer3d?.visualState(),
+    setVisualFactory: factory => renderer3d?.setVisualFactory(factory),
+    playVisual: (id,action,eventId) => renderer3d?.playVisual(id,action,eventId),
+    // Test seam (H1): select a creature exactly like a map click would — same
+    // selectedTarget/update/fetchAppearance flow — without depending on overlay
+    // geometry (the initiative ribbon floats over mid-map tiles in the 2D board).
+    target: (id) => {
+      const ent = game.entities.find(e => e.id === id && e.alive !== false && !e.fled);
+      if (!ent || ent.kind !== 'monster') return false;
+      selectedTarget = ent;
+      appearanceShown = (game.appearances || {})[getLocale()+':'+ent.monsterId] || null;
+      update();
+      fetchAppearance(ent);
+      return true;
+    },
+    clarification: () => pendingClarification,
+    confirmation: () => pendingConfirmation
   };
 
   const onKey = (e) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      const pause = document.getElementById('pauseMenu');
-      if (pause && !pause.classList.contains('hidden')) { pause.classList.add('hidden'); return; }
-      const openModals = document.querySelectorAll('.modal-back');
-      if (openModals.length > 0) {
-        openModals.forEach(m => m.remove());
-        return;
-      }
-      if (document.body.classList.contains('immersive')) togglePauseMenu();
+      panelManager.escape();
       return;
     }
-    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
-    if (document.getElementById('sceneModal')) return;
+    if (document.activeElement && (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) || document.activeElement.closest('[contenteditable="true"]'))) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (panelManager.blocked()) return;
+    if (['c', 'q', 'l', 't'].includes(e.key.toLowerCase()) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault(); panelManager.open({ c:'character', q:'quests', l:'log', t:'chat' }[e.key.toLowerCase()]); return;
+    }
     if (e.key === 'v' || e.key === 'V') { e.preventDefault(); toggleImmersive(); return; }
     const dirs = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] };
     const d = dirs[e.key];
@@ -663,8 +802,8 @@ export async function playView(main, saveRef) {
     if (e.key === 'b' || e.key === 'B' || e.key === 'i' || e.key === 'I') {
       e.preventDefault();
       const existing = document.getElementById('delveInventoryModal');
-      if (existing) existing.remove();
-      else delveInv.openDelveInventoryModal();
+      if (existing) dismissModal(existing);
+      else panelManager.open('inventory');
     }
     if ((e.key === 'f' || e.key === 'F') && activeView === '3d') {
       e.preventDefault();
@@ -676,13 +815,16 @@ export async function playView(main, saveRef) {
   document.getElementById('chatSend').addEventListener('click', sendChat);
   document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
 
-  function sendChat() {
+  async function sendChat() {
     const input = /** @type {HTMLInputElement} */ (document.getElementById('chatInput'));
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
-    if (activeNpc) act({ type: 'chat', npcId: activeNpc.id, text });
-    else act({ type: 'freeform', text });
+    const res = activeNpc ? await act({ type: 'chat', npcId: activeNpc.id, text }) : await act({ type: 'freeform', text });
+    if (res && res.events && res.events.some(e => e.type === 'error') && !input.value) {
+      input.value = text;
+      input.focus();
+    }
   }
 
   function player() { return game.entities.find(e => e.kind === 'player'); }
@@ -701,13 +843,14 @@ export async function playView(main, saveRef) {
 
   // Fetch (and cache server-side) a vivid appearance description for a monster/NPC
   async function fetchAppearance(ent) {
-    const key = ent.kind === 'monster' ? ent.monsterId : ent.npcId;
+    const key = getLocale()+':'+(ent.kind === 'monster' ? ent.monsterId : ent.npcId);
     game.appearances = game.appearances || {};
     if (game.appearances[key]) { appearanceShown = game.appearances[key]; update(); } else {
       appearanceLoading = key; // waiting feedback while the DM studies the creature
       update();
       try {
         const res = await api.gameAction(game.id, { type: 'describe', targetId: ent.id });
+        if (!viewAlive) return;
         adoptState(res.state); // a move during the wait is newer — never adopt the older snapshot
         appearanceLoading = null;
         appearanceShown = res.appearance || (game.appearances || {})[key] || null;
@@ -745,9 +888,10 @@ export async function playView(main, saveRef) {
     onShopTalk: (merchantId, merchantName) => {
       activeNpc = { id: merchantId, name: merchantName };
       update();
-      document.getElementById('chatInput')?.focus();
+      panelManager.open('chat');
     },
-    onSummaryRespawn: () => { summaryShown = false; act({ type: 'respawn' }); }
+    onSummaryRespawn: () => { summaryShown = false; act({ type: 'respawn' }); },
+    onSummaryLock: (locked) => panelManager.setLocked(locked)
   });
 
   // T5 first-delve coach: observes server state/events only — see views/play/tutorial.js
@@ -771,7 +915,7 @@ export async function playView(main, saveRef) {
     banner.className = 'floor-banner-overlay';
     banner.innerHTML = `
       <div class="floor-banner-frame">
-        <div class="floor-banner-depth">DEPTH TRANSITION</div>
+        <div class="floor-banner-depth">${label("ui.play.depth_transition")}</div>
         <div class="floor-banner-title">${esc(title)}</div>
         <div class="floor-banner-sub">${esc(subtitle || 'The darkness recedes as you step deeper into the ancient chambers.')}</div>
       </div>
@@ -783,7 +927,7 @@ export async function playView(main, saveRef) {
   function updateInitiativeRibbon() {
     renderInitiativeRibbon(game, (ent) => {
       selectedTarget = ent;
-      appearanceShown = (game.appearances || {})[ent.monsterId] || null;
+      appearanceShown = (game.appearances || {})[getLocale()+':'+ent.monsterId] || null;
       update();
       sfx.play('dice');
     });
@@ -813,12 +957,21 @@ export async function playView(main, saveRef) {
   async function act(action) {
     if (!viewAlive || token !== viewToken || busy) return;
     busy = true;
+    pendingClarification = null;
+    pendingConfirmation = null;
     const logLen = game.log.length;
     const prevMode = game.mode;
     try {
       const res = await api.gameAction(game.id, action);
       if (!viewAlive || token !== viewToken) return res;
-      adoptState(res.state); // T2: reject a stale whole-state snapshot, events still apply
+      const visualStateAccepted=adoptState(res.state); // T2: reject a stale whole-state snapshot, events still apply
+      // Explicit player attack results only. Polls/localization never call playVisual,
+      // and legacy events lacking attacker IDs are not guessed from narration.
+      if(visualStateAccepted && res.visualEvents) {
+        for(const event of res.visualEvents)renderer3d?.playVisual(event.entityId,event.animation,event.eventId);
+      } else if(visualStateAccepted && action.type==='attack' && res.events.some(e=>['attack','miss'].includes(e.type)&&e.data?.targetId===action.targetId)) {
+        renderer3d?.playVisual(player().id,'attack',`${game.id}:${res.state.rev}:player-attack`);
+      }
       tutorial.observe(game, res.events, action); // T5 coach watches the server's answer
       // Ambient soundscape dynamic response to combat enter/exit
       const mapTheme = (game.map && game.map.theme) || (game.mapId && game.mapId.includes('vault') ? 'vault' : game.mapId && game.mapId.includes('hills') ? 'hills' : 'crypt');
@@ -838,12 +991,12 @@ export async function playView(main, saveRef) {
       // Floor travel / descent banner
       const travelEv = res.events.find(e => e.type === 'travel');
       if (travelEv) {
-        showFloorBanner(game.mapName || 'New Chamber', travelEv.text);
+        showFloorBanner(contentText(game,"mapName") || t("ui.play.new_chamber"), messageText(travelEv));
         sfx.play('travel_stairs');
       }
       // dice flourish on notable rolls
       const dmg = res.events.find(e => ['attack', 'spell_hit', 'attack_in', 'save'].includes(e.type));
-      if (dmg && dmg.data && dmg.data.dmg) showDice(20, dmg.data.dmg, 'damage');
+      if (dmg && dmg.data && dmg.data.dmg) showDice(20, dmg.data.dmg, t('ui.tooltip.damage'));
       // floating combat text popups for hits, crits, misses, heals, kills
       res.events.forEach((e, idx) => {
         let x = e.data?.targetX;
@@ -857,15 +1010,15 @@ export async function playView(main, saveRef) {
         const delay = idx * 90;
         setTimeout(() => {
           if (['attack', 'attack_in', 'spell_hit'].includes(e.type) && e.data?.dmg) {
-            spawnFloatingText(x, y, (e.data.crit ? '💥 CRIT! -' : '-') + e.data.dmg, e.data.crit ? 'crit' : 'damage');
+            spawnFloatingText(x, y, (e.data.crit ? t("ui.play.crit") : '-') + e.data.dmg, e.data.crit ? 'crit' : 'damage');
           } else if (e.type === 'save' && e.data?.dmg) {
             spawnFloatingText(x, y, `-${e.data.dmg}`, 'damage');
           } else if (e.type === 'miss') {
-            spawnFloatingText(x, y, 'MISS', 'miss');
+            spawnFloatingText(x, y, t("ui.play.miss"), 'miss');
           } else if (e.type === 'heal' && e.data?.heal) {
             spawnFloatingText(x, y, `+${e.data.heal} HP`, 'heal');
           } else if (e.type === 'kill') {
-            spawnFloatingText(x, y, '💀 DEFEATED', 'kill');
+            spawnFloatingText(x, y, t("ui.play.defeated_2"), 'kill');
           }
         }, delay);
       });
@@ -873,25 +1026,28 @@ export async function playView(main, saveRef) {
       res.events.forEach(e => { if (SFX_MAP[e.type]) sfx.play(e.type === 'attack' && e.data && e.data.crit ? 'crit' : SFX_MAP[e.type]); });
       if (res.events.some(e => e.type === 'chat_open')) {
         const ev = res.events.find(e => e.type === 'chat_open');
-        activeNpc = { id: ev.data.npcId, name: ev.data.name };
+        activeNpc = { id: ev.data.npcId, name: ev.data.name, nameDisplay:game.entities.find(e=>e.npcId===ev.data.npcId)?.nameDisplay };
         const sceneId = ev.data.sceneId || (game.scenes || []).find(scene => scene.npcId === ev.data.npcId)?.id;
         if (sceneId) panels.openScene(sceneId);
       }
-      if (res.events.some(e => e.type === 'journal')) toast('📖 Journal updated');
-      if (res.chatReply) toast('The NPC answers…');
+      if (res.events.some(e => e.type === 'journal')) toast(() => t("ui.play.journal_updated"));
+      if (res.chatReply) toast(() => t('ui.play.the_npc_answers'));
       // voice-over: speak the DM's new narration lines (chunked per sentence)
       if (tts.isEnabled()) {
         game.log.slice(logLen).filter(l => ['dm', 'system'].includes(l.kind)).slice(0, 2)
-          .forEach(l => tts.speak(l.text.replace(/ dice? results?/i, '').slice(0, 400)));
+          .filter(l => l.messageKey || l.textDisplay || l.language)
+          .forEach(l => tts.speak(messageText(l).slice(0,400),l.language || getLocale()));
       }
       if (selectedTarget && !game.entities.some(e => e.id === selectedTarget.id && e.alive !== false)) {
         selectedTarget = null;
         appearanceShown = null;
       }
+      pendingClarification = (res.events || []).find(e => e.type === 'clarification') || null;
+      pendingConfirmation = (res.events || []).find(e => e.type === 'confirmation') || null;
       update();
       return res;
     } catch (e) {
-      if (viewAlive && token === viewToken) toast(e.message);
+      if (viewAlive && token === viewToken) toast(() => e.message);
     } finally { busy = false; }
   }
 
@@ -901,7 +1057,7 @@ export async function playView(main, saveRef) {
     const vis = new Set(game.visible || []);
     if (ent && ent.kind === 'monster' && vis.has(x + ',' + y)) {
       selectedTarget = ent;
-      appearanceShown = (game.appearances || {})[ent.monsterId] || null;
+      appearanceShown = (game.appearances || {})[getLocale()+':'+ent.monsterId] || null;
       update();
       fetchAppearance(ent);
       return;
@@ -973,10 +1129,10 @@ export async function playView(main, saveRef) {
     renderLog();
     const hint = document.getElementById('mapHint');
     if (hint) {
-      if (game.mode === 'combat') hint.textContent = `Combat — round ${game.combat.round}. Click to move (movement left: ${game.combat.movementLeft} ft). Space = end turn.`;
-      else if (game.mode === 'over') hint.textContent = 'You have fallen…';
-      else if (game.mode === 'victory') hint.textContent = 'Victory!';
-      else hint.textContent = 'Click to move · click a monster to target · arrows/WASD to step';
+      if (game.mode === 'combat') localizeText(hint, () => t('ui.play.combatMapHint', { round: game.combat.round, ft: game.combat.movementLeft }));
+      else if (game.mode === 'over') localizeText(hint, () => t("ui.play.you_have_fallen"));
+      else if (game.mode === 'victory') localizeText(hint, () => t("ui.play.victory"));
+      else localizeText(hint, () => t("ui.play.click_to_move_click_a_monster_to"));
     }
     updateHoverCues(currentHoverTile);
   }
@@ -998,73 +1154,104 @@ export async function playView(main, saveRef) {
     getSelectedTarget: () => selectedTarget
   });
 
-  function renderSide() {
+  function renderSide(rebuild = false) {
+    // H1: the HUD is reconciled, not wiped. The four hosts keep their children until
+    // the patch re-anchors them, so a button held down across an auxiliary describe/
+    // portrait/poll response keeps its node, listeners, focus and pointer press.
+    // A layout toggle passes rebuild=true: hosts are wiped and the panel rebuilt the
+    // plain way, because movers must change containers and no press can be in flight.
+    const hudHosts = [
+      document.getElementById('coreHud'),
+      document.getElementById('encounterTools'),
+      document.getElementById('questTrackerHost')
+    ];
     const char = game.character;
     const p = player();
     const rules = appState.rules;
-    const cls = rules.classes.find(c => c.id === char.className);
-    const subDef = (cls.subclass && char.subclass === cls.subclass.id) ? cls.subclass : null;
+    const cls = rules.classes.find(c => c.id === (char.className || char.class)) || rules.classes[0];
+    const subDef = (cls?.subclass && char.subclass === cls.subclass.id) ? cls.subclass : null;
     const myTurn = game.mode !== 'combat' || game.combat.order[game.combat.turnIdx].id === 'player';
     const potCount = (game.character.inventory || [])
       .filter(i => ['potion_healing', 'potion_greater'].includes(i.itemId))
       .reduce((s, i) => s + i.qty, 0);
 
-    document.getElementById('sidePanel').innerHTML = `
-      <div class="card">
+    const sideHtml = `
+      <div class="card" data-card="hero">
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
           <img src="${char.portraitUrl || '/portraits/hero_' + (char.id || game.characterId) + '.svg'}"
-               alt="Hero"
+               data-i18n-alt="ui.portrait.hero" alt="${esc(t('ui.portrait.hero'))}"
                style="width:44px; height:50px; object-fit:cover; border-radius:6px; border:1.5px solid var(--border); background:#15120e; flex-shrink:0;"
                onerror="this.style.display='none'">
           <div style="min-width:0; flex:1;">
-            <h3 style="margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(char.name)}</h3>
-            <div class="muted small">Lv ${char.level} ${esc(cls.name)}</div>
+            <h3 style="margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${contentLabel(char,"name")}</h3>
+            <div class="muted small">${label("ui.play.heroClass", { level: char.level, class: (cls.nameDisplay || cls.name) })}</div>
           </div>
         </div>
         <div style="margin-bottom:6px; display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
-          <span class="chip ${game.difficulty === 'hard' ? 'red' : game.difficulty === 'easy' ? 'blue' : ''}">${esc((appState.rules.difficulty || {})[game.difficulty]?.label || 'Normal')}</span>
+          <span class="chip ${game.difficulty === 'hard' ? 'red' : game.difficulty === 'easy' ? 'blue' : ''}">${displayLabel((appState.rules.difficulty || {})[game.difficulty]?.labelDisplay, (appState.rules.difficulty || {})[game.difficulty]?.label || t("ui.play.normal"))}</span>
           ${(() => {
             const allyEnt = (game.entities || []).find(e => e.kind === 'ally');
             if (!allyEnt) return '';
-            const status = allyEnt.alive ? `${allyEnt.hp}/${allyEnt.hpMax} HP` : 'Downed';
+            const status = allyEnt.alive ? `${allyEnt.hp}/${allyEnt.hpMax} HP` : t("ui.play.downed");
             const loy = allyEnt.loyalty == null ? 50 : allyEnt.loyalty;
             const mood = loy >= 80 ? '😊' : loy >= 30 ? '😐' : '😠';
-            return `<span class="chip blue" title="${esc(allyEnt.name)} (${status}) · 忠诚度 ${loy}/100">${mood} ${esc(allyEnt.name.split(' ')[0])} (${allyEnt.hp} HP)</span>`;
+            return `<span class="chip blue" data-i18n-title="${allyEnt.alive ? 'ui.play.loyalty_100_values' : 'ui.play.loyaltyDowned'}" data-i18n-params="${esc(JSON.stringify({p0: allyEnt.nameDisplay || allyEnt.name, p1: status, p2: loy}))}" title="${esc(t("ui.play.loyalty_100_values", {p0: (allyEnt.nameDisplay || allyEnt.name), p1: status, p2: loy}))}">${mood} ${contentLabel(allyEnt)} (${allyEnt.hp} HP)</span>`;
           })()}
-          ${subDef ? `<span class="chip">⚔ ${esc(subDef.name)}</span>` : ''}
+          ${subDef ? `<span class="chip">⚔ ${contentLabel(subDef,"name")}</span>` : ''}
           <span style="flex:1"></span>
-          <button class="btn small" id="sfxBtn" title="Sound effects">${sfx.isEnabled() ? '🔊' : '🔇'}</button>
-          <button class="btn small" id="ttsBtn" title="AI DM voice-over">${tts.isEnabled() ? '🗣️' : '🤐'}</button>
-          <input type="range" id="volSlider" min="0" max="100" value="${Math.round(sfx.getVolume() * 100)}" style="width:70px;" title="Volume">
+          <button class="btn small" id="sfxBtn" data-i18n-title="ui.play.sound_effects" title="${esc(t("ui.play.sound_effects"))}">${sfx.isEnabled() ? '🔊' : '🔇'}</button>
+          <button class="btn small" id="ttsBtn" data-i18n-title="ui.play.ai_dm_voice_over" title="${esc(t("ui.play.ai_dm_voice_over"))}">${tts.isEnabled() ? '🗣️' : '🤐'}</button>
+          <input type="range" id="volSlider" min="0" max="100" value="${Math.round(sfx.getVolume() * 100)}" style="width:70px;" data-i18n-title="ui.play.volume" title="${esc(t("ui.play.volume"))}">
         </div>
         <div class="hp-bar"><div class="fill" style="width:${Math.max(0, (p.hp / p.hpMax) * 100)}%"></div></div>
-        <div class="hp-text"><span>${p.hp}/${p.hpMax} HP${p.tempHp ? ` (+${p.tempHp} temp)` : ''}</span><span>AC ${acNow()}</span></div>
-        <div class="hp-text"><span>Speed ${speedNow()} ft</span><span>XP ${char.xp} · ${char.gold} gp</span></div>
-        <div class="hp-text"><span>Slots: ${slotText()}</span><span>HD left: ${char.level - (char.hdUsed || 0)}</span></div>
+        <div class="hp-text"><span>${p.hp}/${p.hpMax} HP${p.tempHp ? ` ${label("ui.play.tempHp", { hp: p.tempHp })}` : ''}</span><span>AC ${acNow()}</span></div>
+        <div class="hp-text"><span>${label("ui.play.speed_ft_values", {p19: speedNow()})}</span><span>XP ${char.xp} · ${char.gold} gp</span></div>
+        <div class="hp-text"><span>${label("ui.play.slots_values", {p22: slotText()})}</span><span>${label("ui.play.hd_left_values", {p23: char.level - (char.hdUsed || 0)})}</span></div>
         ${(() => {
           const lu = game.levelUp || {};
           const canLvl = !!lu.canLevelUp;
           const nextLvl = lu.nextLevel || ((char.level || 1) + 1);
-          return canLvl ? `<button class="btn small levelup-badge-btn" id="btnDelveLevelUp" style="width:100%; margin-top:8px;" title="${lu.currentXp || char.xp || 0} / ${lu.xpNeeded || '—'} XP">⚡ LEVEL UP AVAILABLE (Ascend to Lvl ${nextLvl})</button>` : '';
+          return canLvl ? `<button class="btn small levelup-badge-btn" id="btnDelveLevelUp" style="width:100%; margin-top:8px;" title="${lu.currentXp || char.xp || 0} / ${lu.xpNeeded || '—'} XP">${label("ui.play.level_up_available_ascend_to_lvl_values", {p2: nextLvl})}</button>` : '';
         })()}
-        ${(p.conditions.length || (p.buffs || []).filter(b => b.id !== 'concentrating').length) ? `<div style="margin-top:6px;">${p.conditions.map(c => `<span class="chip red">${esc(c)}</span>`).join('')}${(p.buffs || []).filter(b => b.id !== 'concentrating' && b.id !== 'cond_' ).map(b => `<span class="chip blue">${esc(b.id)}</span>`).join('')}</div>` : ''}
+        ${(p.conditions.length || (p.buffs || []).filter(b => b.id !== 'concentrating').length) ? `<div style="margin-top:6px;">${p.conditions.map(c => `<span class="chip red">${displayLabel({key:'content.condition.'+c,fallback:c})}</span>`).join('')}${(p.buffs || []).filter(b => b.id !== 'concentrating' && b.id !== 'cond_' ).map(b => `<span class="chip blue">${displayLabel({key:'content.buff.'+b.id,fallback:b.id})}</span>`).join('')}</div>` : ''}
         ${((game.flags && game.flags.restsBlocked) || (char.tempHpMod || 0) !== 0 || (char.inventory || []).some(i => i.delveOnly)) ? `
           <div style="margin-top:6px;">
-            ${(game.flags && game.flags.restsBlocked) ? `<span class="chip red" title="本场地牢的休息被药剂或诅咒夺走">🕯️ 安息被打断 ×${game.flags.restsBlocked}</span>` : ''}
-            ${(char.tempHpMod || 0) < 0 ? `<span class="chip red" title="本场地牢的最大生命被削弱">💔 最大生命 ${char.tempHpMod}（本场）</span>` : ''}
-            ${(char.tempHpMod || 0) > 0 ? `<span class="chip blue" title="本场地牢的最大生命被强化">❤️ 最大生命 +${char.tempHpMod}（本场）</span>` : ''}
-            ${(char.inventory || []).filter(i => i.delveOnly && i.kind === 'delve_token' && i.qty > 0).map(i => `<span class="chip gold-chip" title="${esc(i.desc || '')}">${esc(i.name)}</span>`).join('')}
+            ${(game.flags && game.flags.restsBlocked) ? `<span class="chip red" data-i18n-title="ui.play.rest_was_taken_away_by_a_potion" title="${esc(t("ui.play.rest_was_taken_away_by_a_potion"))}">${label("ui.play.rest_blocked_values", {p1: game.flags.restsBlocked})}</span>` : ''}
+            ${(char.tempHpMod || 0) < 0 ? `<span class="chip red" data-i18n-title="ui.play.maximum_hp_is_reduced_for_this_delve" title="${esc(t("ui.play.maximum_hp_is_reduced_for_this_delve"))}">${label("ui.play.maximum_hp_this_delve_values", {p1: char.tempHpMod})}</span>` : ''}
+            ${(char.tempHpMod || 0) > 0 ? `<span class="chip blue" data-i18n-title="ui.play.maximum_hp_is_increased_for_this_delve" title="${esc(t("ui.play.maximum_hp_is_increased_for_this_delve"))}">${label("ui.play.maximum_hp_this_delve_values_16", {p1: char.tempHpMod})}</span>` : ''}
+            ${(char.inventory || []).filter(i => i.delveOnly && i.kind === 'delve_token' && i.qty > 0).map(i => `<span class="chip gold-chip" title="${esc(i.desc || '')}">${contentLabel(i,"name")}</span>`).join('')}
           </div>` : ''}
         
         <div style="display:flex; gap:6px; margin-top:10px;">
-          <button class="btn small" id="btnOpenDelveInventory" style="flex:1; background:var(--bg2); border-color:var(--gold-dim); color:var(--parchment); font-weight:600;" title="Open inventory and manage equipment (Hotkey [B] or [I])">
-            🎒 Backpack & Gear (${(char.inventory || []).length})
+          <button class="btn small" id="btnOpenDelveInventory" style="flex:1; background:var(--bg2); border-color:var(--gold-dim); color:var(--parchment); font-weight:600;" data-i18n-title="ui.play.open_inventory_and_manage_equipment_hotkey_b" title="${esc(t("ui.play.open_inventory_and_manage_equipment_hotkey_b"))}">
+            ${label("ui.play.backpack_gear_values", {p28: (char.inventory || []).length})}
           </button>
-          <a href="#/sheet/${game.characterId}" target="_blank" class="btn small" title="Open full character sheet in new tab" style="text-decoration:none; padding:4px 8px;">📜 Sheet</a>
+          <a href="#/character/${game.characterId}" target="_blank" class="btn small" data-i18n-title="ui.play.open_full_character_sheet_in_new_tab" title="${esc(t("ui.play.open_full_character_sheet_in_new_tab"))}" style="text-decoration:none; padding:4px 8px;">${label("ui.play.sheet")}</a>
         </div>
       </div>
 
-      ${(game.scenes || []).map(scene => `<div class="card"><h3>${esc(scene.name)}</h3><p class="small">${esc(scene.phase === 'resolved' ? scene.outcome : scene.prompt)}</p><button class="btn small" style="width:100%;white-space:normal;" data-scene-open="${esc(scene.id)}">${scene.phase === 'resolved' ? '听听守门人记得什么' : '查看遭遇选项'}</button></div>`).join('')}
+      ${pendingClarification ? `
+      <div class="card" data-card="clarification" style="border-color:var(--gold); background:rgba(217, 119, 6, 0.1);">
+        <h3 style="color:var(--gold); margin-top:0;">${label('ui.play.clarify_title')}</h3>
+        <p class="small">${esc(pendingClarification.prompt)}</p>
+        <div class="action-grid" style="margin-top:8px;">
+          ${(pendingClarification.candidates || []).map((c, idx) => `<button class="btn small" data-clarify-idx="${idx}">${esc(c.label)}</button>`).join('')}
+          <button class="btn small muted" data-clarify-cancel="1" style="grid-column:1 / -1;">${label('ui.play.cancel_action')}</button>
+        </div>
+      </div>` : ''}
+
+      ${pendingConfirmation ? `
+      <div class="card" data-card="confirmation" style="border-color:var(--gold); background:rgba(217, 119, 6, 0.1);">
+        <h3 style="color:var(--gold); margin-top:0;">${label('ui.play.confirm_cost_title')}</h3>
+        <p class="small">${esc(pendingConfirmation.prompt)}</p>
+        ${pendingConfirmation.costWarning ? `<p class="small" style="color:#f59e0b; font-weight:bold; margin:4px 0;">⚠️ ${esc(pendingConfirmation.costWarning)}</p>` : ''}
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn primary small" data-confirm-action="1">${label('ui.play.confirm_action')}</button>
+          <button class="btn small" data-confirm-cancel="1">${label('ui.play.cancel_action')}</button>
+        </div>
+      </div>` : ''}
+
+      ${(game.scenes || []).map(scene => `<div class="card" data-card="scene:${esc(scene.id)}"><h3>${contentLabel(scene,"name")}</h3><p class="small">${contentLabel(scene,scene.phase === 'resolved' ? 'outcome' : 'prompt')}</p><button class="btn small" style="width:100%;white-space:normal;" data-scene-open="${esc(scene.id)}">${game.map.story ? label(scene.phase === 'resolved' ? 'story.review' : 'story.choose', {name:scene.nameDisplay || scene.name}) : (scene.phase === 'resolved' ? label("ui.play.hear_what_the_gatekeeper_remembers") : label("ui.play.view_encounter_choices"))}</button></div>`).join('')}
 
       ${(() => {
         const pk = selectedTarget ? (selectedTarget.monsterId || selectedTarget.npcId) : null;
@@ -1072,78 +1259,78 @@ export async function playView(main, saveRef) {
         if (!port) {
           // the DM is studying this creature right now — show the wait (T2)
           if (pk && appearanceLoading === pk) {
-            return `<div class="card" style="border-color:var(--gold-dim); text-align:center;">
+            return `<div class="card" data-card="portrait" style="border-color:var(--gold-dim); text-align:center;">
               <div class="spinner" style="margin:10px auto 6px;"></div>
-              <p class="small muted" style="margin:2px 0 6px;">The DM studies the creature…</p>
+              <p class="small muted" style="margin:2px 0 6px;">${label("ui.play.the_dm_studies_the_creature")}</p>
             </div>`;
           }
           return '';
         }
         return `
-      <div class="card" style="border-color:var(--gold-dim); text-align:center;">
-        <img src="${port.url}" alt="portrait" style="width:100%; max-width:180px; border-radius:8px;" onerror="this.style.display='none'">
+      <div class="card" data-card="portrait" style="border-color:var(--gold-dim); text-align:center;">
+        <img src="${port.url}" data-i18n-alt="ui.portrait.creature" alt="${esc(t('ui.portrait.creature'))}" style="width:100%; max-width:180px; border-radius:8px;" onerror="this.style.display='none'">
         <p class="small" style="font-family:var(--font-serif); color:var(--parchment); margin:6px 0 0;">${esc(appearanceShown || (selectedTarget && selectedTarget.name) || '')}</p>
       </div>`;
       })()}
 
       ${p.conditions.includes('unconscious') ? `
-      <div class="card" style="border-color:#6b3a35;">
-        <h3 style="color:#d98a80;">💀 Dying</h3>
-        <p class="small">Success&nbsp;&nbsp;${'●'.repeat(Math.min(3, Math.max(0, (p.deathSaves || {}).succ || 0)))}${'○'.repeat(3 - Math.min(3, Math.max(0, (p.deathSaves || {}).succ || 0)))}</p>
-        <p class="small">Failures&nbsp;&nbsp;${'●'.repeat(Math.min(3, Math.max(0, (p.deathSaves || {}).fail || 0)))}${'○'.repeat(3 - Math.min(3, Math.max(0, (p.deathSaves || {}).fail || 0)))}</p>
-        <p class="small muted" style="margin-top:4px;">Death saves roll automatically at the start of your turn. 3 successes stabilize you; 3 failures…</p>
+      <div class="card" data-card="dying" style="border-color:#6b3a35;">
+        <h3 style="color:#d98a80;">${label("ui.play.dying")}</h3>
+        <p class="small">${label("ui.play.success_nbsp_nbsp_values", {p1: '●'.repeat(Math.min(3, Math.max(0, (p.deathSaves || {}).succ || 0))), p2: '○'.repeat(3 - Math.min(3, Math.max(0, (p.deathSaves || {}).succ || 0)))})}</p>
+        <p class="small">${label("ui.play.failures_nbsp_nbsp_values", {p3: '●'.repeat(Math.min(3, Math.max(0, (p.deathSaves || {}).fail || 0))), p4: '○'.repeat(3 - Math.min(3, Math.max(0, (p.deathSaves || {}).fail || 0)))})}</p>
+        <p class="small muted" style="margin-top:4px;">${label("ui.play.death_saves_roll_automatically_at_the_start")}</p>
       </div>` : ''}
 
       ${game.mode === 'over' ? `
-      <div class="card" style="border-color:#6b3a35;">
-        <h3 style="color:#d98a80;">You have fallen</h3>
-        <p class="small muted">The crypt claims another soul… but Bram drags you back to the firelight.</p>
-        <button class="btn primary" data-act="respawn">🌅 Recover at camp (half HP)</button>
+      <div class="card" data-card="fallen" style="border-color:#6b3a35;">
+        <h3 style="color:#d98a80;">${label("ui.play.you_have_fallen_2")}</h3>
+        <p class="small muted">${label('content.fallen')}</p>
+        <button class="btn primary" data-act="respawn">${label("ui.play.recover_at_camp_half_hp")}</button>
       </div>
       ` : game.mode === 'combat' ? combatHud(myTurn) : `
       ${renderQuickSlots(true)}
-      <div class="card">
-        <h3>Actions</h3>
-        <div class="action-grid">
-          <button class="btn" data-act="rest">🛏 Short Rest</button>
-          <button class="btn" data-act="longrest">🔥 Long Rest</button>
-          <button class="btn" data-act="potion">🧪 Potion (${potCount})</button>
-          ${atCampfire() ? `<button class="btn" data-act="recap" style="grid-column:1 / -1;">✍ Write journal entry</button>` : ''}
-          ${(atCampfire() || atEntrance() || game.mode === 'retreat' || game.mode === 'victory' || isAreaCleared(game)) ? `<button class="btn primary ${retreatBeacon() ? 'cleared-beacon-btn' : ''}" data-act="retreat" style="grid-column:1 / -1; background:linear-gradient(180deg, #3d5a42, #29422e); border-color:#508059;" title="${game.mode === 'retreat' || game.mode === 'victory' ? 'Open the settle summary' : '主动撤退只结算已有收获，主线不推进；走回营火完成目标才算胜利'}">${retreatButtonLabel()}</button>` : `<button class="btn" data-act="retreat" style="grid-column:1 / -1;">🏰 Retreat to Oakhaven</button>`}
-          <button class="btn" data-act="journal" style="grid-column:1 / -1;">📖 Journal${(game.journal || []).length ? ` (${game.journal.length})` : ''}</button>
+      <div class="card" data-card="actions">
+        <h3>${label("ui.play.actions")}</h3>
+        <div class="action-grid" data-hud="action-grid">
+          <button class="btn" data-act="rest">${label("ui.play.short_rest")}</button>
+          <button class="btn" data-act="longrest">${label("ui.play.long_rest")}</button>
+          <button class="btn" data-act="potion">${label("ui.play.potion_values", {p4: potCount})}</button>
+          ${atCampfire() ? `<button class="btn" data-act="recap" style="grid-column:1 / -1;">${label("ui.play.write_journal_entry")}</button>` : ''}
+          ${(atCampfire() || atEntrance() || game.mode === 'retreat' || game.mode === 'victory' || isAreaCleared(game)) ? `<button class="btn primary ${retreatBeacon() ? 'cleared-beacon-btn' : ''}" data-act="retreat" style="grid-column:1 / -1; background:linear-gradient(180deg, #3d5a42, #29422e); border-color:#508059;" data-i18n-title="${esc(game.mode === 'retreat' || game.mode === 'victory' ? "ui.play.open_the_settle_summary" : "ui.play.retreat_settles_current_gains_without_story_advancement")}" title="${game.mode === 'retreat' || game.mode === 'victory' ? t("ui.play.open_the_settle_summary") : t("ui.play.retreat_settles_current_gains_without_story_advancement")}">${label(retreatButtonKey())}</button>` : `<button class="btn" data-act="retreat" style="grid-column:1 / -1;">${label("ui.play.retreat_to_oakhaven")}</button>`}
+          <button class="btn" data-act="journal" style="grid-column:1 / -1;">${label("ui.play.journal_values", {p7: (game.journal || []).length ? ` (${game.journal.length})` : ''})}</button>
         </div>
         <div style="margin-top:8px;">${classActions()}</div>
       </div>`}
 
-      <div class="card quest-objective-card" style="border-color:var(--gold-dim);">
-        <div class="quest-fold-header" id="toggleQuestFoldBtn" title="Click to fold or expand quests & goals">
+      <div class="card quest-objective-card" data-card="quest" style="border-color:var(--gold-dim);">
+        <div class="quest-fold-header" id="toggleQuestFoldBtn" data-i18n-title="ui.play.click_to_fold_or_expand_quests_goals" title="${esc(t("ui.play.click_to_fold_or_expand_quests_goals"))}">
           <h3 style="margin:0; display:flex; align-items:center; gap:6px;">
-            📜 Quests & Goals
-            <span class="chip ${questObjectiveFolded ? '' : 'blue'}" style="font-size:10px; padding:1px 6px;">${questObjectiveFolded ? 'Folded' : 'Active'}</span>
+            ${label("ui.play.quests_goals")}
+            <span class="chip ${questObjectiveFolded ? '' : 'blue'}" style="font-size:10px; padding:1px 6px;">${questObjectiveFolded ? label("ui.play.folded") : label("ui.play.active")}</span>
           </h3>
           <button class="btn small" style="padding:2px 8px; font-size:11px;" id="btnQuestFoldToggle">
-            ${questObjectiveFolded ? '▶ Expand' : '▼ Fold'}
+            ${questObjectiveFolded ? label("ui.play.expand") : label("ui.play.fold")}
           </button>
         </div>
         ${questObjectiveFolded ? `
-          <div class="small muted" style="margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(delveObjectiveText())}">
-            🎯 ${esc(delveObjectiveText())}
+          <div class="small muted" style="margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(game.guidance ? displayText(game.guidance.objectiveDisplay, game.guidance.objective) : charObjective(game))}">
+            🎯 ${game.guidance ? displayLabel(game.guidance.objectiveDisplay, game.guidance.objective) : esc(charObjective(game))}
           </div>
         ` : `
           <div style="margin-top:8px;">
-            <div style="font-size:12px; font-weight:600; color:var(--gold); margin-bottom:3px;">🎯 Dungeon Objective</div>
-            <p class="small muted" style="margin:0 0 8px;">${esc(delveObjectiveText())}</p>
+            <div style="font-size:12px; font-weight:600; color:var(--gold); margin-bottom:3px;">${label("ui.play.dungeon_objective")}</div>
+            <p class="small muted" style="margin:0 0 8px;">${game.guidance ? displayLabel(game.guidance.objectiveDisplay, game.guidance.objective) : esc(charObjective(game))}</p>
             ${game.quests && game.quests.active ? `
               <div style="border-top:1px dashed var(--border); padding-top:6px; margin-top:6px;">
-                <div style="font-size:12px; font-weight:600; color:var(--parchment); margin-bottom:2px;">📜 ${esc(game.quests.active.shortText)}</div>
-                <p class="small muted" style="margin:0 0 6px;">${esc(game.quests.active.text)}</p>
+                <div style="font-size:12px; font-weight:600; color:var(--parchment); margin-bottom:2px;">📜 ${contentLabel(game.quests.active,"shortText")}</div>
+                <p class="small muted" style="margin:0 0 6px;">${contentLabel(game.quests.active,"text")}</p>
                 <div class="small"><span class="chip">💰 ${game.quests.active.reward.gold} gp</span> <span class="chip blue">✨ ${game.quests.active.reward.xp} XP</span></div>
               </div>
             ` : ''}
             ${game.companionQuest ? `
               <div style="border-top:1px dashed var(--border); padding-top:6px; margin-top:6px;">
-                <div style="font-size:12px; font-weight:600; color:var(--parchment); margin-bottom:2px;">🤝 ${esc(game.companionQuest.name)}</div>
-                <p class="small muted" style="margin:0 0 6px;">${esc((game.entities.find(e => e.kind === 'ally' && e.allyId === game.companionQuest.allyId) || {}).name || 'Your companion')} has asked for your help — a personal favor, repaid in kind.</p>
+                <div style="font-size:12px; font-weight:600; color:var(--parchment); margin-bottom:2px;">🤝 ${contentLabel(game.companionQuest,"name")}</div>
+                <p class="small muted" style="margin:0 0 6px;">${label("ui.play.has_asked_for_your_help_a_values", {p1: (game.entities.find(e => e.kind === 'ally' && e.allyId === game.companionQuest.allyId) || {}).name || t("ui.play.your_companion")})}</p>
                 <div class="small"><span class="chip blue">🎯 ${esc(game.companionQuest.targetName)} ${game.companionQuest.count}/${game.companionQuest.need}</span></div>
               </div>
             ` : ''}
@@ -1151,15 +1338,69 @@ export async function playView(main, saveRef) {
         `}
       </div>
     `;
+    const patched = rebuild ? null : patchHud(document.getElementById('sidePanel'), sideHtml, hudHosts);
+    if (rebuild) {
+      for (const host of hudHosts) host.replaceChildren();
+      document.getElementById('sidePanel').innerHTML = sideHtml;
+    }
 
     wireSide(myTurn);
     initTooltips(document.getElementById('sidePanel'), appState.rules);
     relayoutQuestTracker();
-    document.getElementById('sfxBtn').addEventListener('click', () => { sfx.toggle(); renderSide(); });
-    document.getElementById('volSlider').addEventListener('input', (e) => { sfx.setVolume(+(/** @type {HTMLInputElement} */ (e.target).value) / 100); });
+    const coreHudEl = document.getElementById('coreHud');
+    const encounterEl = document.getElementById('encounterTools');
+    const trackerEl = document.getElementById('questTrackerHost');
+    const keptCore = new Set(), keptEncounter = new Set();
+    if (mapFirst) {
+      const side = document.getElementById('sidePanel');
+      // Existing controls move with their original listeners and disabled state.
+      const grid = side.querySelector('.action-grid');
+      if (grid) { coreHudEl.appendChild(grid); keptCore.add(grid); }
+      else { const recovery = side.querySelector('[data-act="respawn"]')?.closest('.card'); if (recovery) { coreHudEl.appendChild(recovery); keptCore.add(recovery); } }
+      const economy = side.querySelector('.turn-economy-bar');
+      if (economy) { coreHudEl.prepend(economy); keptCore.add(economy); }
+      const target = side.querySelector('.target-line');
+      if (target) { coreHudEl.prepend(target); keptCore.add(target); }
+      const clarifCard = side.querySelector('[data-card="clarification"]');
+      if (clarifCard) { coreHudEl.prepend(clarifCard); keptCore.add(clarifCard); }
+      const confirmCard = side.querySelector('[data-card="confirmation"]');
+      if (confirmCard) { coreHudEl.prepend(confirmCard); keptCore.add(confirmCard); }
+      side.querySelectorAll('[data-scene-open]').forEach(button => { encounterEl.appendChild(button); keptEncounter.add(button); });
+    }
+    // Hosts are no longer pre-wiped: the patch re-anchored or patched-in-place their
+    // still-valid nodes, so only drop what the current layout did not place.
+    if (patched) for (const node of patched.keptInHosts) {
+      if (node.parentElement === coreHudEl) keptCore.add(node);
+      else if (node.parentElement === encounterEl) keptEncounter.add(node);
+    }
+    const keptTracker = new Set(document.body.classList.contains('immersive')
+      ? Array.from(trackerEl.children).filter(ch => ch.classList.contains('quest-objective-card'))
+      : []);
+    for (const entry of /** @type {[HTMLElement, Set<Element>][]} */ ([[coreHudEl, keptCore], [encounterEl, keptEncounter], [trackerEl, keptTracker]])) {
+      const [host, kept] = entry;
+      for (const child of Array.from(host.children)) {
+        if (!kept.has(child)) child.remove();
+      }
+    }
+    const hud = document.getElementById('heroHud');
+    hud.innerHTML = `<span>${contentLabel(char,"name")} · <b>${p.hp}/${p.hpMax} HP</b>${p.tempHp ? ` +${p.tempHp}` : ''}</span>${game.mode === 'combat' ? `<span>${label('ui.play.round_values', {p0:game.combat.round})}</span>` : ''}${(p.conditions || []).map(c => `<span class="chip red">${displayLabel({key:'content.condition.'+c,fallback:c})}</span>`).join('')}`;
+    const sfxBtn = document.getElementById('sfxBtn');
+    if (sfxBtn && !sfxBtn.dataset.wired) {
+      sfxBtn.dataset.wired = '1';
+      sfxBtn.addEventListener('click', () => { sfx.toggle(); renderSide(); });
+    }
+    const volSlider = document.getElementById('volSlider');
+    if (volSlider && !volSlider.dataset.wired) {
+      volSlider.dataset.wired = '1';
+      volSlider.addEventListener('input', (e) => { sfx.setVolume(+(/** @type {HTMLInputElement} */ (e.target).value) / 100); });
+    }
     const vt = document.getElementById('viewToggle');
     if (vt) vt.onclick = toggleView;
-    document.getElementById('ttsBtn').addEventListener('click', () => { tts.toggle(); renderSide(); toast(tts.isEnabled() ? '🗣️ AI DM voice-on' : '🤐 AI DM voice-off'); });
+    const ttsBtn = document.getElementById('ttsBtn');
+    if (ttsBtn && !ttsBtn.dataset.wired) {
+      ttsBtn.dataset.wired = '1';
+      ttsBtn.addEventListener('click', () => { tts.toggle(); renderSide(); toast(() => tts.isEnabled() ? t("ui.play.ai_dm_voice_on") : t("ui.play.ai_dm_voice_off")); });
+    }
   }
 
   function getConsumables() {
@@ -1177,7 +1418,7 @@ export async function playView(main, saveRef) {
         shortName = shortName.replace(/^Potion of /, '').replace(/^Scroll of /, '').replace(/ Potion$/, '');
         list.push({
           itemId: it.itemId,
-          name: def ? def.name : it.itemId,
+          name: def ? def.name : it.itemId, nameDisplay:def?.nameDisplay,
           shortName,
           qty: it.qty,
           isPotion,
@@ -1198,16 +1439,16 @@ export async function playView(main, saveRef) {
       if (item) {
         const disClass = (game.mode === 'combat' && !myTurn) ? 'disabled' : '';
         slots.push(`
-          <div class="quick-slot-card ${disClass}" data-quickslot="${i}" data-item-tooltip="${item.itemId}" title="${esc(item.name)} (Key [${i + 1}])">
+          <div class="quick-slot-card ${disClass}" data-quickslot="${i}" data-item-tooltip="${item.itemId}" data-i18n-title="ui.play.key_values" data-i18n-params="${esc(JSON.stringify({p3: item.nameDisplay || item.name, p4: i + 1}))}" title="${esc(t("ui.play.key_values", {p3: (item.nameDisplay || item.name), p4: i + 1}))}">
             <span class="slot-key-badge">${i + 1}</span>
             <span class="slot-icon">${item.icon}</span>
-            <span class="slot-label">${esc(item.shortName)}</span>
+            <span class="slot-label">${contentLabel(item)}</span>
             <span class="slot-qty-badge">×${item.qty}</span>
           </div>
         `);
       } else {
         slots.push(`
-          <div class="quick-slot-card slot-empty" title="Empty quick-slot (Key [${i + 1}])">
+          <div class="quick-slot-card slot-empty" data-i18n-title="ui.play.empty_quick_slot_key_values" data-i18n-params="${esc(JSON.stringify({p0: i + 1}))}" title="${esc(t("ui.play.empty_quick_slot_key_values", {p0: i + 1}))}">
             <span class="slot-key-badge">${i + 1}</span>
             <span style="opacity:0.35;">—</span>
           </div>
@@ -1215,10 +1456,10 @@ export async function playView(main, saveRef) {
       }
     }
     return `
-      <div class="quickbar-wrap">
+      <div class="quickbar-wrap" data-hud="quickbar">
         <div class="quickbar-header">
-          <span>⚡ Quick-Slots Belt</span>
-          <span class="muted" style="font-weight:normal; font-size:10px;">Hotkeys [1–5]</span>
+          <span>${label("ui.play.quick_slots_belt")}</span>
+          <span class="muted" style="font-weight:normal; font-size:10px;">${label("ui.play.hotkeys_1_5")}</span>
         </div>
         <div class="quickbar-grid">
           ${slots.join('')}
@@ -1231,7 +1472,7 @@ export async function playView(main, saveRef) {
     if (busy) return;
     if (game.mode === 'combat') {
       const actor = game.combat && game.combat.order ? game.combat.order[game.combat.turnIdx] : null;
-      if (!actor || actor.id !== 'player') return toast("Wait for your turn in combat.");
+      if (!actor || actor.id !== 'player') return toast(() => t("ui.play.wait_for_your_turn_in_combat"));
     }
     const items = getConsumables();
     const item = items[slotIdx];
@@ -1242,7 +1483,7 @@ export async function playView(main, saveRef) {
       if (def && def.spell) {
         const sp = (appState.rules.spells || []).find(x => x.id === def.spell);
         if (sp && ['enemy', 'burst'].includes(sp.target) && !selectedTarget) {
-          return toast(`Target a monster first to use ${item.name}.`);
+          return toast(() => t('ui.play.targetItem', { item: (item.nameDisplay || item.name) }));
         }
         act({ type: 'useItem', itemId: item.itemId, targetId: selectedTarget ? selectedTarget.id : 'player' });
       } else {
@@ -1274,8 +1515,8 @@ export async function playView(main, saveRef) {
   function combatHud(myTurn) {
     const c = game.combat;
     const targetLine = selectedTarget
-      ? `Target: <b>${esc(selectedTarget.name)}</b> (${selectedTarget.hpMax ? selectedTarget.hp + '/' + selectedTarget.hpMax + ' HP, ' : 'Object, '}AC ${selectedTarget.ac || 10})${selectedTarget.isElite ? ` <span class="elite-monster-label" style="--elite-color:${esc((selectedTarget.affix && selectedTarget.affix.color) || '#f59e0b')}" title="${esc((selectedTarget.affix && selectedTarget.affix.desc) || 'Elite Champion')}">★ 精英：${esc((selectedTarget.affix && selectedTarget.affix.desc) || 'Champion')}</span>` : ''}`
-      : 'Click a monster or object on the map to target it.';
+      ? `${label("ui.play.target")}<b>${contentLabel(selectedTarget,"name")}</b> (${selectedTarget.hpMax ? selectedTarget.hp + '/' + selectedTarget.hpMax + ' HP, ' : label('ui.play.object')}AC ${selectedTarget.ac || 10})${selectedTarget.isElite ? ` <span class="elite-monster-label" style="--elite-color:${esc((selectedTarget.affix && selectedTarget.affix.color) || '#f59e0b')}" ${selectedTarget.affix?.desc ? '' : 'data-i18n-title="ui.play.elite_champion"'} title="${esc((selectedTarget.affix && selectedTarget.affix.desc) || t("ui.play.elite_champion"))}">${label('ui.play.elite')}${(selectedTarget.affix && selectedTarget.affix.desc) ? esc(selectedTarget.affix.desc) : label('ui.play.champion')}</span>` : ''}`
+      : label("ui.play.click_a_monster_or_object_on_the");
     const p = player();
     const actionUsed = !!c.actionUsed;
     const bonusUsed = !!c.bonusUsed;
@@ -1292,62 +1533,62 @@ export async function playView(main, saveRef) {
     const allMainActionsSpent = myTurn && actionUsed && (bonusUsed || potCount === 0) && mvLeft === 0;
 
     return `
-      <div class="combat-banner">
-        <span class="round">⚔ Round ${c.round}</span> — ${myTurn ? '<b style="color:var(--gold);">Your turn!</b>' : '<span class="muted">Enemies act…</span>'}
+      <div class="combat-banner" data-card="combat-banner">
+        <span class="round">${label("ui.play.round_values", {p0: c.round})}</span> — ${myTurn ? `<b style="color:var(--gold);">${label("ui.play.your_turn_2")}</b>` : `<span class="muted">${label("ui.play.enemies_act")}</span>`}
         <div class="init-chips">${c.order.map((o, i) => {
           const ent = game.entities.find(e => e.id === o.id);
-          return `<span class="init-chip ${i === c.turnIdx ? 'active' : ''} ${ent && ent.alive === false ? 'dead' : ''}">${esc(o.name)} ${o.total}</span>`;
+          return `<span class="init-chip ${i === c.turnIdx ? 'active' : ''} ${ent && ent.alive === false ? 'dead' : ''}">${contentLabel(o,"name")} ${o.total}</span>`;
         }).join('')}</div>
       </div>
-      <div class="card">
-        <p class="target-line">${targetLine}</p>
-        
-        <div class="turn-economy-bar" title="Turn Economy: Action, Bonus Action, Movement, and Reaction">
-          <span class="economy-pill ${actionUsed ? 'spent' : 'ready'}" title="${actionUsed ? 'Action spent this turn (cannot Attack, Cast, Dodge, or Dash)' : 'Action ready — use for Attack, Cast Spell, Dodge, or Dash'}">
-            <span class="economy-dot"></span> Action: ${actionUsed ? 'Spent' : 'Ready'}
+      <div class="card" data-card="combat">
+        <p class="target-line" data-hud="target-line">${targetLine}</p>
+
+        <div class="turn-economy-bar" data-hud="turn-economy" data-i18n-title="ui.play.turn_economy_action_bonus_action_movement_and" title="${esc(t("ui.play.turn_economy_action_bonus_action_movement_and"))}">
+          <span class="economy-pill ${actionUsed ? 'spent' : 'ready'}" data-i18n-title="${esc(actionUsed ? "ui.play.action_spent_this_turn_cannot_attack_cast" : "ui.play.action_ready_use_for_attack_cast_spell")}" title="${actionUsed ? t("ui.play.action_spent_this_turn_cannot_attack_cast") : t("ui.play.action_ready_use_for_attack_cast_spell")}">
+            <span class="economy-dot"></span> ${label("ui.play.action")}${actionUsed ? label("ui.play.spent") : label("ui.play.ready")}
           </span>
-          <span class="economy-pill ${bonusUsed ? 'spent' : 'ready'}" title="${bonusUsed ? 'Bonus action spent this turn' : 'Bonus action ready — use for Potion or bonus class abilities'}">
-            <span class="economy-dot"></span> Bonus: ${bonusUsed ? 'Spent' : 'Ready'}
+          <span class="economy-pill ${bonusUsed ? 'spent' : 'ready'}" data-i18n-title="${esc(bonusUsed ? "ui.play.bonus_action_spent_this_turn" : "ui.play.bonus_action_ready_use_for_potion_or")}" title="${bonusUsed ? t("ui.play.bonus_action_spent_this_turn") : t("ui.play.bonus_action_ready_use_for_potion_or")}">
+            <span class="economy-dot"></span> ${label("ui.play.bonus")}${bonusUsed ? label("ui.play.spent") : label("ui.play.ready")}
           </span>
-          <span class="economy-pill ${mvLeft > 0 ? 'ready' : 'spent'}" title="Movement remaining this turn (click tiles or WASD to step)">
-            👣 ${mvLeft} ft (${Math.floor(mvLeft / 5)} sq)
+          <span class="economy-pill ${mvLeft > 0 ? 'ready' : 'spent'}" data-i18n-title="ui.play.movement_remaining_this_turn_click_tiles_or" title="${esc(t("ui.play.movement_remaining_this_turn_click_tiles_or"))}">
+            ${label("ui.play.ft_sq_values", {p13: mvLeft, p14: Math.floor(mvLeft / 5)})}
           </span>
-          <span class="economy-pill ${reactionUsed ? 'spent' : 'ready'}" title="${reactionUsed ? 'Reaction spent this round' : 'Reaction ready for Opportunity Attacks & Shield'}">
-            ⚡ Reaction: ${reactionUsed ? 'Spent' : 'Ready'}
+          <span class="economy-pill ${reactionUsed ? 'spent' : 'ready'}" data-i18n-title="${esc(reactionUsed ? "ui.play.reaction_spent_this_round" : "ui.play.reaction_ready_for_opportunity_attacks_shield")}" title="${reactionUsed ? t("ui.play.reaction_spent_this_round") : t("ui.play.reaction_ready_for_opportunity_attacks_shield")}">
+            ⚡ ${label("ui.play.reaction")}${reactionUsed ? label("ui.play.spent") : label("ui.play.ready")}
           </span>
         </div>
-        ${game.guidance && game.guidance.combat ? `<div class="guidance-combat-line" title="哪些行动可用、为什么不可用（服务端按当前状态判定）">${esc(game.guidance.combat.notes)}</div>` : ''}
+        ${game.guidance && game.guidance.combat ? `<div class="guidance-combat-line" data-i18n-title="ui.play.available_actions_and_reasons_computed_by_the" title="${esc(t("ui.play.available_actions_and_reasons_computed_by_the"))}">${(game.guidance.combat.notesDisplay || []).length ? game.guidance.combat.notesDisplay.map(d => displayLabel(d)).join(' · ') : esc(game.guidance.combat.notes)}</div>` : ''}
 
         ${renderQuickSlots(myTurn)}
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <h3 style="margin:0;">Combat Actions</h3>
-          ${myTurn && actionUsed ? '<span class="muted small" style="font-size:11px; color:#f87171;">Action spent</span>' : ''}
+          <h3 style="margin:0;">${label("ui.play.combat_actions")}</h3>
+          ${myTurn && actionUsed ? `<span class="muted small" style="font-size:11px; color:#f87171;">${label("ui.play.action_spent")}</span>` : ''}
         </div>
 
-        <div class="action-grid">
-          <button class="btn" data-act="attack" ${canAttack ? '' : 'disabled'} title="${actionUsed ? 'Action already spent this turn' : 'Perform a weapon attack on the targeted enemy'}">
-            🗡 Attack <span class="action-cost-badge action">Act</span>
+        <div class="action-grid" data-hud="action-grid">
+          <button class="btn" data-act="attack" ${canAttack ? '' : 'disabled'} data-i18n-title="${esc(actionUsed ? "ui.play.action_already_spent_this_turn" : "ui.play.perform_a_weapon_attack_on_the_targeted")}" title="${actionUsed ? t("ui.play.action_already_spent_this_turn") : t("ui.play.perform_a_weapon_attack_on_the_targeted")}">
+            ${label("ui.play.attack")} <span class="action-cost-badge action">${label("ui.play.act")}</span>
           </button>
-          <button class="btn" data-act="castmenu" ${canCast ? '' : 'disabled'} title="${actionUsed ? 'Action already spent this turn' : 'Cast a cantrip or spell'}">
-            ✨ Cast… <span class="action-cost-badge action">Act</span>
+          <button class="btn" data-act="castmenu" ${canCast ? '' : 'disabled'} data-i18n-title="${esc(actionUsed ? "ui.play.action_already_spent_this_turn" : "ui.play.cast_a_cantrip_or_spell")}" title="${actionUsed ? t("ui.play.action_already_spent_this_turn") : t("ui.play.cast_a_cantrip_or_spell")}">
+            ${label("ui.play.cast")} <span class="action-cost-badge action">${label("ui.play.act")}</span>
           </button>
-          <button class="btn" data-act="dodge" ${canDodge ? '' : 'disabled'} title="${actionUsed ? 'Action already spent this turn' : 'Take Dodge action — attacks against you have disadvantage'}">
-            🛡 Dodge <span class="action-cost-badge action">Act</span>
+          <button class="btn" data-act="dodge" ${canDodge ? '' : 'disabled'} data-i18n-title="${esc(actionUsed ? "ui.play.action_already_spent_this_turn" : "ui.play.take_dodge_action_attacks_against_you_have")}" title="${actionUsed ? t("ui.play.action_already_spent_this_turn") : t("ui.play.take_dodge_action_attacks_against_you_have")}">
+            ${label("ui.play.dodge")} <span class="action-cost-badge action">${label("ui.play.act")}</span>
           </button>
-          <button class="btn" data-act="dash" ${canDash ? '' : 'disabled'} title="${actionUsed ? 'Action already spent this turn' : 'Take Dash action — double your movement speed'}">
-            💨 Dash <span class="action-cost-badge action">Act</span>
+          <button class="btn" data-act="dash" ${canDash ? '' : 'disabled'} data-i18n-title="${esc(actionUsed ? "ui.play.action_already_spent_this_turn" : "ui.play.take_dash_action_double_your_movement_speed")}" title="${actionUsed ? t("ui.play.action_already_spent_this_turn") : t("ui.play.take_dash_action_double_your_movement_speed")}">
+            ${label("ui.play.dash")} <span class="action-cost-badge action">${label("ui.play.act")}</span>
           </button>
-          <button class="btn" data-act="potion" ${canPotion ? '' : (potCount > 0 && !myTurn ? 'disabled' : (bonusUsed ? 'disabled' : ''))} title="${bonusUsed ? 'Bonus action already spent this turn' : (potCount === 0 ? 'No potions left' : 'Drink a healing potion')}">
-            🧪 Potion (${potCount}) <span class="action-cost-badge bonus">Bns</span>
+          <button class="btn" data-act="potion" ${canPotion ? '' : (potCount > 0 && !myTurn ? 'disabled' : (bonusUsed ? 'disabled' : ''))} data-i18n-title="${esc(bonusUsed ? "ui.play.bonus_action_already_spent_this_turn" : (potCount === 0 ? "ui.play.no_potions_left" : "ui.play.drink_a_healing_potion"))}" title="${bonusUsed ? t("ui.play.bonus_action_already_spent_this_turn") : (potCount === 0 ? t("ui.play.no_potions_left") : t("ui.play.drink_a_healing_potion"))}">
+            ${label("ui.play.potion_values_29", {p40: potCount})} <span class="action-cost-badge bonus">${label("ui.play.bns")}</span>
           </button>
-          <button class="btn primary" data-act="endturn" ${myTurn ? '' : 'disabled'} title="Finish your turn and let other combatants act (Hotkey [Space])">
-            ⏭ End Turn
+          <button class="btn primary" data-act="endturn" ${myTurn ? '' : 'disabled'} data-i18n-title="ui.play.finish_your_turn_and_let_other_combatants" title="${esc(t("ui.play.finish_your_turn_and_let_other_combatants"))}">
+            ${label("ui.play.end_turn_2")}
           </button>
         </div>
         ${allMainActionsSpent ? `
           <div class="all-spent-notice">
-            💡 All actions and movement spent! Press <b>Space</b> or click <b>End Turn</b>.
+            ${label("ui.play.all_actions_and_movement_spent_press")} <b>${label("ui.play.space_2")}</b> ${label("ui.play.or_click")} <b>${label("ui.play.end_turn")}</b>.
           </div>
         ` : ''}
         <div style="margin-top:8px;">${classActions(myTurn)}</div>
@@ -1361,42 +1602,59 @@ export async function playView(main, saveRef) {
     const uses = char.uses || {};
     const btns = [];
     (cls.features || []).filter(f => f.button && f.level <= char.level).forEach(f => {
-      let label = f.name;
+      let actionLabel = contentLabel(f);
       let disabled = !myTurn;
-      if (f.uses === 'cha/short') { const max = 2 + Math.floor((char.abilities.cha - 10) / 2); label += ` (${uses[f.id] ?? max}/${max})`; if ((uses[f.id] ?? max) <= 0) disabled = true; }
-      else if (f.uses && f.uses !== 'pool5xlevel/long') { label += ` (${uses[f.id] ?? 0})`; if ((uses[f.id] ?? 0) <= 0) disabled = true; }
-      else if (f.uses === 'pool5xlevel/long') { label += ` (${char.pools.lay_on_hands || 0})`; if ((char.pools.lay_on_hands || 0) <= 0) disabled = true; }
-      btns.push(`<button class="btn small" data-classact="${f.id}" ${disabled}>${esc(label)}</button>`);
+      if (f.uses === 'cha/short') { const max = 2 + Math.floor((char.abilities.cha - 10) / 2); actionLabel += ` (${uses[f.id] ?? max}/${max})`; if ((uses[f.id] ?? max) <= 0) disabled = true; }
+      else if (f.uses && f.uses !== 'pool5xlevel/long') { actionLabel += ` (${uses[f.id] ?? 0})`; if ((uses[f.id] ?? 0) <= 0) disabled = true; }
+      else if (f.uses === 'pool5xlevel/long') { actionLabel += ` (${char.pools.lay_on_hands || 0})`; if ((char.pools.lay_on_hands || 0) <= 0) disabled = true; }
+      btns.push(`<button class="btn small" data-classact="${f.id}" ${disabled}>${actionLabel}</button>`);
     });
-    if (char.breathWeapon) btns.push(`<button class="btn small" data-classact="breath_weapon" ${myTurn ? '' : 'disabled'}>🐉 Breath Weapon (${uses.breath_weapon ?? 0})</button>`);
-    if (char.healingHands) btns.push(`<button class="btn small" data-classact="healing_hands" ${myTurn ? '' : 'disabled'}>🖐 Healing Hands</button>`);
-    if (char.className === 'ranger' && game.mode === 'combat') btns.push(`<button class="btn small" data-classact="hunters_mark_free" ${myTurn && (uses.hunters_mark_free ?? 0) > 0 ? '' : 'disabled'}>🏹 Mark Prey (${uses.hunters_mark_free ?? 0})</button>`);
-    if (char.feat === 'healer') btns.push(`<button class="btn small" data-classact="healer_feat" ${myTurn ? '' : 'disabled'}>🩹 Healer's Kit</button>`);
-    if (char.className === 'barbarian' && char.level >= 2) btns.push(`<button class="btn small" data-classact="reckless_toggle" ${myTurn ? '' : 'disabled'}> ${(game.flags.reckless ? '☑' : '☐')} Reckless</button>`);
+    if (char.breathWeapon) btns.push(`<button class="btn small" data-classact="breath_weapon" ${myTurn ? '' : 'disabled'}>${label("ui.play.breath_weapon_values", {p1: uses.breath_weapon ?? 0})}</button>`);
+    if (char.healingHands) btns.push(`<button class="btn small" data-classact="healing_hands" ${myTurn ? '' : 'disabled'}>${label("ui.play.healing_hands")}</button>`);
+    if (char.className === 'ranger' && game.mode === 'combat') btns.push(`<button class="btn small" data-classact="hunters_mark_free" ${myTurn && (uses.hunters_mark_free ?? 0) > 0 ? '' : 'disabled'}>${label("ui.play.mark_prey_values", {p1: uses.hunters_mark_free ?? 0})}</button>`);
+    if (char.feat === 'healer') btns.push(`<button class="btn small" data-classact="healer_feat" ${myTurn ? '' : 'disabled'}>${label("ui.play.healer_s_kit")}</button>`);
+    if (char.className === 'barbarian' && char.level >= 2) btns.push(`<button class="btn small" data-classact="reckless_toggle" ${myTurn ? '' : 'disabled'}> ${label("ui.play.reckless_values", {p1: game.flags.reckless ? '☑' : '☐'})}</button>`);
     return btns.join(' ');
   }
 
   function wireSide(myTurn) {
-    document.querySelectorAll('[data-scene-open]').forEach(button => button.addEventListener('click', () => {
-      const scene = (game.scenes || []).find(s => s.id === /** @type {HTMLElement} */ (button).dataset.sceneOpen);
-      if (!scene) return;
-      activeNpc = { id: scene.npcId, name: game.entities.find(e => e.npcId === scene.npcId)?.name || scene.name };
-      panels.openScene(scene.id);
-    }));
-    document.querySelectorAll('[data-quickslot]').forEach(b => b.addEventListener('click', () => {
-      const idx = parseInt(/** @type {HTMLElement} */ (b).dataset.quickslot, 10);
-      useQuickSlot(idx);
-    }));
+    // H1: reconciled HUD nodes survive across renders carrying their listeners.
+    // Every wiring below is marked data-wired so a reused node is never bound twice.
+    document.querySelectorAll('[data-scene-open]').forEach(button => {
+      const el = /** @type {HTMLElement} */ (button);
+      if (el.dataset.wired) return;
+      el.dataset.wired = '1';
+      el.addEventListener('click', () => {
+        const scene = (game.scenes || []).find(s => s.id === /** @type {HTMLElement} */ (el).dataset.sceneOpen);
+        if (!scene) return;
+        const speakerEntity = game.entities.find(e => (scene.npcId && e.npcId === scene.npcId) || (scene.companion && e.allyId === scene.companion.id));
+        activeNpc = { id: scene.npcId || scene.companion?.id || null, name: speakerEntity?.name || (scene.companion?.name) || scene.name, nameDisplay: speakerEntity?.nameDisplay || scene.companion?.nameDisplay || scene.nameDisplay };
+        panels.openScene(scene.id);
+      });
+    });
+    document.querySelectorAll('[data-quickslot]').forEach(b => {
+      const el = /** @type {HTMLElement} */ (b);
+      if (el.dataset.wired) return;
+      el.dataset.wired = '1';
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.quickslot, 10);
+        useQuickSlot(idx);
+      });
+    });
 
-    document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
-      const a = /** @type {HTMLButtonElement} */ (b).dataset.act;
+    document.querySelectorAll('[data-act]').forEach(b => {
+      const el = /** @type {HTMLElement} */ (b);
+      if (el.dataset.wired) return;
+      el.dataset.wired = '1';
+      el.addEventListener('click', () => {
+      const a = el.dataset.act;
       if (a === 'rest') act({ type: 'rest', kind: 'short' });
       if (a === 'longrest') act({ type: 'rest', kind: 'long' });
       if (a === 'potion') {
         const inv = game.character.inventory || [];
         const pot = inv.find(i => i.itemId === 'potion_healing' && i.qty > 0) || inv.find(i => i.itemId === 'potion_greater' && i.qty > 0);
         if (pot) act({ type: 'useItem', itemId: pot.itemId });
-        else toast('No potions left — Marla sells more.');
+        else toast(() => t("ui.play.no_potions_left_marla_sells_more"));
       }
       if (a === 'search') act({ type: 'freeform', text: 'search the area carefully' });
       if (a === 'respawn') { summaryShown = false; act({ type: 'respawn' }); }
@@ -1411,7 +1669,7 @@ export async function playView(main, saveRef) {
       if (a === 'dash') act({ type: 'dash' });
       if (a === 'endturn') act({ type: 'endTurn' });
       if (a === 'attack') {
-        if (!selectedTarget) return toast('Click a monster or object first to target it.');
+        if (!selectedTarget) return toast(() => t("ui.play.click_a_monster_or_object_first_to"));
         const char = game.character;
         const mainRef = (char.equipped || {}).mainHand;
         const mainAtk = char.attacks.find(x => x.weaponId === mainRef);
@@ -1422,27 +1680,39 @@ export async function playView(main, saveRef) {
           : (rangedAtk || char.attacks[0]);
         act({ type: 'attack', targetId: selectedTarget.id, weaponId: atk.weaponId });
       }
-      if (a === 'castmenu') renderCastMenu();
-    }));
-    document.querySelectorAll('[data-classact]').forEach(b => b.addEventListener('click', () => {
-      const id = /** @type {HTMLButtonElement} */ (b).dataset.classact;
+      if (a === 'castmenu') {
+        renderCastMenu();
+        if (mapFirst) {
+          if (panelManager.current() !== 'character') panelManager.open('character', el);
+          document.getElementById('castMenu')?.scrollIntoView({ block:'nearest' });
+        }
+      }
+      });
+    });
+    document.querySelectorAll('[data-classact]').forEach(b => {
+      const el = /** @type {HTMLElement} */ (b);
+      if (el.dataset.wired) return;
+      el.dataset.wired = '1';
+      el.addEventListener('click', () => {
+      const id = el.dataset.classact;
       const action = { type: 'classAction', id, targetId: selectedTarget ? selectedTarget.id : null };
       if (id === 'cunning_action') {
-        const mode = prompt('Cunning Action — type: dash / disengage / hide', 'dash');
+        const mode = prompt(t("ui.play.cunning_action_type_dash_disengage_hide"), 'dash');
         if (!mode) return; action.mode = mode;
       }
       if (id === 'step_of_wind') {
-        const mode = prompt('Step of the Wind — type: dash / disengage', 'dash');
+        const mode = prompt(t("ui.play.step_of_the_wind_type_dash_disengage"), 'dash');
         if (!mode) return; action.mode = mode;
       }
       if (id === 'divine_spark') {
-        const mode = prompt('Divine Spark — type: attack / heal', 'attack');
+        const mode = prompt(t("ui.play.divine_spark_type_attack_heal"), 'attack');
         if (!mode) return; action.mode = mode;
-        if (mode === 'attack' && !selectedTarget) return toast('Target a monster first.');
+        if (mode === 'attack' && !selectedTarget) return toast(() => t("ui.play.target_a_monster_first"));
       }
-      if (id === 'hunters_mark_free' && !selectedTarget) return toast('Target a monster first.');
+      if (id === 'hunters_mark_free' && !selectedTarget) return toast(() => t("ui.play.target_a_monster_first"));
       act(action);
-    }));
+      });
+    });
 
     const btnLvl = document.getElementById('btnDelveLevelUp');
     if (btnLvl) {
@@ -1457,23 +1727,67 @@ export async function playView(main, saveRef) {
             adoptState(fresh.state);
           } catch {}
           update();
-          toast(`⚡ Level Up applied: Level ${upd.level}!`);
+          toast(() => t('ui.common.levelApplied', { level: upd.level }));
         });
       };
     }
 
     const btnOpenInv = document.getElementById('btnOpenDelveInventory');
-    if (btnOpenInv) {
+    if (btnOpenInv && !btnOpenInv.dataset.wired) {
+      btnOpenInv.dataset.wired = '1';
       btnOpenInv.addEventListener('click', () => delveInv.openDelveInventoryModal());
     }
 
     const toggleQuestFold = document.getElementById('toggleQuestFoldBtn');
-    if (toggleQuestFold) {
+    if (toggleQuestFold && !toggleQuestFold.dataset.wired) {
+      toggleQuestFold.dataset.wired = '1';
       toggleQuestFold.addEventListener('click', () => {
         questObjectiveFolded = !questObjectiveFolded;
         renderSide();
       });
     }
+
+    document.querySelectorAll('[data-clarify-idx]').forEach(b => {
+      const el = /** @type {HTMLElement} */ (b);
+      if (el.dataset.wired) return;
+      el.dataset.wired = '1';
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.clarifyIdx, 10);
+        const cand = pendingClarification?.candidates?.[idx];
+        pendingClarification = null;
+        update();
+        if (cand?.action) act(cand.action);
+      });
+    });
+    document.querySelectorAll('[data-clarify-cancel]').forEach(b => {
+      const el = /** @type {HTMLElement} */ (b);
+      if (el.dataset.wired) return;
+      el.dataset.wired = '1';
+      el.addEventListener('click', () => {
+        pendingClarification = null;
+        update();
+      });
+    });
+    document.querySelectorAll('[data-confirm-action]').forEach(b => {
+      const el = /** @type {HTMLElement} */ (b);
+      if (el.dataset.wired) return;
+      el.dataset.wired = '1';
+      el.addEventListener('click', () => {
+        const conf = pendingConfirmation;
+        pendingConfirmation = null;
+        update();
+        if (conf?.action) act(conf.action);
+      });
+    });
+    document.querySelectorAll('[data-confirm-cancel]').forEach(b => {
+      const el = /** @type {HTMLElement} */ (b);
+      if (el.dataset.wired) return;
+      el.dataset.wired = '1';
+      el.addEventListener('click', () => {
+        pendingConfirmation = null;
+        update();
+      });
+    });
   }
 
   function renderCastMenu() {
@@ -1487,15 +1801,15 @@ export async function playView(main, saveRef) {
       ? [names(char.spellcasting.freeSpell.id)] : [];
     menu.innerHTML = `
       <div style="margin-top:8px; border-top:1px solid var(--border); padding-top:8px;">
-        <label>Cantrips</label>
-        <div class="action-grid">${cantrips.map(s => `<button class="btn small" data-cast="${s.id}">${s.name}</button>`).join('') || '<span class="muted small">none</span>'}</div>
-        ${spells.length || free.length ? `<label style="margin-top:6px;">Spells (L1 slots: ${char.slots[1] || 0}${free.length ? ' +1 free' : ''})</label>
-        <div class="action-grid">${[...free, ...spells].map(s => `<button class="btn small" data-cast="${s.id}">${s.name}${free.some(f => f.id === s.id) ? ' ✨' : ''}</button>`).join('')}</div>` : ''}
+        <label>${label("ui.play.cantrips")}</label>
+        <div class="action-grid">${cantrips.map(s => `<button class="btn small" data-cast="${s.id}">${contentLabel(s,"name")}</button>`).join('') || '<span class="muted small">' + label('ui.delve-inventory.none') + '</span>'}</div>
+        ${spells.length || free.length ? `<label style="margin-top:6px;">${label(free.length ? "ui.play.spellSlotsFree" : "ui.play.spellSlots", { slots: char.slots[1] || 0 })}</label>
+        <div class="action-grid">${[...free, ...spells].map(s => `<button class="btn small" data-cast="${s.id}">${contentLabel(s,"name")}${free.some(f => f.id === s.id) ? ' ✨' : ''}</button>`).join('')}</div>` : ''}
       </div>`;
     menu.querySelectorAll('[data-cast]').forEach(b => b.addEventListener('click', () => {
       const spell = appState.rules.spells.find(s => s.id === /** @type {HTMLButtonElement} */ (b).dataset.cast);
       if (['self', 'flavor'].includes(spell.target)) act({ type: 'cast', spellId: spell.id });
-      else if (!selectedTarget) toast('Target a monster or object first (or yourself for buffs via "self").');
+      else if (!selectedTarget) toast(() => t("ui.play.target_a_monster_or_object_first_or"));
       else act({ type: 'cast', spellId: spell.id, targetId: spell.target === 'ally' ? 'player' : selectedTarget.id });
       menu.innerHTML = '';
     }));
@@ -1503,15 +1817,17 @@ export async function playView(main, saveRef) {
 
   function renderLog() {
     const el = document.getElementById('logEntries');
-    el.innerHTML = game.log.map(l => `<div class="log-entry ${esc(l.kind)}">${esc(l.text)}</div>`).join('');
+    el.innerHTML = game.log.map(l => `<div class="log-entry ${esc(l.kind)}">${messageLabel(l)}${!l.messageKey && !l.textDisplay && !l.language ? ' <small class="muted">'+label('content.history')+'</small>' : ''}</div>`).join('');
     el.scrollTop = el.scrollHeight;
+    localizeText(document.getElementById('logPreview'), () => (game.log || []).slice(-2).map(messageText).join(' · '));
     const input = /** @type {HTMLInputElement} */ (document.getElementById('chatInput'));
-    input.placeholder = activeNpc ? `Speak to ${activeNpc.name}…` : 'Describe an action — "search the room", "listen at the door", "hide in the shadows"…';
+    localizeAttribute(input, "placeholder", () => activeNpc ? t("ui.play.speakTo", { name: (activeNpc.nameDisplay || activeNpc.name) }) : t("ui.play.describe_an_action_search_the_room_listen"));
   }
 
   update();
   renderLog();
   tutorial.maybeStart(game); // T5: attach the first-delve coach (no-op once done/skipped)
+  relayoutTutorial();
 
   // poll while enemies might be acting (cheap: only in combat, 4s)
   const pollTimer = setInterval(async () => {
@@ -1527,16 +1843,20 @@ export async function playView(main, saveRef) {
     } catch {}
   }, 4000);
 
-  return () => {
+  function refreshLocalizedText() { translateDOM(main); updateHoverCues(currentHoverTile); }
+  const stopLocale = onLocaleChange(refreshLocalizedText);
+  return navigation.onDispose(() => {
+    stopLocale();
     viewAlive = false;
     clearInterval(pollTimer);
     tutorial.destroy(); // T5 coach goes down with the view (progress persists in localStorage)
+    panelManager.destroy();
     document.removeEventListener('keydown', onKey);
     tts.stop();
     sfx.stopAmbient();
-    document.body.classList.remove('immersive');
+    document.body.classList.remove('immersive', 'map-first');
     if (renderer3d) renderer3d.dispose();
     if (settingsLink) settingsLink.removeEventListener('click', onSettingsNav, true);
-    document.querySelectorAll('.modal-back').forEach(m => m.remove());
-  };
+    document.querySelectorAll('.modal-back').forEach(m => { m.dispatchEvent(new Event('game:dispose')); m.remove(); });
+  });
 }

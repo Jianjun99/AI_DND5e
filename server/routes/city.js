@@ -9,6 +9,9 @@ const forge = require('../game/forge');
 const campaignMod = require('../game/campaign');
 const guidanceMod = require('../game/guidance');
 const affixesMod = require('../game/affixes');
+const presentation=require('../game/presentation');
+const contentAuthoring = require('../game/content-authoring');
+const { mergeEncounterFacts } = require('../game/history-binding');
 
 const router = express.Router();
 
@@ -43,7 +46,7 @@ const DEFAULT_BOUNTIES = [
     rewardGold: 75,
     rewardXp: 150,
     icon: '💎'
-  },
+  , localized:{"en":{"title":"Relic of the Sunless Crypt","desc":"Infiltrate the Sunless Crypt, defeat the guardian ogre, and recover the sacred Relic."},"zh-CN":{"title":"无光墓穴的圣物","desc":"潜入无光墓穴，击败食人魔守卫并取回圣物。"}}},
   {
     id: 'bounty_drowned_guardian',
     title: 'Terror of the Drowned Vault',
@@ -52,7 +55,7 @@ const DEFAULT_BOUNTIES = [
     rewardGold: 150,
     rewardXp: 300,
     icon: '🔱'
-  },
+  , localized:{"en":{"title":"Terror of the Drowned Vault","desc":"Plunge into the flooded halls and eliminate the aquatic monstrosity holding the lower sluice."},"zh-CN":{"title":"淹没地窟的恐怖","desc":"潜入淹水大厅，消灭控制下层水闸的水生怪物。"}}},
   {
     id: 'bounty_crypt_cleanser',
     title: 'Purge the Undead Vanguard',
@@ -61,7 +64,7 @@ const DEFAULT_BOUNTIES = [
     rewardGold: 40,
     rewardXp: 80,
     icon: '💀'
-  }
+  , localized:{"en":{"title":"Purge the Undead Vanguard","desc":"Destroy at least 5 undead minions to secure the trade roads entering Oakhaven."},"zh-CN":{"title":"清除亡灵先锋","desc":"消灭至少 5 个亡灵爪牙，保障通往橡树镇的商路。"}}}
 ];
 
 const DISTRICTS = [
@@ -71,190 +74,68 @@ const DISTRICTS = [
     icon: '🍺',
     tagline: 'Warm hearth, spiced mead, and companion recruitment',
     desc: 'Run by Marla Stoutheart. Delvers gather here to share rumors, rest their weary bones, and hire stalwart companions.'
-  },
+  , localized:{"en":{"name":"The Boar & Lantern Tavern","tagline":"Warm hearth, spiced mead, and companion recruitment","desc":"Run by Marla Stoutheart. Delvers gather here to share rumors, rest their weary bones, and hire stalwart companions."},"zh-CN":{"name":"野猪与灯笼酒馆","tagline":"温暖炉火、香料蜂蜜酒与同伴招募","desc":"玛拉经营的酒馆。冒险者在这里交换传闻、休息并招募伙伴。"}}},
   {
     id: 'armory',
     name: 'Ironforge Armory & Smithy',
     icon: '⚔️',
     tagline: 'Forged steel, heavy armor, and weapon sales',
     desc: 'Master Torvin hammers glowing ingots over a dwarven anvil. Buy martial arms, mail, shields, or sell your dungeon spoils.'
-  },
+  , localized:{"en":{"name":"Ironforge Armory & Smithy","tagline":"Forged steel, heavy armor, and weapon sales","desc":"Master Torvin hammers glowing ingots over a dwarven anvil. Buy martial arms, mail, shields, or sell your dungeon spoils."},"zh-CN":{"name":"铁炉军械与锻造铺","tagline":"锻钢、重甲与武器交易","desc":"托尔文大师在矮人铁砧上锤炼铁锭。购买武器、锁甲、盾牌，出售战利品。"}}},
   {
     id: 'apothecary',
     name: 'Willow & Wick Apothecary',
     icon: '🧪',
     tagline: 'Alchemical salves, healing draughts, and spell scrolls',
     desc: 'Herbalist Kaelin brews glowing vials and binds mystic incantations into scrolls for perilous dungeon delving.'
-  },
+  , localized:{"en":{"name":"Willow & Wick Apothecary","tagline":"Alchemical salves, healing draughts, and spell scrolls","desc":"Herbalist Kaelin brews glowing vials and binds mystic incantations into scrolls for perilous dungeon delving."},"zh-CN":{"name":"柳枝与烛芯药店","tagline":"炼金药膏、治疗药剂与法术卷轴","desc":"草药师凯林调配药瓶，将咒语封入卷轴，助你深入地牢。"}}},
   {
     id: 'guildhall',
     name: "Delvers' Guildhall",
     icon: '📜',
     tagline: 'Adventurer bounties and high-risk contracts',
     desc: 'Guildmaster Vance posts official bounties from the High Regency. Complete delves to claim gold and reputation.'
-  },
+  , localized:{"en":{"name":"Delvers' Guildhall","tagline":"Adventurer bounties and high-risk contracts","desc":"Guildmaster Vance posts official bounties from the High Regency. Complete delves to claim gold and reputation."},"zh-CN":{"name":"冒险者公会","tagline":"悬赏任务与高风险委托","desc":"会长万斯张贴摄政院的官方悬赏。完成冒险，赢取金币与声望。"}}},
   {
     id: 'hall_of_heroes',
     name: 'Hall of Heroes & Trophy Room',
     icon: '🏛️',
     tagline: 'Monster Bestiary, legendary delve trophies, and hero records',
     desc: 'The marble hall where the grand exploits of Oakhaven’s greatest champions are etched in bronze, and relics of conquered foes are displayed.'
-  }
-];
-
-const MAP_NODES = [
-  {
-    id: 'oakhaven',
-    name: 'Oakhaven Town',
-    region: 'The Sunlit Vale',
-    type: 'city',
-    safe: true,
-    x: 22,
-    y: 52,
-    icon: '🏰',
-    levelRange: 'Town Hub',
-    blurb: 'Fortified hub city with thriving tavern, armory, apothecary, and guildhall.'
-  },
-  {
-    id: 'crypt',
-    name: 'The Sunless Crypt',
-    region: 'Barren Ridges',
-    type: 'dungeon',
-    mapId: 'crypt',
-    safe: false,
-    x: 58,
-    y: 26,
-    icon: '💀',
-    levelRange: 'Level 1–3',
-    blurb: 'Deep catacombs holding undead horrors and an ancient relic guarded by a ferocious ogre.'
-  },
-  {
-    id: 'drowned-vault',
-    name: 'The Drowned Vault',
-    region: 'Weeping Marsh',
-    type: 'dungeon',
-    mapId: 'drowned-vault',
-    safe: false,
-    x: 78,
-    y: 74,
-    icon: '🌊',
-    levelRange: 'Level 3–5',
-    blurb: 'Flooded stone crypts filled with waterborne terrors and submerged treasures.'
-  },
-  {
-    id: 'endless',
-    name: 'The Endless Depths',
-    region: '???',
-    type: 'endless',
-    mapId: 'endless_1',
-    safe: false,
-    x: 40,
-    y: 80,
-    icon: '🌀',
-    levelRange: 'Any Level',
-  },
-  {
-    id: 'sewers',
-    name: 'Oakhaven Sewers',
-    region: 'Beneath Oakhaven',
-    type: 'dungeon',
-    mapId: 'sewers',
-    safe: false,
-    x: 28,
-    y: 60,
-    icon: '🕷️',
-    levelRange: 'Level 3-6',
-    blurb: 'Something has been breeding in the dark beneath the city. Clear the sewers.'
-  },
-  {
-    id: 'mill',
-    name: 'The Abandoned Mill',
-    region: 'The Outskirts',
-    type: 'dungeon',
-    mapId: 'mill',
-    safe: false,
-    x: 15,
-    y: 65,
-    icon: '🌾',
-    levelRange: 'Level 4-7',
-    blurb: 'An old mill overrun by bandits, cultists and things that should not walk.'
-  },
-  {
-    id: 'roost',
-    name: "The Sun Dragon's Roost",
-    region: 'The Volcanic Peaks',
-    type: 'dungeon',
-    mapId: 'roost',
-    safe: false,
-    x: 80,
-    y: 15,
-    icon: '🐉',
-    levelRange: 'Level 9-12',
-    blurb: 'The Ember Queen sleeps on a hoard of molten gold. The final challenge.'
-  },
-  {
-    // the road table below already referenced this node; the map itself ships in the
-    // howling-hills content pack, so it belongs on the region map too
-    id: 'howling-hills',
-    name: 'The Howling Hills',
-    region: 'The Northern Moors',
-    type: 'dungeon',
-    mapId: 'howling-hills',
-    safe: false,
-    x: 46,
-    y: 24,
-    icon: '🐺',
-    levelRange: 'Level 5-10',
-    blurb: 'Wind-scoured moors where a bandit warband answers to something with too many teeth.'
-  },
-  {
-    id: 'vale-gate', name: '山谷哨门', region: 'The Sunlit Vale', type: 'dungeon',
-    mapId: 'vale-gate', safe: false, x: 41, y: 52, icon: '🧭', levelRange: 'Level 1-3',
-    blurb: '一枚通行印，或一场战斗：守门人会记住你怎样通过。自由冒险，不推进主线。'
-  }
-];
-
-const MAP_ROADS = [
-  { from: 'oakhaven', to: 'crypt', label: "Old King's Highway", danger: 'Low' },
-  { from: 'oakhaven', to: 'drowned-vault', label: 'Weeping Marsh Causeway', danger: 'Medium' },
-  { from: 'crypt', to: 'drowned-vault', label: 'Sunken Barrow Path', danger: 'High' },
-  { from: 'oakhaven', to: 'sewers', label: 'Beneath the Cobbles', danger: 'Low' },
-  { from: 'oakhaven', to: 'mill', label: 'The Outskirts Path', danger: 'Low' },
-  { from: 'oakhaven', to: 'roost', label: 'The Ashen Pass', danger: 'Extreme' },
-  { from: 'howling-hills', to: 'roost', label: 'The Volcanic Trail', danger: 'High' }
+  , localized:{"en":{"name":"Hall of Heroes & Trophy Room","tagline":"Monster Bestiary, legendary delve trophies, and hero records","desc":"The marble hall where the grand exploits of Oakhaven’s greatest champions are etched in bronze, and relics of conquered foes are displayed."},"zh-CN":{"name":"英雄与战利品大厅","tagline":"怪物图鉴、传奇战利品与英雄记录","desc":"橡树镇勇士的功绩刻在青铜上，征服敌人的遗物陈列在大理石大厅。"}}}
 ];
 
 const ARMORY_CATALOG = [
-  { id: 'dagger', name: 'Dagger', type: 'weapon', cost: 2, desc: '1d4 piercing · Finesse, Light, Thrown' },
-  { id: 'shortsword', name: 'Shortsword', type: 'weapon', cost: 10, desc: '1d6 piercing · Finesse, Light' },
-  { id: 'longsword', name: 'Longsword', type: 'weapon', cost: 15, desc: '1d8/1d10 slashing · Versatile' },
-  { id: 'greatsword', name: 'Greatsword', type: 'weapon', cost: 50, desc: '2d6 slashing · Heavy, Two-Handed' },
-  { id: 'shortbow', name: 'Shortbow', type: 'weapon', cost: 25, desc: '1d6 piercing · Range 80/320' },
-  { id: 'longbow', name: 'Longbow', type: 'weapon', cost: 50, desc: '1d8 piercing · Range 150/600, Heavy' },
-  { id: 'shield', name: 'Steel Shield', type: 'shield', cost: 10, desc: '+2 AC while wielded' },
-  { id: 'leather', name: 'Leather Armor', type: 'armor', cost: 10, desc: '11 + Dex modifier' },
-  { id: 'studded_leather', name: 'Studded Leather', type: 'armor', cost: 45, desc: '12 + Dex modifier' },
-  { id: 'chain_shirt', name: 'Chain Shirt', type: 'armor', cost: 50, desc: '13 + Dex mod (max 2)' },
-  { id: 'chain_mail', name: 'Chain Mail', type: 'armor', cost: 75, desc: '16 AC (requires Str 13)' },
-  { id: 'plate', name: 'Plate Armor', type: 'armor', cost: 1500, desc: '18 AC (requires Str 15)' },
-  { id: 'silver_sword', name: 'Silver Shortsword', type: 'weapon', cost: 200, desc: 'Magic shortsword: +1 to hit and damage' }
+  { id: 'dagger', name: 'Dagger', type: 'weapon', cost: 2, desc: '1d4 piercing · Finesse, Light, Thrown' , localized:{"en":{"name":"Dagger","desc":"1d4 piercing · Finesse, Light, Thrown"},"zh-CN":{"name":"匕首","desc":"1d4 穿刺 · 灵巧、轻型、投掷"}}},
+  { id: 'shortsword', name: 'Shortsword', type: 'weapon', cost: 10, desc: '1d6 piercing · Finesse, Light' , localized:{"en":{"name":"Shortsword","desc":"1d6 piercing · Finesse, Light"},"zh-CN":{"name":"短剑","desc":"1d6 穿刺 · 灵巧、轻型"}}},
+  { id: 'longsword', name: 'Longsword', type: 'weapon', cost: 15, desc: '1d8/1d10 slashing · Versatile' , localized:{"en":{"name":"Longsword","desc":"1d8/1d10 slashing · Versatile"},"zh-CN":{"name":"长剑","desc":"1d8/1d10 挥砍 · 多用"}}},
+  { id: 'greatsword', name: 'Greatsword', type: 'weapon', cost: 50, desc: '2d6 slashing · Heavy, Two-Handed' , localized:{"en":{"name":"Greatsword","desc":"2d6 slashing · Heavy, Two-Handed"},"zh-CN":{"name":"巨剑","desc":"2d6 挥砍 · 重型、双手"}}},
+  { id: 'shortbow', name: 'Shortbow', type: 'weapon', cost: 25, desc: '1d6 piercing · Range 80/320' , localized:{"en":{"name":"Shortbow","desc":"1d6 piercing · Range 80/320"},"zh-CN":{"name":"短弓","desc":"1d6 穿刺 · 射程 80/320"}}},
+  { id: 'longbow', name: 'Longbow', type: 'weapon', cost: 50, desc: '1d8 piercing · Range 150/600, Heavy' , localized:{"en":{"name":"Longbow","desc":"1d8 piercing · Range 150/600, Heavy"},"zh-CN":{"name":"长弓","desc":"1d8 穿刺 · 射程 150/600、重型"}}},
+  { id: 'shield', name: 'Steel Shield', type: 'shield', cost: 10, desc: '+2 AC while wielded' , localized:{"en":{"name":"Steel Shield","desc":"+2 AC while wielded"},"zh-CN":{"name":"钢盾","desc":"持用时 AC +2"}}},
+  { id: 'leather', name: 'Leather Armor', type: 'armor', cost: 10, desc: '11 + Dex modifier' , localized:{"en":{"name":"Leather Armor","desc":"11 + Dex modifier"},"zh-CN":{"name":"皮甲","desc":"11 + DEX 调整值"}}},
+  { id: 'studded_leather', name: 'Studded Leather', type: 'armor', cost: 45, desc: '12 + Dex modifier' , localized:{"en":{"name":"Studded Leather","desc":"12 + Dex modifier"},"zh-CN":{"name":"镶钉皮甲","desc":"12 + DEX 调整值"}}},
+  { id: 'chain_shirt', name: 'Chain Shirt', type: 'armor', cost: 50, desc: '13 + Dex mod (max 2)' , localized:{"en":{"name":"Chain Shirt","desc":"13 + Dex mod (max 2)"},"zh-CN":{"name":"锁子衫","desc":"13 + DEX 调整值（最高 2）"}}},
+  { id: 'chain_mail', name: 'Chain Mail', type: 'armor', cost: 75, desc: '16 AC (requires Str 13)' , localized:{"en":{"name":"Chain Mail","desc":"16 AC (requires Str 13)"},"zh-CN":{"name":"锁子甲","desc":"16 AC（需要 STR 13）"}}},
+  { id: 'plate', name: 'Plate Armor', type: 'armor', cost: 1500, desc: '18 AC (requires Str 15)' , localized:{"en":{"name":"Plate Armor","desc":"18 AC (requires Str 15)"},"zh-CN":{"name":"板甲","desc":"18 AC（需要 STR 15）"}}},
+  { id: 'silver_sword', name: 'Silver Shortsword', type: 'weapon', cost: 200, desc: 'Magic shortsword: +1 to hit and damage' , localized:{"en":{"name":"Silver Shortsword","desc":"Magic shortsword: +1 to hit and damage"},"zh-CN":{"name":"银制短剑","desc":"魔法短剑：命中与伤害 +1"}}}
 ];
 
 const APOTHECARY_CATALOG = [
-  { id: 'potion_healing', name: 'Potion of Healing', cost: 25, desc: 'Bonus action: Regain 2d4+2 HP' },
-  { id: 'potion_greater', name: 'Greater Healing Potion', cost: 75, desc: 'Bonus action: Regain 4d4+4 HP' },
-  { id: 'healers_kit', name: "Healer's Kit", cost: 10, desc: 'Stabilize dying allies or heal with Healer feat' },
-  { id: 'thieves_tools', name: "Thieves' Tools", cost: 25, desc: 'Pick locked chests and disarm dungeon traps' },
-  { id: 'rations', name: 'Trail Rations (x5)', cost: 5, desc: 'Nourishing provisions for wilderness journeys' },
-  { id: 'torch', name: 'Delver Torch (x3)', cost: 2, desc: 'Illuminates 20 ft radius in pitch-black chambers' },
-  { id: 'scroll_magic_missile', name: 'Scroll of Magic Missile', cost: 75, desc: 'One-shot: 3d4+3 force damage, never misses' },
-  { id: 'scroll_cure', name: 'Scroll of Cure Wounds', cost: 60, desc: 'One-shot: Regain 1d8+3 HP' },
-  { id: 'scroll_shield', name: 'Scroll of Shield', cost: 75, desc: 'One-shot: +5 AC until your next turn' },
+  { id: 'potion_healing', name: 'Potion of Healing', cost: 25, desc: 'Bonus action: Regain 2d4+2 HP' , localized:{"en":{"name":"Potion of Healing","desc":"Bonus action: Regain 2d4+2 HP"},"zh-CN":{"name":"治疗药水","desc":"附赠动作：恢复 2d4+2 HP"}}},
+  { id: 'potion_greater', name: 'Greater Healing Potion', cost: 75, desc: 'Bonus action: Regain 4d4+4 HP' , localized:{"en":{"name":"Greater Healing Potion","desc":"Bonus action: Regain 4d4+4 HP"},"zh-CN":{"name":"强效治疗药水","desc":"附赠动作：恢复 4d4+4 HP"}}},
+  { id: 'healers_kit', name: "Healer's Kit", cost: 10, desc: 'Stabilize dying allies or heal with Healer feat' , localized:{"en":{"name":"Healer's Kit","desc":"Stabilize dying allies or heal with Healer feat"},"zh-CN":{"name":"医药包","desc":"稳定濒死同伴，或通过治疗者专长恢复 HP"}}},
+  { id: 'thieves_tools', name: "Thieves' Tools", cost: 25, desc: 'Pick locked chests and disarm dungeon traps' , localized:{"en":{"name":"Thieves' Tools","desc":"Pick locked chests and disarm dungeon traps"},"zh-CN":{"name":"盗贼工具","desc":"撬开箱锁、拆除地牢陷阱"}}},
+  { id: 'rations', name: 'Trail Rations (x5)', cost: 5, desc: 'Nourishing provisions for wilderness journeys' , localized:{"en":{"name":"Trail Rations (x5)","desc":"Nourishing provisions for wilderness journeys"},"zh-CN":{"name":"旅行口粮（x5）","desc":"野外旅行的营养补给"}}},
+  { id: 'torch', name: 'Delver Torch (x3)', cost: 2, desc: 'Illuminates 20 ft radius in pitch-black chambers' , localized:{"en":{"name":"Delver Torch (x3)","desc":"Illuminates 20 ft radius in pitch-black chambers"},"zh-CN":{"name":"冒险者火把（x3）","desc":"在黑暗房间照亮 20 ft 半径"}}},
+  { id: 'scroll_magic_missile', name: 'Scroll of Magic Missile', cost: 75, desc: 'One-shot: 3d4+3 force damage, never misses' , localized:{"en":{"name":"Scroll of Magic Missile","desc":"One-shot: 3d4+3 force damage, never misses"},"zh-CN":{"name":"魔法飞弹卷轴","desc":"一次性：3d4+3 力场伤害，必定命中"}}},
+  { id: 'scroll_cure', name: 'Scroll of Cure Wounds', cost: 60, desc: 'One-shot: Regain 1d8+3 HP' , localized:{"en":{"name":"Scroll of Cure Wounds","desc":"One-shot: Regain 1d8+3 HP"},"zh-CN":{"name":"疗伤术卷轴","desc":"一次性：恢复 1d8+3 HP"}}},
+  { id: 'scroll_shield', name: 'Scroll of Shield', cost: 75, desc: 'One-shot: +5 AC until your next turn' , localized:{"en":{"name":"Scroll of Shield","desc":"One-shot: +5 AC until your next turn"},"zh-CN":{"name":"护盾术卷轴","desc":"一次性：下回合前 AC +5"}}},
   // Experimental brews: the effect is rolled when you buy the bottle and stays hidden until
   // you identify it (INT/Arcana) or drink it blind. See server/game/potions.js.
-  { type: 'mystery', id: 'potion_mystery_thin', name: '浑浊的小瓶', cost: 15, tier: 'thin', desc: '55% 有益 / 25% 复杂 / 20% 有害 · 可鉴定' },
-  { type: 'mystery', id: 'potion_mystery_standard', name: '冒泡的药剂', cost: 40, tier: 'standard', desc: '65% 有益 / 22% 复杂 / 13% 有害 · 可鉴定' },
-  { type: 'mystery', id: 'potion_mystery_fine', name: '虹彩的精华', cost: 90, tier: 'fine', desc: '75% 有益 / 20% 复杂 / 5% 有害 · 可鉴定' }
+  { type: 'mystery', id: 'potion_mystery_thin', name: '浑浊的小瓶', cost: 15, tier: 'thin', desc: '55% 有益 / 25% 复杂 / 20% 有害 · 可鉴定' , localized:{"en":{"name":"Cloudy Vial","desc":"55% beneficial / 25% mixed / 20% harmful · can be identified"},"zh-CN":{"name":"浑浊的小瓶","desc":"55% 有益 / 25% 复杂 / 20% 有害 · 可鉴定"}}},
+  { type: 'mystery', id: 'potion_mystery_standard', name: '冒泡的药剂', cost: 40, tier: 'standard', desc: '65% 有益 / 22% 复杂 / 13% 有害 · 可鉴定' , localized:{"en":{"name":"Bubbling Draught","desc":"65% beneficial / 22% mixed / 13% harmful · can be identified"},"zh-CN":{"name":"冒泡的药剂","desc":"65% 有益 / 22% 复杂 / 13% 有害 · 可鉴定"}}},
+  { type: 'mystery', id: 'potion_mystery_fine', name: '虹彩的精华', cost: 90, tier: 'fine', desc: '75% 有益 / 20% 复杂 / 5% 有害 · 可鉴定' , localized:{"en":{"name":"Iridescent Essence","desc":"75% beneficial / 20% mixed / 5% harmful · can be identified"},"zh-CN":{"name":"虹彩的精华","desc":"75% 有益 / 20% 复杂 / 5% 有害 · 可鉴定"}}}
 ];
 
 // Items bought in town must reach the delve the player is already in: sync-delve treats the
@@ -335,7 +216,7 @@ router.get('/info', (req, res) => {
   const charId = req.query.charId;
   const char = charId ? getChar(charId) : null;
   const companions = (engine.ALLIES || []).map(a => ({
-    id: a.id,
+    id: a.id, localized:a.localized,
     name: a.name,
     role: a.role || 'Companion',
     icon: a.icon || '🏹',
@@ -344,34 +225,38 @@ router.get('/info', (req, res) => {
     speed: a.speed,
     blurb: a.blurb || '',
     spells: a.spells || [],
-    attacks: (a.attacks || []).map(x => x.name)
+    attacks: (a.attacks || []).map(x => x.name), attacksDisplay:(a.attacks || []).map(x=>presentation.name(x))
   }));
 
+  content.reload();
+  const directory = content.adventureDirectory();
   const weekly = engine.weeklyInfo ? engine.weeklyInfo() : null;
     res.json({
     weekly,
     cityName: 'Oakhaven',
-    districts: DISTRICTS,
-    mapNodes: MAP_NODES,
-    mapRoads: MAP_ROADS,
+    districts: DISTRICTS.map(d => ({ ...d, nameDisplay: { key: 'district.' + d.id } })),
+    adventures: directory.adventures,
+    mapNodes: directory.waypoints,
+    mapRoads: directory.roads,
     companions,
-    rumors: TAVERN_RUMORS,
+    rumors: TAVERN_RUMORS, rumorsDisplay:TAVERN_RUMORS.map((text,index)=>({key:'content.rumor.'+index,fallback:text})),
     bounties: DEFAULT_BOUNTIES,
     shops: {
       armory: ARMORY_CATALOG,
       apothecary: APOTHECARY_CATALOG
     },
     tables: {
-      roulette: { bets: gambling.ROULETTE_BETS, limits: gambling.GAMBLE_LIMITS.roulette, rtp: gambling.rouletteRtp() },
-      sicbo: { bets: gambling.SICBO_BETS, limits: gambling.GAMBLE_LIMITS.sicbo },
+      roulette: { bets: gambling.ROULETTE_BETS.map(b => ({ ...b, nameDisplay: { key: 'bet.roulette.' + b.id }, blurbDisplay: { key: 'bet.roulette.' + b.id + '.help' } })), limits: gambling.GAMBLE_LIMITS.roulette, rtp: gambling.rouletteRtp() },
+      sicbo: { bets: gambling.SICBO_BETS.map(b => ({ ...b, nameDisplay: { key: 'bet.sicbo.' + b.id }, blurbDisplay: { key: 'bet.sicbo.' + b.id + '.help' } })), limits: gambling.GAMBLE_LIMITS.sicbo },
       slots: {
         symbols: gambling.SLOT_SYMBOLS,
         tiers: Object.values(gambling.SLOT_TIERS).map(t => ({
           id: t.id, name: t.name, stake: t.stake, blurb: t.blurb,
+          nameDisplay: { key: 'bet.slots.' + t.id }, blurbDisplay: { key: 'bet.slots.' + t.id + '.help' },
           pay: t.pay, curseOnSkull: t.curseOnSkull
         }))
       },
-      tokens: Object.values(potions.DELVE_TOKENS).map(t => ({ id: t.id, name: t.name, icon: t.icon, desc: t.desc, value: t.value }))
+      tokens: Object.values(potions.DELVE_TOKENS).map(t => ({ id: t.id, name: t.name, icon: t.icon, desc: t.desc, value: t.value,localized:t.localized }))
     },
     forge: {
       costs: forge.FORGE_COSTS,
@@ -403,13 +288,13 @@ router.get('/info', (req, res) => {
 router.post('/rest', (req, res) => {
   const { charId, type } = req.body || {};
   const char = getChar(charId);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
 
   const isLong = type === 'long';
   const cost = isLong ? 20 : 5;
 
   if ((char.gold || 0) < cost) {
-    return res.status(400).json({ error: `Not enough gold! ${isLong ? 'Long' : 'Short'} rest costs ${cost} GP.` });
+    return res.status(400).json({ error: `Not enough gold! ${isLong ? 'Long' : 'Short'} rest costs ${cost} GP.`, errorDisplay: { key: "api.restCost", params: { cost } } });
   }
 
   char.gold -= cost;
@@ -432,6 +317,7 @@ router.post('/rest', (req, res) => {
   res.json({
     ok: true,
     char,
+    messageDisplay: { key: isLong ? 'api.restLong' : 'ui.districts.short_rest_completed' },
     message: isLong
       ? 'You take a full night of rest at The Boar & Lantern. Hit points, spell slots, and hit dice are fully restored!'
       : 'You catch your breath and tend to your gear by the tavern hearth.'
@@ -442,7 +328,7 @@ router.post('/rest', (req, res) => {
 router.post('/companion', (req, res) => {
   const { charId, companionId } = req.body || {};
   const char = getChar(charId);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
 
   if (companionId === 'none' || !companionId) {
     char.companion = null;
@@ -457,13 +343,13 @@ router.post('/companion', (req, res) => {
 router.post('/buy', (req, res) => {
   const { charId, itemId, qty = 1 } = req.body || {};
   const char = getChar(charId);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
 
   const price = lookupItemPrice(itemId);
-  if (content.getGear(itemId)?.type === 'quest') return res.status(400).json({ error: '任务凭证需要在冒险中取得，不能购买。' });
+  if (content.getGear(itemId)?.type === 'quest') return res.status(400).json({ error: '任务凭证需要在冒险中取得，不能购买。', errorDisplay: { key: "api.questItem" } });
   const totalCost = price * qty;
   if ((char.gold || 0) < totalCost) {
-    return res.status(400).json({ error: `Not enough gold! Total cost is ${totalCost} GP (you have ${char.gold || 0} GP).` });
+    return res.status(400).json({ error: `Not enough gold! Total cost is ${totalCost} GP (you have ${char.gold || 0} GP).`, errorDisplay: { key: "api.insufficientGold", params: { need: totalCost, gold: char.gold || 0 } } });
   }
 
   char.gold -= totalCost;
@@ -480,7 +366,7 @@ router.post('/buy', (req, res) => {
     saveChar(char);
     return res.json({
       ok: true, char, opened,
-      message: `你买下 ${qty} 瓶${catalogEntry.name}——瓶里的东西还没人说得清。`
+      messageDisplay: { key: "api.mysteryPurchased", params: { qty, item: presentation.field(potions.POTION_TIERS[catalogEntry.tier || 'standard'],'name') } }, message: `你买下 ${qty} 瓶${catalogEntry.name}——瓶里的东西还没人说得清。`
     });
   }
 
@@ -498,19 +384,19 @@ router.post('/buy', (req, res) => {
   }
 
   saveChar(char);
-  res.json({ ok: true, char, message: `Purchased ${qty}x ${itemId} for ${totalCost} GP.` });
+  res.json({ ok: true, char, messageDisplay: { key: "api.purchased", params: { qty, item: presentation.name({itemId,name:itemId}), gold: totalCost } }, message: `Purchased ${qty}x ${itemId} for ${totalCost} GP.` });
 });
 
 // POST /api/city/sell
 router.post('/sell', (req, res) => {
   const { charId, itemId, qty = 1 } = req.body || {};
   const char = getChar(charId);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
 
   char.inventory = char.inventory || [];
   const existing = char.inventory.find(i => i.itemId === itemId);
   if (!existing || existing.qty < qty) {
-    return res.status(400).json({ error: 'You do not have enough of this item to sell.' });
+    return res.status(400).json({ error: 'You do not have enough of this item to sell.', errorDisplay: { key: "api.notEnoughToSell" } });
   }
 
   const basePrice = lookupItemPrice(itemId);
@@ -524,27 +410,27 @@ router.post('/sell', (req, res) => {
   char.gold = (char.gold || 0) + totalGold;
 
   saveChar(char);
-  res.json({ ok: true, char, message: `Sold ${qty}x ${itemId} for ${totalGold} GP.` });
+  res.json({ ok: true, char, messageDisplay: { key: "api.sold", params: { qty, item: presentation.name({itemId,name:itemId}), gold: totalGold } }, message: `Sold ${qty}x ${itemId} for ${totalGold} GP.` });
 });
 
 // POST /api/city/claim-bounty
 router.post('/claim-bounty', (req, res) => {
   const { charId, bountyId } = req.body || {};
   const char = getChar(charId);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
 
   char.claimedBounties = char.claimedBounties || [];
   if (char.claimedBounties.includes(bountyId)) {
-    return res.status(400).json({ error: 'Bounty already claimed!' });
+    return res.status(400).json({ error: 'Bounty already claimed!', errorDisplay: { key: "api.bountyClaimed" } });
   }
   // a completed delve pays for one bounty claim — no free XP farming
   const delvesDone = char.delvesCompleted || 0;
   if (delvesDone < char.claimedBounties.length + 1) {
-    return res.status(400).json({ error: 'Complete and retreat from a delve first! (Completed delves: ' + delvesDone + ', bounties claimed: ' + char.claimedBounties.length + ')' });
+    return res.status(400).json({ error: 'Complete and retreat from a delve first! (Completed delves: ' + delvesDone + ', bounties claimed: ' + char.claimedBounties.length + ')', errorDisplay: { key: 'api.completeDelveFirst', params: { completed: delvesDone, claimed: char.claimedBounties.length } } });
   }
 
   const bounty = DEFAULT_BOUNTIES.find(b => b.id === bountyId);
-  if (!bounty) return res.status(404).json({ error: 'Bounty not found' });
+  if (!bounty) return res.status(404).json({ error: 'Bounty not found', errorDisplay: { key: "api.bountyNotFound" } });
 
   char.claimedBounties.push(bountyId);
   char.gold = (char.gold || 0) + bounty.rewardGold;
@@ -562,7 +448,7 @@ router.post('/claim-bounty', (req, res) => {
   }
 
   saveChar(char);
-  res.json({ ok: true, char, bounty, message: `Bounty claimed! Earned +${bounty.rewardGold} GP and +${bounty.rewardXp} XP.` });
+  res.json({ ok: true, char, bounty, messageDisplay: { key: "api.bountyReward", params: { gold: bounty.rewardGold, xp: bounty.rewardXp } }, message: `Bounty claimed! Earned +${bounty.rewardGold} GP and +${bounty.rewardXp} XP.` });
 });
 
 // POST /api/city/sync-delve — settle one ENDED delve into the roster, exactly once (T3).
@@ -581,30 +467,36 @@ router.post('/claim-bounty', (req, res) => {
 // delvesCompleted replay, and no old-snapshot overwrite of purchases made after settling.
 // The old no-save fallback (goldGained/xpGained/newItems from the request body) is gone:
 // it had no caller left and trusted client numbers as authoritative rewards.
-function mergeEncounterFacts(char, facts) {
-  const existing = Array.isArray(char.encounterFacts) ? char.encounterFacts : [];
-  const ids = new Set(existing.map(f => f.id));
-  const fresh = (Array.isArray(facts) ? facts : []).filter(f => {
-    if (!f || typeof f.id !== 'string' || typeof f.memory !== 'string' || typeof f.text !== 'string' || !Number.isFinite(f.ts) || ids.has(f.id)) return false;
-    ids.add(f.id); return true;
-  });
-  if (!fresh.length) return false;
-  char.encounterFacts = [...existing, ...fresh].sort((a, b) => a.ts - b.ts).slice(-100);
-  return true;
-}
-
 router.post('/sync-delve', (req, res) => {
   const { charId, delveStateId } = req.body || {};
   const char = getChar(charId);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
-  if (!delveStateId) return res.status(400).json({ error: 'Missing delveStateId — settlement settles a delve save.' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
+  if (!delveStateId) return res.status(400).json({ error: 'Missing delveStateId — settlement settles a delve save.', errorDisplay: { key: "api.missingDelve" } });
 
   const delve = store.getSave(delveStateId);
-  if (!delve || !delve.id) return res.status(404).json({ error: 'Delve save not found' });
-  if (delve.characterId !== charId) return res.status(403).json({ error: 'This delve belongs to another hero.' });
-  if (!delve.character) return res.status(400).json({ error: 'Delve save is malformed — no hero snapshot to settle.' });
+  if (!delve || !delve.id) return res.status(404).json({ error: 'Delve save not found', errorDisplay: { key: "api.delveNotFound" } });
+
+  // Playtest isolation: a playtest run never touches a formal hero. The receipt and its story
+  // facts land on the draft's own playtest hero, so chapter 2 of that draft can open on the
+  // ending this run actually reached. Ownership and the real end mode are verified there.
+  if (delve.isPlaytest) {
+    try {
+      const settled = contentAuthoring.settlePlaytestDelve(delve);
+      return res.json({ ok: true, isPlaytest: true, receipt: settled.receipt, char: settled.char, duplicate: settled.duplicate });
+    } catch (err) {
+      const status = err.status || 400;
+      if (status === 400 && err.code === 'delve-not-ended') {
+        return res.status(400).json({ error: 'This playtest has not ended yet — reach the exit, the campfire, or fall first.', errorDisplay: { key: 'api.delveNotEnded' } });
+      }
+      if (status === 403) return res.status(403).json({ error: 'This delve belongs to another hero.', errorDisplay: { key: 'api.wrongHero' } });
+      return res.status(status).json({ error: err.message });
+    }
+  }
+
+  if (delve.characterId !== charId) return res.status(403).json({ error: 'This delve belongs to another hero.', errorDisplay: { key: "api.wrongHero" } });
+  if (!delve.character) return res.status(400).json({ error: 'Delve save is malformed — no hero snapshot to settle.', errorDisplay: { key: "api.malformedDelve" } });
   if (delve.mode !== 'victory' && delve.mode !== 'retreat' && delve.mode !== 'over') {
-    return res.status(400).json({ error: 'This delve has not ended yet — reach the exit, the campfire, or fall first.' });
+    return res.status(400).json({ error: 'This delve has not ended yet — reach the exit, the campfire, or fall first.', errorDisplay: { key: "api.delveNotEnded" } });
   }
 
   const settleId = `${delve.id}#${delve.endSeq || 1}`;
@@ -724,7 +616,7 @@ router.post('/sync-delve', (req, res) => {
         char.xp = (char.xp || 0) + (adv.reward.xp || 0);
       }
       char.campaignLog = char.campaignLog || [];
-      char.campaignLog.push({ act: adv.act, text: adv.text, ts: Date.now() });
+      char.campaignLog.push({ act: adv.act, text: adv.text,textDisplay:adv.textDisplay, ts: Date.now() });
       if (adv.completed) char.campaign.epilogue = null;   // written on first view
     }
     if (before !== char.campaign.stage) {
@@ -754,6 +646,7 @@ router.post('/sync-delve', (req, res) => {
     campaignAdvanced,
     weeklyWin,
     encounterFacts,
+    story: engine.storySummary(delve),
     // what this delve actually paid, relative to the roster before settling (T4 summary)
     gains: {
       gold: (char.gold || 0) - before.gold,
@@ -969,15 +862,15 @@ router.get('/hall-of-heroes', (req, res) => {
 router.post('/forge', (req, res) => {
   const { charId, action, uniqueId } = req.body || {};
   const char = getChar(charId);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
   char.essence = char.essence || 0;
 
   const item = (char.inventory || []).find(i => i.uniqueId === uniqueId);
-  if (!item) return res.status(400).json({ error: '找不到这件装备。' });
+  if (!item) return res.status(400).json({ error: '找不到这件装备。', errorDisplay: { key: "api.gearNotFound" } });
 
   if (action === 'salvage') {
     if (Object.values(char.equipped || {}).includes(uniqueId)) {
-      return res.status(400).json({ error: '先把它脱下来，再熔解。' });
+      return res.status(400).json({ error: '先把它脱下来，再熔解。', errorDisplay: { key: "api.unequipFirst" } });
     }
     const v = forge.salvageValue(item);
     if (!v.ok) return res.status(400).json({ error: v.error });
@@ -988,18 +881,18 @@ router.post('/forge', (req, res) => {
     syncCharToDelves(char);
     return res.json({
       ok: true, char, essence: v.essence, gold: v.gold,
-      message: `熔解 ${item.name} → +${v.essence} 余烬精华、+${v.gold} gp。`
+      messageDisplay: { key: "api.salvaged", params: { item: presentation.name(item), essence: v.essence, gold: v.gold } }, message: `熔解 ${item.name} → +${v.essence} 余烬精华、+${v.gold} gp。`
     });
   }
 
   if (action !== 'reroll' && action !== 'upgrade') {
-    return res.status(400).json({ error: '锻造台只会熔解、重铸和升阶。' });
+    return res.status(400).json({ error: '锻造台只会熔解、重铸和升阶。', errorDisplay: { key: "api.unknownForge" } });
   }
 
   const cost = forge.forgeCost(action, item.rarity);
-  if (!cost) return res.status(400).json({ error: action === 'upgrade' ? '已经是传奇品质，无法再升。' : '这件装备无法改造。' });
+  if (!cost) return res.status(400).json({ error: action === 'upgrade' ? '已经是传奇品质，无法再升。' : '这件装备无法改造。', errorDisplay: { key: action === 'upgrade' ? 'api.forgeLegendary' : 'api.forgeUnavailable' } });
   if ((char.gold || 0) < cost.gold || char.essence < cost.essence) {
-    return res.status(400).json({ error: `材料不足：需要 ${cost.gold} gp + ${cost.essence} 余烬精华（你有 ${char.gold || 0} gp、${char.essence} 精华）。` });
+    return res.status(400).json({ error: `材料不足：需要 ${cost.gold} gp + ${cost.essence} 余烬精华（你有 ${char.gold || 0} gp、${char.essence} 精华）。`, errorDisplay: { key: "api.forgeMaterials", params: { gold: cost.gold, essence: cost.essence, haveGold: char.gold || 0, haveEssence: char.essence } } });
   }
 
   const result = action === 'reroll' ? forge.rerollAffix(item) : forge.upgradeRarity(item);
@@ -1016,14 +909,16 @@ router.post('/forge', (req, res) => {
 
   res.json({
     ok: true, char, item: result.item, cost,
-    message: `${action === 'reroll' ? '重铸' : '升阶'}完成：${result.text}（-${cost.gold} gp、-${cost.essence} 精华）`
+    message: `${action === 'reroll' ? '重铸' : '升阶'}完成：${result.text}（-${cost.gold} gp、-${cost.essence} 精华）`,
+    messageDisplay:{key:'content.forge.'+action,params:{result,gold:cost.gold,essence:cost.essence}}
   });
 });
 
 // GET /api/city/campaign — main story state, current objective and the epilogue once finished
 router.get('/campaign', async (req, res) => {
+  const locale = res.locals.locale || 'en';
   const char = getChar(req.query.charId);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
   const c = campaignMod.ensure(char.campaign);
 
   // the epilogue is written once (AI DM when configured) and then cached on the character
@@ -1036,14 +931,28 @@ router.get('/campaign', async (req, res) => {
     try {
       if (await dm.available()) {
         text = await dm.callLlm([
-          { role: 'system', content: 'You are the Dungeon Master closing a long D&D campaign. Write a 3-4 sentence epilogue in Chinese for the hero named in the message. Warm, a little wistful, specific to the deeds listed. No headings, no lists.' },
+          { role: 'system', content: 'You are the Dungeon Master closing a long D&D campaign. Write a 3-4 sentence epilogue for the hero named in the message. Warm, a little wistful, specific to the deeds listed. No headings, no lists.' },
           { role: 'user', content: `英雄：${char.name}（${char.className}，等级 ${char.level}）。事迹：取回沉没圣物、打开淹没地窟、集齐三条线索、击杀烬后 Yzmerith。累计击杀 ${stats.kills}，完成地牢 ${stats.delves} 次。请写收场词。` }
-        ]);
+        ],locale);
       }
     } catch {}
-    c.epilogue = text || campaignMod.fallbackEpilogue(char, stats);
-    char.campaign = c;
-    saveChar(char);
+    if (text) { c.epilogue=text; c.epilogueLanguage=locale; }
+    else {
+      const descriptor={key:'content.epilogue',params:{name:char.name,kills:stats.kills,delves:stats.delves}};
+      const {resolveDisplay}=await import('../../public/js/localization/locale.mjs');
+      c.epilogue=resolveDisplay(descriptor,'',locale);c.epilogueDisplay=descriptor;c.epilogueLanguage=locale;
+    }
+    const latest=getChar(char.id);
+    if(latest?.campaign?.completedAt===c.completedAt) {
+      if(!latest.campaign.epilogue) {
+        latest.campaign.epilogue=c.epilogue;
+        latest.campaign.epilogueDisplay=c.epilogueDisplay;
+        latest.campaign.epilogueLanguage=c.epilogueLanguage;
+        saveChar(latest);
+      } else {
+        c.epilogue=latest.campaign.epilogue;c.epilogueDisplay=latest.campaign.epilogueDisplay;c.epilogueLanguage=latest.campaign.epilogueLanguage;
+      }
+    }
   }
 
   res.json({
@@ -1055,13 +964,14 @@ router.get('/campaign', async (req, res) => {
     log: char.campaignLog || [],
     acts: campaignMod.ACTS.map(a => ({
       id: a.id, act: a.act, name: a.name, icon: a.icon, mapName: a.mapName,
-      objective: a.objective, blurb: a.blurb, reward: a.reward,
+      objective: a.objective, blurb: a.blurb, reward: a.reward,localized:a.localized,
       done: campaignMod.actDone(c, a.id),
       clues: a.id === 'clues' ? Object.keys(campaignMod.CLUE_LABELS).map(k => ({
-        id: k, name: campaignMod.CLUE_LABELS[k], done: !!c.acts.clues[k]
+        id: k, name: campaignMod.CLUE_LABELS[k],nameDisplay:{key:'content.clue.'+k}, done: !!c.acts.clues[k]
       })) : null
     })),
     epilogue: c.completedAt ? c.epilogue : null,
+    epilogueDisplay:c.epilogueDisplay,epilogueLanguage:c.epilogueLanguage,
     // the same next-step guidance the region map uses (T4)
     guidance: guidanceMod.journey(char, { liveSave: guidanceMod.pickLiveSave(char, store.listSaves()) }),
     stats: {
@@ -1076,18 +986,20 @@ router.get('/campaign', async (req, res) => {
 
 // POST /api/city/rumor
 router.post('/rumor', async (req, res) => {
+  const locale=res.locals.locale || 'en';
   const { topic } = req.body || {};
   try {
     const settings = store.getSettings ? store.getSettings() : {};
     if (settings.llm && settings.llm.enabled) {
       const prompt = `You are Marla Stoutheart, tavern keeper of The Boar & Lantern in Oakhaven. Tell a short (2-3 sentences) colorful tavern rumor or piece of lore about the surrounding dungeons (The Sunless Crypt or The Drowned Vault). Topic hint: ${topic || 'ancient treasure'}.`;
-      const reply = await dm.callLlm([{ role: 'system', content: prompt }]);
-      if (reply) return res.json({ rumor: reply });
+      const reply = await dm.callLlm([{ role: 'system', content: prompt }],locale);
+      if (reply) return res.json({ rumor: reply,language:locale });
     }
   } catch {}
 
   const randomRumor = TAVERN_RUMORS[Math.floor(Math.random() * TAVERN_RUMORS.length)];
-  res.json({ rumor: randomRumor });
+  const {message}=await import('../../public/js/localization/locale.mjs');
+  res.json({ rumor: message(locale,'content.rumor.'+TAVERN_RUMORS.indexOf(randomRumor)),language:locale });
 });
 
 // POST /api/city/gamble — the Boar & Lantern's gambling tables
@@ -1095,19 +1007,19 @@ router.post('/rumor', async (req, res) => {
 router.post('/gamble', (req, res) => {
   const { charId, game, bet, tier } = req.body || {};
   const char = getChar(charId);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
 
   const kind = String(game || 'roulette');
   const limits = gambling.GAMBLE_LIMITS[kind] || gambling.GAMBLE_LIMITS.roulette;
   const fixedStake = kind === 'slots' ? (gambling.SLOT_TIERS[tier] || gambling.SLOT_TIERS.standard).stake : null;
   const stake = fixedStake !== null ? fixedStake : Math.floor(Number(req.body.stake) || 0);
 
-  if (!stake || stake <= 0) return res.status(400).json({ error: '请先下注。' });
+  if (!stake || stake <= 0) return res.status(400).json({ error: '请先下注。', errorDisplay: { key: "api.stakeRequired" } });
   if (limits.min !== null && (stake < limits.min || stake > limits.max)) {
-    return res.status(400).json({ error: `赌注需在 ${limits.min}–${limits.max} gp 之间。` });
+    return res.status(400).json({ error: `赌注需在 ${limits.min}–${limits.max} gp 之间。`, errorDisplay: { key: "api.stakeRange", params: { min: limits.min, max: limits.max } } });
   }
   if ((char.gold || 0) < stake) {
-    return res.status(400).json({ error: `金币不足：需要 ${stake} gp，你有 ${char.gold || 0} gp。` });
+    return res.status(400).json({ error: `金币不足：需要 ${stake} gp，你有 ${char.gold || 0} gp。`, errorDisplay: { key: "api.insufficientGold", params: { need: stake, gold: char.gold || 0 } } });
   }
 
   let result;
@@ -1115,7 +1027,7 @@ router.post('/gamble', (req, res) => {
     const num = Number(bet && bet.number);
     const chosen = (bet && bet.id) || 'red';
     if (chosen === 'straight' && (!Number.isInteger(num) || num < 0 || num > 36)) {
-      return res.status(400).json({ error: '押单号需要选 0–36 之间的号码。' });
+      return res.status(400).json({ error: '押单号需要选 0–36 之间的号码。', errorDisplay: { key: "api.rouletteNumber" } });
     }
     result = gambling.spinRoulette({ id: chosen, number: num }, stake);
   } else if (kind === 'sicbo') {
@@ -1123,7 +1035,7 @@ router.post('/gamble', (req, res) => {
   } else if (kind === 'slots') {
     result = gambling.spinSlots(tier || 'standard');
   } else {
-    return res.status(400).json({ error: '没有这种赌桌。' });
+    return res.status(400).json({ error: '没有这种赌桌。', errorDisplay: { key: "api.unknownTable" } });
   }
 
   // every table reports a NET gold delta (stake already accounted for): -stake on a loss,
@@ -1159,7 +1071,8 @@ router.post('/gamble', (req, res) => {
   res.json({
     ok: true, char, stake, result, prizes, curse,
     netGold: result.delta,
-    message: `${result.text}${messages.length ? ' ' + messages.join('，') + '。' : ''}`
+    message: `${result.text}${messages.length ? ' ' + messages.join('，') + '。' : ''}`,
+    messageDisplay:{parts:[result,...(result.payout || result.delta>0?[{key:'content.gamble.won',params:{gold:result.payout || result.delta}}]:[]),...(curse?[{key:'content.gamble.curse',params:{name:presentation.field(curse,'name')}}]:[])],separator:' '}
   });
 });
 
@@ -1167,15 +1080,16 @@ router.post('/gamble', (req, res) => {
 router.post('/identify', (req, res) => {
   const { charId, uniqueId } = req.body || {};
   const char = getChar(charId);
-  if (!char) return res.status(404).json({ error: 'Character not found' });
-  if (!uniqueId) return res.status(400).json({ error: 'Missing uniqueId' });
+  if (!char) return res.status(404).json({ error: 'Character not found', errorDisplay: { key: "api.characterNotFound" } });
+  if (!uniqueId) return res.status(400).json({ error: 'Missing uniqueId', errorDisplay: { key: "api.missingItem" } });
 
   const check = engine.d20({});
   const total = check.natural + engine.skillMod(char, 'arcana');
   const outcome = potions.identifyPotion(char, uniqueId, total);
   if (!outcome.ok) return res.status(400).json({ error: outcome.error });
   saveChar(char);
-  res.json({ ok: true, char, roll: check.natural, total, dc: outcome.dc, success: outcome.success, effect: outcome.effect, message: outcome.text });
+  if(outcome.success&&outcome.effect){const def=potions.POTION_EFFECTS.find(e=>e.id===outcome.effect.id);if(def)outcome.effect.localized=def.localized;}
+  res.json({ ok: true, char, roll: check.natural, total, dc: outcome.dc, success: outcome.success, effect: outcome.effect, message: outcome.text,messageDisplay:outcome });
 });
 
 module.exports = router;

@@ -1,0 +1,893 @@
+{
+  "id": "courier-crossing",
+  "theme": "hills",
+  "width": 25,
+  "height": 15,
+  "tileSizeFt": 5,
+  "name": "渡口的失踪信使",
+  "blurb": "封锁的桥、受伤的信使、一份不能轻易交回的账册。三处选择决定谁留下作证、谁乘船离开。",
+  "recommended": "等级 1–3 · 故事支线",
+  "objectiveText": "过桥寻找信使，带证据回见艾芮，作出最终选择后返回西岸营火。",
+  "localized": {
+    "en": {
+      "name": "The Missing Courier",
+      "blurb": "A sealed bridge, a wounded courier, and a ledger that cannot be returned lightly. Three choices decide who stays to testify and who leaves by ferry.",
+      "recommended": "Levels 1–3 · Story adventure",
+      "objectiveText": "Cross to find the courier, bring his evidence to Iris, then make your final choice and return to the west-bank campfire."
+    },
+    "zh-CN": {
+      "name": "渡口的失踪信使",
+      "blurb": "封锁的桥、受伤的信使、一份不能轻易交回的账册。三处选择决定谁留下作证、谁乘船离开。",
+      "recommended": "等级 1–3 · 故事支线",
+      "objectiveText": "过桥寻找信使，带证据回见艾芮，作出最终选择后返回西岸营火。"
+    }
+  },
+  "story": {
+    "id": "missing-courier",
+    "name": "渡口的失踪信使",
+    "localized": {
+      "en": {
+        "name": "The Missing Courier"
+      },
+      "zh-CN": {
+        "name": "渡口的失踪信使"
+      }
+    }
+  },
+  "playerStart": {
+    "x": 1,
+    "y": 7
+  },
+  "victory": {
+    "type": "story",
+    "sceneId": "reckoning",
+    "campfire": {
+      "x": 1,
+      "y": 7
+    }
+  },
+  "rows": [
+    "#########################",
+    "#.......#...............#",
+    "#.......#...............#",
+    "#.......#...............#",
+    "#.......#...............#",
+    "#.......#...............#",
+    "#.......#...............#",
+    "#.......D...............#",
+    "#.......#...............#",
+    "#.......#...............#",
+    "#.......#...............#",
+    "#.......#...............#",
+    "#.......#...............#",
+    "#.......#...............#",
+    "#########################"
+  ],
+  "rooms": [
+    {
+      "id": "west_bank",
+      "rect": [
+        1,
+        1,
+        7,
+        13
+      ],
+      "name": "西岸营地",
+      "desc": "营火边钉着一张被雨浸透的委托：信使里奥昨夜应带渡口账册回城，却一直没有出现。纸角另有一行小字：“先找到人。账册上的事，等他能开口再问。”桥头挂着封路的红绳，守桥人艾芮已经站了一夜。营地旁留着行路人补给箱，箱盖上刻着一句话：需要的人拿走，回来的人补上。",
+      "localized": {
+        "en": {
+          "name": "West-bank Camp",
+          "desc": "A rain-soaked notice beside the fire asks for Lio, due home last night with the crossing ledger. A smaller hand added a line in the margin: “Find him first. Ask about the book when he can speak.” Red cord seals the bridge. Iris has stood watch through the night. A travelers’ supply chest waits near camp, its lid carved with a simple request: take what you need; replace it when you return."
+        },
+        "zh-CN": {
+          "name": "西岸营地",
+          "desc": "营火边钉着一张被雨浸透的委托：信使里奥昨夜应带渡口账册回城，却一直没有出现。纸角另有一行小字：“先找到人。账册上的事，等他能开口再问。”桥头挂着封路的红绳，守桥人艾芮已经站了一夜。营地旁留着行路人补给箱，箱盖上刻着一句话：需要的人拿走，回来的人补上。"
+        }
+      }
+    },
+    {
+      "id": "east_road",
+      "rect": [
+        9,
+        1,
+        17,
+        13
+      ],
+      "name": "湿雾里的旧道",
+      "desc": "木桥尽头的泥路通往东南旧驿亭。一串脚印深浅不一，旁边拖着一条细长水痕，像有人用树枝勉强支撑身体。路旁躺着空信袋，封蜡已经裂开，袋内只有雨水。脚印附近另有几双较小的鞋印，停在同一块避雨的岩石下。远处渡船的绳索拍着木桩，你还看不清船上有没有人。",
+      "localized": {
+        "en": {
+          "name": "The Mist Road",
+          "desc": "The muddy road beyond the bridge leads southeast to the old waystation. One trail of footprints sinks unevenly, beside a thin furrow as though someone leaned on a branch. An empty satchel lies nearby, its wax seal cracked and its lining wet. Smaller footprints gather under the same sheltered rock. In the distance ferry ropes knock against wooden posts; the mist hides whether anyone is aboard."
+        },
+        "zh-CN": {
+          "name": "湿雾里的旧道",
+          "desc": "木桥尽头的泥路通往东南旧驿亭。一串脚印深浅不一，旁边拖着一条细长水痕，像有人用树枝勉强支撑身体。路旁躺着空信袋，封蜡已经裂开，袋内只有雨水。脚印附近另有几双较小的鞋印，停在同一块避雨的岩石下。远处渡船的绳索拍着木桩，你还看不清船上有没有人。"
+        }
+      }
+    },
+    {
+      "id": "waystation",
+      "rect": [
+        18,
+        8,
+        23,
+        13
+      ],
+      "name": "旧驿亭",
+      "desc": "旧驿亭的屋檐正在漏水，几只空碗被小心收在干燥的一角。里奥坐在墙根，用撕下的袖子包着腿伤，膝上压着一本皮封账册。看见你时，他先把账册抱紧，然后才松开手。“如果艾芮让你来了，她一定以为我又在逞能。”他试图笑，却没能站起来。",
+      "localized": {
+        "en": {
+          "name": "The Old Waystation",
+          "desc": "Water drips through the waystation roof. Someone has stacked a few empty bowls in its one dry corner. Lio sits against the wall with a torn sleeve wrapped around his leg and a leather ledger across his knees. At your approach he clutches the book, then loosens his grip. “If Iris sent you, she probably thinks I have taken on too much again.” He tries to smile, but cannot stand."
+        },
+        "zh-CN": {
+          "name": "旧驿亭",
+          "desc": "旧驿亭的屋檐正在漏水，几只空碗被小心收在干燥的一角。里奥坐在墙根，用撕下的袖子包着腿伤，膝上压着一本皮封账册。看见你时，他先把账册抱紧，然后才松开手。“如果艾芮让你来了，她一定以为我又在逞能。”他试图笑，却没能站起来。"
+        }
+      }
+    },
+    {
+      "id": "ferry",
+      "rect": [
+        18,
+        1,
+        23,
+        7
+      ],
+      "name": "无人值守的渡船",
+      "desc": "一条小船系在高处，缆绳上打着熟练的双结。船板下压着旧价目表：十枚金币可包一趟离岸的船。油布包里有干面包，桨却还摆在岸上。有人为出发做过准备，又在最后一刻留下了船。",
+      "localized": {
+        "en": {
+          "name": "The Waiting Ferry",
+          "desc": "A small ferry is tied above the waterline with a neat double knot. A faded fare board beneath a plank offers one departure for ten gold. Dry bread waits under an oilskin, but the oars remain on shore. Someone prepared to leave, then stopped short of casting off."
+        },
+        "zh-CN": {
+          "name": "无人值守的渡船",
+          "desc": "一条小船系在高处，缆绳上打着熟练的双结。船板下压着旧价目表：十枚金币可包一趟离岸的船。油布包里有干面包，桨却还摆在岸上。有人为出发做过准备，又在最后一刻留下了船。"
+        }
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "campfire",
+      "type": "object",
+      "x": 1,
+      "y": 7,
+      "icon": "🔥",
+      "name": "西岸营火",
+      "localized": {
+        "en": {
+          "name": "West-bank Campfire"
+        },
+        "zh-CN": {
+          "name": "西岸营火"
+        }
+      }
+    },
+    {
+      "id": "iris",
+      "type": "npc",
+      "x": 6,
+      "y": 6,
+      "icon": "🧭",
+      "name": "守桥人艾芮",
+      "localized": {
+        "en": {
+          "name": "Iris the Bridgewarden"
+        },
+        "zh-CN": {
+          "name": "守桥人艾芮"
+        }
+      }
+    },
+    {
+      "id": "courier_bridge",
+      "type": "door",
+      "x": 8,
+      "y": 7,
+      "locked": true,
+      "name": "封锁的渡桥",
+      "localized": {
+        "en": {
+          "name": "Sealed Crossing"
+        },
+        "zh-CN": {
+          "name": "封锁的渡桥"
+        }
+      }
+    },
+    {
+      "id": "courier_guard",
+      "type": "monster",
+      "kind": "bandit",
+      "x": 10,
+      "y": 7
+    },
+    {
+      "id": "lio",
+      "type": "npc",
+      "x": 21,
+      "y": 11,
+      "icon": "✉️",
+      "name": "信使里奥",
+      "localized": {
+        "en": {
+          "name": "Lio the Courier"
+        },
+        "zh-CN": {
+          "name": "信使里奥"
+        }
+      }
+    },
+    {
+      "id": "west_supplies",
+      "type": "chest",
+      "x": 3,
+      "y": 10,
+      "loot": {
+        "potions": 1
+      },
+      "name": "行路人补给箱",
+      "localized": {
+        "en": {
+          "name": "Traveler’s Supply Chest"
+        },
+        "zh-CN": {
+          "name": "行路人补给箱"
+        }
+      }
+    },
+    {
+      "id": "east_supplies",
+      "type": "chest",
+      "x": 15,
+      "y": 3,
+      "loot": {
+        "gold": 5
+      },
+      "name": "渡工零钱箱",
+      "localized": {
+        "en": {
+          "name": "Ferryman’s Coin Chest"
+        },
+        "zh-CN": {
+          "name": "渡工零钱箱"
+        }
+      }
+    }
+  ],
+  "npcs": {
+    "iris": {
+      "persona": "你是守桥人艾芮。尽职但不冷漠，承認不知道的事。",
+      "knowledge": "里奥带着税款账册失踪。桥门暂封锁，通行费五枚金币；你不知道里奥去了哪里或为何失踪。只使用引擎已确认的后来记忆，不预言听证、渡船或赈济结果。",
+      "canned": [
+        "里奥昨夜没有回来。先决定怎样过桥，然后沿东岸去找他；我不能拿传闻当证据。"
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Iris, a dutiful but compassionate bridgewarden. Admit what you do not know.",
+          "knowledge": "Lio vanished with the toll ledger. The bridge is sealed and the toll is five gold. You do not know where he went or why. Use only engine-confirmed later memory; never predict a hearing, ferry or relief outcome.",
+          "canned": [
+            "Lio did not return last night. Decide how to cross and look along the east bank. Rumor is not evidence."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是守桥人艾芮。尽职但不冷漠，承認不知道的事。",
+          "knowledge": "里奥带着税款账册失踪。桥门暂封锁，通行费五枚金币；你不知道里奥去了哪里或为何失踪。只使用引擎已确认的后来记忆，不预言听证、渡船或赈济结果。",
+          "canned": [
+            "里奥昨夜没有回来。先决定怎样过桥，然后沿东岸去找他；我不能拿传闻当证据。"
+          ]
+        }
+      }
+    },
+    "lio": {
+      "persona": "你是受伤的信使里奥。承认挪用税款帮助难民，不要求伪造证据。",
+      "knowledge": "你在驿亭受伤，持有真实原账册。你挪用了一部分过桥税帮助难民，账册有你的签名和每笔支出。你愿意交出证据，无论玩家是否给药。你不知道守桥人的决定；后续只使用引擎已确认的记忆。",
+      "canned": [
+        "我还活着，原账册也在。请听完证词，再决定把证据交给谁；别替我伪造数字。"
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Lio, a wounded courier. Admit diverting tolls to help refugees; never request forged evidence.",
+          "knowledge": "You are wounded at the waystation and hold the original ledger. You diverted some tolls to shelter refugees; each payment bears your signature. You will provide evidence with or without medicine. You do not know the bridgewarden’s decision; use only confirmed later memory.",
+          "canned": [
+            "I am alive, and the original ledger is here. Hear me before deciding what to do with the evidence. Do not falsify the sums."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是受伤的信使里奥。承认挪用税款帮助难民，不要求伪造证据。",
+          "knowledge": "你在驿亭受伤，持有真实原账册。你挪用了一部分过桥税帮助难民，账册有你的签名和每笔支出。你愿意交出证据，无论玩家是否给药。你不知道守桥人的决定；后续只使用引擎已确认的记忆。",
+          "canned": [
+            "我还活着，原账册也在。请听完证词，再决定把证据交给谁；别替我伪造数字。"
+          ]
+        }
+      }
+    }
+  },
+  "scenes": [
+    {
+      "id": "crossing",
+      "kind": "story",
+      "npcId": "iris",
+      "doorId": "courier_bridge",
+      "guardIds": [
+        "courier_guard"
+      ],
+      "name": "第一处选择：封锁的渡桥",
+      "prompt": "艾芮拦住你：“信使里奥昨夜没有回来，镇议会派人来取账册。我不能让陌生人随便过桥。五枚金币是规定的通行费。你若真是来找他，就给我一个可信的理由。”桥后的收税人把手按在刀柄上。艾芮并不想流血，但也不愿为一句空话违背职责。你可以付费、尝试说服她，或和收税人交战。说服失败仍可付费通过。",
+      "localized": {
+        "en": {
+          "name": "Choice I: The Sealed Bridge",
+          "prompt": "Iris bars your way. “Lio the courier never returned last night. The council sent for his ledger. I cannot let strangers cross. Five gold is the lawful toll. If you came to find him, give me a reason I can trust.” The collector behind the gate rests a hand on his knife. Iris wants no bloodshed, but will not abandon her duty for an empty promise. Pay, persuade her, or fight the collector. A failed appeal still lets you pay and cross.",
+          "objective": "Speak to Iris about crossing to search for the missing courier."
+        },
+        "zh-CN": {
+          "name": "第一处选择：封锁的渡桥",
+          "prompt": "艾芮拦住你：“信使里奥昨夜没有回来，镇议会派人来取账册。我不能让陌生人随便过桥。五枚金币是规定的通行费。你若真是来找他，就给我一个可信的理由。”桥后的收税人把手按在刀柄上。艾芮并不想流血，但也不愿为一句空话违背职责。你可以付费、尝试说服她，或和收税人交战。说服失败仍可付费通过。",
+          "objective": "和艾芮商量过桥，开始寻找失踪信使。"
+        }
+      },
+      "choices": [
+        {
+          "id": "pay_toll",
+          "fact": "paid_toll",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "passage",
+            "costGold": 5
+          },
+          "label": "支付通行费，按规过桥",
+          "response": "你付出五枚金币。艾芮在收税簿上记下你的名字，打开桥门，让收税人退下。“找见里奥时，告诉他我还在等。有人说他带钱逃走了；我只知道，他每次迟到都有理由。”你获得通行，却还没有证据判断谁在说谎。",
+          "memory": "你为寻找里奥支付了通行费，我不会再收这一次的钱。",
+          "localized": {
+            "en": {
+              "label": "Pay the toll and cross lawfully",
+              "response": "You pay five gold. Iris enters your name in the toll book, opens the gate, and dismisses the collector. “Tell Lio I am still waiting. Some say he fled with the money. I only know he always had a reason for being late.” You have passage, but no evidence yet to judge who is lying.",
+              "memory": "You paid the toll to find Lio. I will not charge for this crossing again."
+            },
+            "zh-CN": {
+              "label": "支付通行费，按规过桥",
+              "response": "你付出五枚金币。艾芮在收税簿上记下你的名字，打开桥门，让收税人退下。“找见里奥时，告诉他我还在等。有人说他带钱逃走了；我只知道，他每次迟到都有理由。”你获得通行，却还没有证据判断谁在说谎。",
+              "memory": "你为寻找里奥支付了通行费，我不会再收这一次的钱。"
+            }
+          },
+          "reactions": {
+            "iris": {
+              "text": "你付过通行费。我会守着桥，等你带回里奥的消息。",
+              "localized": {
+                "en": {
+                  "text": "You paid the toll. I will hold the bridge while you look for Lio."
+                },
+                "zh-CN": {
+                  "text": "你付过通行费。我会守着桥，等你带回里奥的消息。"
+                }
+              }
+            },
+            "lio": {
+              "text": "为了找我，你付出了通行费。至少你愿意走到这里听我说。",
+              "localized": {
+                "en": {
+                  "text": "You paid a toll to find me. At least you came this far to hear me out."
+                },
+                "zh-CN": {
+                  "text": "为了找我，你付出了通行费。至少你愿意走到这里听我说。"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "explain",
+          "fact": "earned_passage",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "check",
+            "skill": "persuasion",
+            "dc": 12,
+            "failureGold": 5
+          },
+          "label": "说明寻找信使的来意，争取免税通行",
+          "response": "艾芮听完，放下拦路的手。“若你是来带人回家的，我不该再收你的钱。”她把门打开，让收税人离开；你没有支付通行费。她交代里奥最后沿东岸的小路走向旧驿亭，仅此而已，她不知道那里发生过什么。",
+          "memory": "你说服我免收通行费。我相信你是来找人的。",
+          "localized": {
+            "en": {
+              "label": "Explain your search and ask for a free crossing",
+              "response": "Iris lowers her hand. “If you came to bring someone home, I should not charge you.” She opens the gate and sends the collector away; you pay no toll. Lio was last seen taking the east-bank path toward the old waystation. That is all she knows.",
+              "memory": "You persuaded me to waive the toll. I believe you came to find someone."
+            },
+            "zh-CN": {
+              "label": "说明寻找信使的来意，争取免税通行",
+              "response": "艾芮听完，放下拦路的手。“若你是来带人回家的，我不该再收你的钱。”她把门打开，让收税人离开；你没有支付通行费。她交代里奥最后沿东岸的小路走向旧驿亭，仅此而已，她不知道那里发生过什么。",
+              "memory": "你说服我免收通行费。我相信你是来找人的。"
+            }
+          },
+          "reactions": {
+            "iris": {
+              "text": "你说服我让你免费过桥。带回事实，比好听的话更重要。",
+              "localized": {
+                "en": {
+                  "text": "You persuaded me to let you cross freely. Bring back facts, not fine promises."
+                },
+                "zh-CN": {
+                  "text": "你说服我让你免费过桥。带回事实，比好听的话更重要。"
+                }
+              }
+            },
+            "lio": {
+              "text": "你说服了艾芮来寻找我。我愿意相信你会听完我的证词。",
+              "localized": {
+                "en": {
+                  "text": "You persuaded Iris to let you search for me. I hope you will hear my testimony."
+                },
+                "zh-CN": {
+                  "text": "你说服了艾芮来寻找我。我愿意相信你会听完我的证词。"
+                }
+              }
+            }
+          },
+          "failure": {
+            "fact": "paid_after_refusal",
+            "response": "你的话没有说服艾芮。她仍愿意留一条路：“规定的五枚金币，付清就过桥。我不想让找人的事变成另一场失踪。”你支付五枚金币，桥门打开，收税人撤离。一次失败没有结束调查；东岸的旧驿亭仍等着你。",
+            "memory": "你的说服没有成功，但你付清了五枚金币，仍然过了桥。",
+            "localized": {
+              "en": {
+                "response": "Your appeal does not convince Iris. She leaves a way forward: “Pay the five gold and cross. I will not turn a search into another disappearance.” You pay five gold; the gate opens and the collector leaves. The failed appeal does not end the investigation. The east-bank waystation still awaits.",
+                "memory": "Your appeal failed, but you paid five gold and crossed."
+              },
+              "zh-CN": {
+                "response": "你的话没有说服艾芮。她仍愿意留一条路：“规定的五枚金币，付清就过桥。我不想让找人的事变成另一场失踪。”你支付五枚金币，桥门打开，收税人撤离。一次失败没有结束调查；东岸的旧驿亭仍等着你。",
+                "memory": "你的说服没有成功，但你付清了五枚金币，仍然过了桥。"
+              }
+            },
+            "reactions": {
+              "iris": {
+                "text": "我没有被说服，但你付清了通行费，仍继续找人。",
+                "localized": {
+                  "en": {
+                    "text": "I was not persuaded, but you paid the toll and continued the search."
+                  },
+                  "zh-CN": {
+                    "text": "我没有被说服，但你付清了通行费，仍继续找人。"
+                  }
+                }
+              },
+              "lio": {
+                "text": "你没能说服艾芮，却仍付费来找我。谢谢你没有转身离开。",
+                "localized": {
+                  "en": {
+                    "text": "You failed to persuade Iris, but paid to find me anyway. Thank you for not turning back."
+                  },
+                  "zh-CN": {
+                    "text": "你没能说服艾芮，却仍付费来找我。谢谢你没有转身离开。"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "fight",
+          "fact": "forced_crossing",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "combat"
+          },
+          "label": "挑战收税人，用武力打开桥门",
+          "response": "收税人被真正击败，桥门不再有人阻挡。艾芮没有拔刀；她把倒下的人拖到桥边，给伤口缠上布。“你赢了通行权，没赢我的信任。若里奥还活着，至少别让他成为下一个倒下的人。”你仍可沿东岸调查。",
+          "memory": "你击败了收税人。我记得这次动武，会谨慎听你接下来带回的消息。",
+          "localized": {
+            "en": {
+              "label": "Challenge the collector and force a crossing",
+              "response": "The collector is truly defeated; the bridge is clear. Iris does not draw a blade. She pulls him aside and binds his wounds. “You won passage, not my trust. If Lio lives, do not make him the next casualty.” The east-bank investigation remains open.",
+              "memory": "You defeated the collector. I remember the violence, and will weigh what you bring back carefully."
+            },
+            "zh-CN": {
+              "label": "挑战收税人，用武力打开桥门",
+              "response": "收税人被真正击败，桥门不再有人阻挡。艾芮没有拔刀；她把倒下的人拖到桥边，给伤口缠上布。“你赢了通行权，没赢我的信任。若里奥还活着，至少别让他成为下一个倒下的人。”你仍可沿东岸调查。",
+              "memory": "你击败了收税人。我记得这次动武，会谨慎听你接下来带回的消息。"
+            }
+          },
+          "reactions": {
+            "iris": {
+              "text": "你用武力过桥。我不会把胜负当成证据。",
+              "localized": {
+                "en": {
+                  "text": "You forced your way across. Victory is not evidence."
+                },
+                "zh-CN": {
+                  "text": "你用武力过桥。我不会把胜负当成证据。"
+                }
+              }
+            },
+            "lio": {
+              "text": "你为了到这里和收税人动过武。别让这份账册再害一个人。",
+              "localized": {
+                "en": {
+                  "text": "You fought the collector to reach me. Do not let this ledger hurt another person."
+                },
+                "zh-CN": {
+                  "text": "你为了到这里和收税人动过武。别让这份账册再害一个人。"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "objective": "和艾芮商量过桥，开始寻找失踪信使。"
+    },
+    {
+      "id": "testimony",
+      "kind": "story",
+      "npcId": "lio",
+      "requiresScene": "crossing",
+      "guardIds": [],
+      "name": "第二处选择：信使的证词",
+      "prompt": "你在旧驿亭找到里奥。他的腿被碎木刺伤，湿透的信袋抱在怀里。“我没有带钱逃走。我把过桥税的一部分交给了渡口的难民。账册里有名字、数目和我的签字。如果原样交回去，他们会被赶走；如果账册永远消失，我就是个没有证据的贼。”他把封蜡给你看：信袋没有拆换的痕迹。你可以给他一瓶治疗药水，再听完整证词；也可以省下补给，坐下来听。他都会交出账册，让你自己决定怎样使用证据。",
+      "localized": {
+        "en": {
+          "name": "Choice II: The Courier’s Testimony",
+          "prompt": "At the old waystation you find Lio, a splinter through his leg, clutching a soaked satchel. “I did not run off with the money. I used some tolls to shelter refugees. The ledger has names, sums, and my signature. Return it unchanged and they may be driven out. Make it disappear and I am a thief without evidence.” He shows the unbroken seal. Give a healing potion before hearing him out, or keep your supplies and listen. Either way, he entrusts you with the real ledger.",
+          "objective": "Follow the east bank to the old waystation and find the courier and real evidence."
+        },
+        "zh-CN": {
+          "name": "第二处选择：信使的证词",
+          "prompt": "你在旧驿亭找到里奥。他的腿被碎木刺伤，湿透的信袋抱在怀里。“我没有带钱逃走。我把过桥税的一部分交给了渡口的难民。账册里有名字、数目和我的签字。如果原样交回去，他们会被赶走；如果账册永远消失，我就是个没有证据的贼。”他把封蜡给你看：信袋没有拆换的痕迹。你可以给他一瓶治疗药水，再听完整证词；也可以省下补给，坐下来听。他都会交出账册，让你自己决定怎样使用证据。",
+          "objective": "沿东岸去旧驿亭，寻找信使与真实证据。"
+        }
+      },
+      "choices": [
+        {
+          "id": "give_aid",
+          "fact": "aided_courier",
+          "condition": {
+            "type": "has_item",
+            "itemId": "potion_healing"
+          },
+          "effect": {
+            "type": "decision",
+            "consumeItem": "potion_healing",
+            "giveItem": "courier_ledger"
+          },
+          "label": "拿出一瓶治疗药水，帮助里奥后收下账册",
+          "response": "你实际交出一瓶治疗药水。里奥饮下它，松开抱紧信袋的手，交给你真实账册。逐笔支出都有签名；他承认挪用了税款，不要求你伪造一页。他只请你把难民的处境也带给艾芮。“她曾替我们守桥，也许她还有办法。”带账册回桥头，决定是公开交证、为他们安排离开，还是尝试协商。",
+          "memory": "你给过我一瓶治疗药水。我把原账册交给了你，没有求你作假。",
+          "localized": {
+            "en": {
+              "label": "Give a healing potion, then take Lio’s ledger",
+              "response": "You hand over one real healing potion. Lio drinks it, releases his grip on the satchel, and gives you the original ledger. Every payment is signed. He admits diverting the tolls and asks you to falsify nothing. “Tell Iris about the families too. She guarded us once; perhaps she can find another way.” Return to the bridge with the ledger and decide whether to submit it publicly, arrange a departure, or negotiate.",
+              "memory": "You gave me a healing potion. I entrusted you with the original ledger and asked for no forgery."
+            },
+            "zh-CN": {
+              "label": "拿出一瓶治疗药水，帮助里奥后收下账册",
+              "response": "你实际交出一瓶治疗药水。里奥饮下它，松开抱紧信袋的手，交给你真实账册。逐笔支出都有签名；他承认挪用了税款，不要求你伪造一页。他只请你把难民的处境也带给艾芮。“她曾替我们守桥，也许她还有办法。”带账册回桥头，决定是公开交证、为他们安排离开，还是尝试协商。",
+              "memory": "你给过我一瓶治疗药水。我把原账册交给了你，没有求你作假。"
+            }
+          },
+          "reactions": {
+            "iris": {
+              "text": "里奥告诉了你真相，还收到了你的一瓶药水。现在让我看证据，再谈人情。",
+              "localized": {
+                "en": {
+                  "text": "You heard Lio’s account and gave him a potion. Show me the evidence before we speak of mercy."
+                },
+                "zh-CN": {
+                  "text": "里奥告诉了你真相，还收到了你的一瓶药水。现在让我看证据，再谈人情。"
+                }
+              }
+            },
+            "lio": {
+              "text": "你实际给了我一瓶药水。带上原账册，也把难民的处境告诉艾芮。",
+              "localized": {
+                "en": {
+                  "text": "You gave me a real potion. Take the original ledger and tell Iris about the families."
+                },
+                "zh-CN": {
+                  "text": "你实际给了我一瓶药水。带上原账册，也把难民的处境告诉艾芮。"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "listen",
+          "fact": "heard_courier",
+          "condition": {
+            "type": "always"
+          },
+          "effect": {
+            "type": "decision",
+            "giveItem": "courier_ledger"
+          },
+          "label": "保留补给，听完证词后收下原账册",
+          "response": "你没有交出药水，而是坐下来把里奥的话听完。他仍带着伤，却愿意交出原账册：每笔钱款都有他自己的签名，难民的名字也清清楚楚。“留着药救自己吧。只要你别说你没听过另一面。”你获得了证据，仍可做出所有最终选择。回桥头找艾芮，决定公开、保护或协商。",
+          "memory": "你没有给我药水，但听完了证词。我仍把真实账册交给了你。",
+          "localized": {
+            "en": {
+              "label": "Keep your supplies, hear him out, and take the ledger",
+              "response": "You keep your potion and listen. Lio remains wounded but hands you the original ledger. Every payment bears his signature; the refugees’ names are plain. “Keep the medicine for yourself. Only do not claim you never heard the other side.” You have the evidence and every final choice remains open. Return to Iris at the bridge: disclose, protect, or negotiate.",
+              "memory": "You gave me no potion, but heard my testimony. I still entrusted you with the real ledger."
+            },
+            "zh-CN": {
+              "label": "保留补给，听完证词后收下原账册",
+              "response": "你没有交出药水，而是坐下来把里奥的话听完。他仍带着伤，却愿意交出原账册：每笔钱款都有他自己的签名，难民的名字也清清楚楚。“留着药救自己吧。只要你别说你没听过另一面。”你获得了证据，仍可做出所有最终选择。回桥头找艾芮，决定公开、保护或协商。",
+              "memory": "你没有给我药水，但听完了证词。我仍把真实账册交给了你。"
+            }
+          },
+          "reactions": {
+            "iris": {
+              "text": "你听完了里奥的证词，没有花费补给。现在证据和难民的处境都摆在我们面前。",
+              "localized": {
+                "en": {
+                  "text": "You heard Lio out without spending supplies. We now have the evidence and the families’ plight to consider."
+                },
+                "zh-CN": {
+                  "text": "你听完了里奥的证词，没有花费补给。现在证据和难民的处境都摆在我们面前。"
+                }
+              }
+            },
+            "lio": {
+              "text": "你保留了药水，但愿意听完我的话。别替我改写账册，只决定怎样使用它。",
+              "localized": {
+                "en": {
+                  "text": "You kept your potion but heard me out. Do not rewrite the ledger; decide what to do with it."
+                },
+                "zh-CN": {
+                  "text": "你保留了药水，但愿意听完我的话。别替我改写账册，只决定怎样使用它。"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "objective": "沿东岸去旧驿亭，寻找信使与真实证据。"
+    },
+    {
+      "id": "reckoning",
+      "kind": "story",
+      "npcId": "iris",
+      "requiresScene": "testimony",
+      "guardIds": [],
+      "name": "第三处选择：账册与渡船",
+      "prompt": "艾芮逐页查看账册，最后停在里奥的签名上。“这是他的字。税款少了，也确实有几户人家靠那笔钱住进驿亭。”她沉默了一会儿。“递交镇议会，里奥要留下作证，难民的名字也会公开。我可以安排听证，却不能替议会承诺结果。”\n\n她指向雾里的渡船：“另一条路是你花十枚金币包船，先让他们离开。原账册交给我封存，等人安全后再说明。没有证人，调查可能会拖很久。”\n\n“还有第三条路：说服我向议会提出独立的赈济申请。我们公开账册，请他们把救助与征税分开。如果连我都无法支持这份提议，我需要你愿意承担那十枚金币船费。”她把账册放在两人之间。纸上的签名不会变；你要决定的是，谁先面对它的后果。",
+      "localized": {
+        "en": {
+          "name": "Choice III: The Ledger and the Ferry",
+          "prompt": "Iris checks the ledger and stops at Lio’s signature. “His hand. The toll money is missing, and families did find shelter with it.” She falls silent. “Submit this to the council and he stays to testify. The families’ names become public too. I can arrange a hearing; I cannot promise its verdict.”\n\nShe points toward the mist. “Or pay ten gold for the ferry and let them leave first. Give me the original book to seal until they are safe. Without its witness, the inquiry may take a long time.”\n\n“There is a third way. Persuade me to seek a separate relief fund. We publish the ledger and ask the council to distinguish aid from tolls. If even I cannot support this proposal, I need you willing to fund the ten-gold departure.” She lays the book between you. The signatures will remain. You must decide who faces their consequences first.",
+          "objective": "Bring the original ledger back to Iris at the bridge and decide what to do with the evidence."
+        },
+        "zh-CN": {
+          "name": "第三处选择：账册与渡船",
+          "prompt": "艾芮逐页查看账册，最后停在里奥的签名上。“这是他的字。税款少了，也确实有几户人家靠那笔钱住进驿亭。”她沉默了一会儿。“递交镇议会，里奥要留下作证，难民的名字也会公开。我可以安排听证，却不能替议会承诺结果。”\n\n她指向雾里的渡船：“另一条路是你花十枚金币包船，先让他们离开。原账册交给我封存，等人安全后再说明。没有证人，调查可能会拖很久。”\n\n“还有第三条路：说服我向议会提出独立的赈济申请。我们公开账册，请他们把救助与征税分开。如果连我都无法支持这份提议，我需要你愿意承担那十枚金币船费。”她把账册放在两人之间。纸上的签名不会变；你要决定的是，谁先面对它的后果。",
+          "objective": "带着原账册回桥头找艾芮，决定怎样处置证据。"
+        }
+      },
+      "choices": [
+        {
+          "id": "report",
+          "fact": "public_record",
+          "condition": {
+            "type": "has_item",
+            "itemId": "courier_ledger"
+          },
+          "effect": {
+            "type": "decision",
+            "consumeItem": "courier_ledger"
+          },
+          "label": "公开交回账册，让信使留下作证",
+          "response": "结局：公开的账册。你交出原账册，没有改动数字或名字。艾芮为里奥和难民安排听证，里奥留下作证。真相不再只藏在信袋里，但救助款暂被封存，难民仍要等待议会的决定。你选择让责任公开，承担它可能伤害无辜者的风险。返回西岸营火完成本次冒险；这不是承诺审判一定公正。",
+          "memory": "你公开交回了账册。里奥留下作证，难民的去留交给议会审议。",
+          "localized": {
+            "en": {
+              "label": "Submit the ledger publicly and ask Lio to testify",
+              "response": "Ending: A Public Record. You hand over the unchanged ledger. Iris arranges a hearing for Lio and the families; he stays to testify. The truth is no longer sealed in a satchel, but relief money is frozen while the council decides. You chose public accountability and accepted its risk to innocent people. Return to the west-bank campfire to finish. A hearing is not a promise of justice.",
+              "memory": "You submitted the ledger publicly. Lio stayed to testify; the council will decide the families’ future."
+            },
+            "zh-CN": {
+              "label": "公开交回账册，让信使留下作证",
+              "response": "结局：公开的账册。你交出原账册，没有改动数字或名字。艾芮为里奥和难民安排听证，里奥留下作证。真相不再只藏在信袋里，但救助款暂被封存，难民仍要等待议会的决定。你选择让责任公开，承担它可能伤害无辜者的风险。返回西岸营火完成本次冒险；这不是承诺审判一定公正。",
+              "memory": "你公开交回了账册。里奥留下作证，难民的去留交给议会审议。"
+            }
+          },
+          "reactions": {
+            "iris": {
+              "text": "你公开交了证据，我已安排听证。不能把尚未发生的审判说成已经获胜。",
+              "localized": {
+                "en": {
+                  "text": "You submitted the evidence publicly. I arranged a hearing; we cannot claim a verdict that has not happened."
+                },
+                "zh-CN": {
+                  "text": "你公开交了证据，我已安排听证。不能把尚未发生的审判说成已经获胜。"
+                }
+              }
+            },
+            "lio": {
+              "text": "你听过我的证词，仍选择公开账册。我会留下作证，也会替那些家庭说话。",
+              "localized": {
+                "en": {
+                  "text": "You heard me and still made the ledger public. I will testify, including for the families."
+                },
+                "zh-CN": {
+                  "text": "你听过我的证词，仍选择公开账册。我会留下作证，也会替那些家庭说话。"
+                }
+              }
+            }
+          },
+          "ending": "reported"
+        },
+        {
+          "id": "protect",
+          "fact": "quiet_departure",
+          "condition": {
+            "type": "has_item",
+            "itemId": "courier_ledger"
+          },
+          "effect": {
+            "type": "decision",
+            "costGold": 10,
+            "consumeItem": "courier_ledger"
+          },
+          "label": "支付船费，保护信使与难民先行离开",
+          "response": "结局：雾中的渡船。你实际付出十枚金币，将原账册交给艾芮封存。她没有烧掉证据，而是承诺等里奥安全后再向议会说明。渡船载着信使与几户难民离岸，你保住了他们此刻的安全，也让调查暂时失去了证人。返回西岸营火；你的选择不是抹去真相，而是先让人活着离开。",
+          "memory": "你支付了十枚金币船费，让里奥与难民离开。原账册仍在我这里封存。",
+          "localized": {
+            "en": {
+              "label": "Pay for the ferry and protect the courier’s departure",
+              "response": "Ending: A Ferry in the Mist. You pay ten gold and entrust the original ledger to Iris. She does not burn it; she will explain to the council after Lio is safe. The ferry carries him and several families away. You secured their immediate safety while leaving the inquiry without its witness. Return to the west-bank campfire. You did not erase the truth; you let people leave alive first.",
+              "memory": "You paid ten gold for Lio and the families to leave. I still hold the sealed original ledger."
+            },
+            "zh-CN": {
+              "label": "支付船费，保护信使与难民先行离开",
+              "response": "结局：雾中的渡船。你实际付出十枚金币，将原账册交给艾芮封存。她没有烧掉证据，而是承诺等里奥安全后再向议会说明。渡船载着信使与几户难民离岸，你保住了他们此刻的安全，也让调查暂时失去了证人。返回西岸营火；你的选择不是抹去真相，而是先让人活着离开。",
+              "memory": "你支付了十枚金币船费，让里奥与难民离开。原账册仍在我这里封存。"
+            }
+          },
+          "reactions": {
+            "iris": {
+              "text": "你承担了十枚金币船费。我封存了账册，没把证据销毁。",
+              "localized": {
+                "en": {
+                  "text": "You paid ten gold for the ferry. I sealed the ledger; I did not destroy the evidence."
+                },
+                "zh-CN": {
+                  "text": "你承担了十枚金币船费。我封存了账册，没把证据销毁。"
+                }
+              }
+            },
+            "lio": {
+              "text": "你付船费保护我们先离开。我知道原账册仍由艾芮保管。",
+              "localized": {
+                "en": {
+                  "text": "You paid to let us leave safely. I know Iris still holds the original ledger."
+                },
+                "zh-CN": {
+                  "text": "你付船费保护我们先离开。我知道原账册仍由艾芮保管。"
+                }
+              }
+            }
+          },
+          "ending": "protected"
+        },
+        {
+          "id": "mediate",
+          "fact": "relief_accord",
+          "condition": {
+            "type": "has_item",
+            "itemId": "courier_ledger"
+          },
+          "effect": {
+            "type": "check",
+            "skill": "persuasion",
+            "dc": 14,
+            "failureGold": 10,
+            "consumeItem": "courier_ledger"
+          },
+          "label": "用真实账册协商公开救助，失败则承担船费",
+          "response": "结局：渡口的约定。艾芮接受了你的提议，在原账册旁写下一份独立的救助申请。里奥留下作证，难民暂住驿亭。“我不会替他们隐瞒税款，”她说，“也不会假装那几张床不值得我们争取。”你们没有支付船费，议会尚未答复，但终于有了一份可以公开讨论的方案。返回西岸营火，带这段经过回城。",
+          "memory": "你的协商促成了公开救助申请。里奥留下作证，难民暂住驿亭，没有支付船费。",
+          "localized": {
+            "en": {
+              "label": "Negotiate public relief; fund the ferry if talks fail",
+              "response": "Ending: The Crossing Accord. Iris accepts your proposal and writes a separate relief request beside the original ledger. Lio stays to testify; the families shelter at the waystation. “I will not hide the missing tolls,” she says, “and I will not pretend those beds were unworthy of our help.” You pay no ferry fee. The council has not answered, but there is finally a proposal to discuss in the open. Return to the west-bank campfire and carry this account home.",
+              "memory": "Your negotiation secured a public relief request. Lio stayed to testify and the families sheltered at the waystation. No ferry fee was paid."
+            },
+            "zh-CN": {
+              "label": "用真实账册协商公开救助，失败则承担船费",
+              "response": "结局：渡口的约定。艾芮接受了你的提议，在原账册旁写下一份独立的救助申请。里奥留下作证，难民暂住驿亭。“我不会替他们隐瞒税款，”她说，“也不会假装那几张床不值得我们争取。”你们没有支付船费，议会尚未答复，但终于有了一份可以公开讨论的方案。返回西岸营火，带这段经过回城。",
+              "memory": "你的协商促成了公开救助申请。里奥留下作证，难民暂住驿亭，没有支付船费。"
+            }
+          },
+          "reactions": {
+            "iris": {
+              "text": "你说服我提交独立救助申请。我记得这条约定，但议会还没有作出最终决定。",
+              "localized": {
+                "en": {
+                  "text": "You persuaded me to file an independent relief request. I remember our accord; the council has not ruled yet."
+                },
+                "zh-CN": {
+                  "text": "你说服我提交独立救助申请。我记得这条约定，但议会还没有作出最终决定。"
+                }
+              }
+            },
+            "lio": {
+              "text": "你为我们争取到公开救助的途径。我留下作证，不再躲着账册。",
+              "localized": {
+                "en": {
+                  "text": "You found us a path to public relief. I stayed to testify instead of hiding from the ledger."
+                },
+                "zh-CN": {
+                  "text": "你为我们争取到公开救助的途径。我留下作证，不再躲着账册。"
+                }
+              }
+            }
+          },
+          "ending": "accord",
+          "failure": {
+            "fact": "funded_after_refusal",
+            "ending": "protected",
+            "response": "结局：雾中的渡船。艾芮摇头：“我不能替议会承担这份承诺。但你说过，不会把他们留在这里等。”你支付了约定的十枚金币船费，交出原账册封存。船夫收起缆绳，里奥在船尾向你举了举手。协商没有成功，难民仍然得以先离开。回西岸营火，把这次付出的代价和未能实现的愿望一起带回城。",
+            "memory": "协商失败后，你支付了十枚金币船费，让里奥与难民离开，账册由我封存。",
+            "localized": {
+              "en": {
+                "response": "Ending: A Ferry in the Mist. Iris shakes her head. “I cannot make that promise for the council. But you said you would not leave them here waiting.” You pay the agreed ten gold and entrust her with the original ledger. The ferryman loosens the rope; Lio raises a hand from the stern. Your negotiation failed, yet the families can still leave first. Return to the west-bank campfire with the cost you paid and the promise you could not secure.",
+                "memory": "After the negotiation failed, you paid ten gold for Lio and the families to leave. I sealed the ledger."
+              },
+              "zh-CN": {
+                "response": "结局：雾中的渡船。艾芮摇头：“我不能替议会承担这份承诺。但你说过，不会把他们留在这里等。”你支付了约定的十枚金币船费，交出原账册封存。船夫收起缆绳，里奥在船尾向你举了举手。协商没有成功，难民仍然得以先离开。回西岸营火，把这次付出的代价和未能实现的愿望一起带回城。",
+                "memory": "协商失败后，你支付了十枚金币船费，让里奥与难民离开，账册由我封存。"
+              }
+            },
+            "reactions": {
+              "iris": {
+                "text": "协商没有成功，你仍付出了十枚金币船费。账册由我封存。",
+                "localized": {
+                  "en": {
+                    "text": "The negotiation failed; you still paid ten gold for the ferry. I sealed the ledger."
+                  },
+                  "zh-CN": {
+                    "text": "协商没有成功，你仍付出了十枚金币船费。账册由我封存。"
+                  }
+                }
+              },
+              "lio": {
+                "text": "虽然协商失败，你没有丢下我们，而是付船费让我们先离开。",
+                "localized": {
+                  "en": {
+                    "text": "The negotiation failed, but you did not abandon us. You paid for our departure."
+                  },
+                  "zh-CN": {
+                    "text": "虽然协商失败，你没有丢下我们，而是付船费让我们先离开。"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "objective": "带着原账册回桥头找艾芮，决定怎样处置证据。"
+    }
+  ],
+  "adventure": {
+    "waypoint": {
+      "regionX": 28,
+      "regionY": 58,
+      "icon": "courier",
+      "region": "The Sunlit Vale",
+      "localized": {
+        "en": {
+          "region": "The Sunlit Vale"
+        },
+        "zh-CN": {
+          "region": "瓦尔谷"
+        }
+      }
+    }
+  }
+}

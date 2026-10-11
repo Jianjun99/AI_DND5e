@@ -53,9 +53,9 @@ const NARRATION_ONLY = new Set([
   'altar_fail', 'bestiary_entry', 'boss_loot', 'elite_loot', 'fetch_relic', 'font_heal',
   'hint', 'info', 'lever_pull', 'listen', 'relic', 'relic_fail', 'trap_fail', 'trap_found',
   'wandering', 'door_fail',
-  // meta / companion / rest / scene
+  // meta / companion / rest / scene / bounded natural actions
   'asi', 'boon', 'carry_in', 'companion', 'condition', 'error', 'journal', 'respawn',
-  'rest', 'rest_blocked', 'scene', 'shop', 'kill'
+  'rest', 'rest_blocked', 'scene', 'shop', 'kill', 'clarification', 'confirmation'
 ]);
 
 // --- matched `type: '...'` literals that are NOT events (damage-dice element
@@ -63,7 +63,10 @@ const NARRATION_ONLY = new Set([
 const NOT_EVENTS = new Set([
   'colossus',  // damage-dice element type (Giant's Might)
   'radiant',   // damage-dice element type (Divine Favour etc.)
-  'explore'    // guidance candidate marker (state.map.rooms hover cues)
+  'explore',   // guidance candidate marker (state.map.rooms hover cues)
+  'chat',      // bounded proposal action marker (talk candidate sent back to /api/action)
+  'interact',  // bounded proposal action marker (object candidate sent back to /api/action)
+  'potion'     // gear item definition type (action-executor built-in potion candidates)
 ]);
 
 // --- SFX_MAP keys the server never emits: the client plays them itself
@@ -72,7 +75,10 @@ const CLIENT_SYNTHETIC_SFX = new Set(['level_ready']);
 // --- source extraction ------------------------------------------------------
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 const emitSources = [
-  'server/game/engine.js', 'server/routes/game.js', 'server/game/referee.js'
+  'server/game/engine.js', 'server/routes/game.js', 'server/game/referee.js',
+  // R6: the authoritative action executor and the bounded natural-language path emit events
+  // too, so they are part of the same vocabulary contract.
+  'server/game/action-executor.js', 'server/game/bounded-actions.js'
 ].map(read);
 const emitted = new Set();
 for (const src of emitSources) {

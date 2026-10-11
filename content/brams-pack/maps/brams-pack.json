@@ -1,0 +1,506 @@
+{
+  "id": "brams-pack",
+  "theme": "hills",
+  "width": 20,
+  "height": 13,
+  "tileSizeFt": 5,
+  "name": "猎犬谷的行囊",
+  "blurb": "被猎犬拖走兄弟行囊的谷地、一名靠行囊物资活下来的拾荒者、以及必须由布拉姆亲自面对的旧账。",
+  "recommended": "等级 1–3 · 同伴短篇",
+  "objectiveText": "带上布拉姆穿过兽栏，在岩棚找到拾荒者托娅，决定兄弟行囊的去留后返回营火。",
+  "localized": {
+    "en": {
+      "name": "The Pack of Hound Hollow",
+      "blurb": "The hollow where hounds dragged off Bram’s brother’s pack, a scavenger kept alive by what was inside, and an old debt only Bram can settle.",
+      "recommended": "Levels 1–3 · Companion story",
+      "objectiveText": "Bring Bram past the barricade, find the scavenger Tova at the rock shelter, decide the pack’s fate, and return to the campfire."
+    },
+    "zh-CN": {
+      "name": "猎犬谷的行囊",
+      "blurb": "被猎犬拖走兄弟行囊的谷地、一名靠行囊物资活下来的拾荒者、以及必须由布拉姆亲自面对的旧账。",
+      "recommended": "等级 1–3 · 同伴短篇",
+      "objectiveText": "带上布拉姆穿过兽栏，在岩棚找到拾荒者托娅，决定兄弟行囊的去留后返回营火。"
+    }
+  },
+  "story": {
+    "id": "brams-pack",
+    "name": "猎犬谷的行囊",
+    "companion": "bram",
+    "localized": {
+      "en": { "name": "The Pack of Hound Hollow" },
+      "zh-CN": { "name": "猎犬谷的行囊" }
+    }
+  },
+  "playerStart": { "x": 1, "y": 6 },
+  "victory": {
+    "type": "story",
+    "sceneId": "reckoning",
+    "campfire": { "x": 1, "y": 6 }
+  },
+  "adventure": {
+    "levels": { "min": 1, "max": 3 }
+  },
+  "rows": [
+    "####################",
+    "#......#...........#",
+    "#......#...##......#",
+    "#......#...##......#",
+    "#......#...........#",
+    "#......#...........#",
+    "#......D...........#",
+    "#......#...........#",
+    "#......#.......##..#",
+    "#......#...........#",
+    "#......#.......##..#",
+    "#......#...........#",
+    "####################"
+  ],
+  "rooms": [
+    {
+      "id": "west_camp",
+      "rect": [1, 1, 6, 11],
+      "name": "谷口营地",
+      "desc": "营火旁斜插着一支旧箭，箭杆上系着褪色的布条——布拉姆上次来时留下的记号。石缝里钉着一行小字：行囊没找到，人还活着。补给箱盖敞开着，油纸里还剩最后一份行路干粮。",
+      "localized": {
+        "en": {
+          "name": "Hollowmouth Camp",
+          "desc": "An old arrow leans by the campfire, a faded cloth strip tied to its shaft — the mark Bram left on his last visit. A note pinned between the stones reads: pack not found, he is still alive. The supply chest stands open; one last trail ration waits in its oilpaper."
+        },
+        "zh-CN": {
+          "name": "谷口营地",
+          "desc": "营火旁斜插着一支旧箭，箭杆上系着褪色的布条——布拉姆上次来时留下的记号。石缝里钉着一行小字：行囊没找到，人还活着。补给箱盖敞开着，油纸里还剩最后一份行路干粮。"
+        }
+      }
+    },
+    {
+      "id": "the_hollow",
+      "rect": [8, 1, 18, 11],
+      "name": "猎犬谷",
+      "desc": "倒木和兽骨搭成的路障拦住谷口，木头上留着新鲜的抓痕。谷地里散落着被撕碎的行囊碎片和几截啃过的骨头。东南方向的岩棚下透出一点火光，隐约有咳嗽声。风里有肉干和血混在一起的气味。",
+      "localized": {
+        "en": {
+          "name": "Hound Hollow",
+          "desc": "A barricade of fallen timber and bones bars the hollow, fresh claw-marks scored into the wood. Shredded pack fragments and gnawed bones litter the valley floor. A weak firelight flickers under the southeast rock shelter, and something coughs. The wind carries the mingled smell of dried meat and blood."
+        },
+        "zh-CN": {
+          "name": "猎犬谷",
+          "desc": "倒木和兽骨搭成的路障拦住谷口，木头上留着新鲜的抓痕。谷地里散落着被撕碎的行囊碎片和几截啃过的骨头。东南方向的岩棚下透出一点火光，隐约有咳嗽声。风里有肉干和血混在一起的气味。"
+        }
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "campfire",
+      "type": "object",
+      "x": 1,
+      "y": 6,
+      "icon": "🔥",
+      "name": "谷口营火",
+      "localized": {
+        "en": { "name": "Hollowmouth Campfire" },
+        "zh-CN": { "name": "谷口营火" }
+      }
+    },
+    {
+      "id": "west_cache",
+      "type": "chest",
+      "x": 3,
+      "y": 9,
+      "loot": { "potions": 1, "items": [{ "id": "trail_ration", "qty": 1 }] },
+      "name": "谷口补给箱",
+      "localized": {
+        "en": { "name": "Camp Supply Chest" },
+        "zh-CN": { "name": "谷口补给箱" }
+      }
+    },
+    {
+      "id": "hound_barricade",
+      "type": "door",
+      "x": 7,
+      "y": 6,
+      "locked": true,
+      "name": "倒木兽栏",
+      "localized": {
+        "en": { "name": "Timber Barricade" },
+        "zh-CN": { "name": "倒木兽栏" }
+      }
+    },
+    {
+      "id": "hound_gate",
+      "type": "monster",
+      "kind": "hollow_hound",
+      "x": 9,
+      "y": 6
+    },
+    {
+      "id": "hound_rocks",
+      "type": "monster",
+      "kind": "hollow_hound",
+      "x": 13,
+      "y": 2
+    },
+    {
+      "id": "east_cache",
+      "type": "chest",
+      "x": 16,
+      "y": 2,
+      "loot": { "gold": 10 },
+      "name": "旅人遗落的钱袋",
+      "localized": {
+        "en": { "name": "Traveler’s Lost Pouch" },
+        "zh-CN": { "name": "旅人遗落的钱袋" }
+      }
+    },
+    {
+      "id": "tova",
+      "type": "npc",
+      "x": 16,
+      "y": 9,
+      "icon": "🩹",
+      "name": "拾荒者托娅",
+      "localized": {
+        "en": { "name": "Tova the Scavenger" },
+        "zh-CN": { "name": "拾荒者托娅" }
+      }
+    }
+  ],
+  "npcs": {
+    "tova": {
+      "persona": "你是受伤的年轻拾荒者托娅。腿伤未愈，靠捡拾过活。你诚实，承认用过行囊里的物资，不乞求也不撒谎。",
+      "knowledge": "上个月猎犬袭击了你的营地，同伴四散。你捡到一只烙着刻名木哨记号的旧行囊，里面的绷带和口粮救了你的命，你把用掉的数目记在纸上。行囊的主人是同行的斥候布拉姆；你不知道他会怎么决定，也不替他决定。只使用引擎已确认的记忆，不预言结局。",
+      "canned": [
+        "腿上的绷带不是我的——是从那只行囊里拿的。用掉的数目我都记在纸上了。"
+      ],
+      "localized": {
+        "en": {
+          "persona": "You are Tova, a young wounded scavenger. You live by gleaning, you are honest about having used the pack’s supplies, and you neither beg nor lie.",
+          "knowledge": "Hounds hit your camp last month and the others scattered. You found an old pack branded with a carved wooden whistle; its bandages and rations kept you alive, and you wrote down everything you used. The pack belongs to Bram the Scout, who travels with the hero; you do not know how he will decide and you do not decide for him. Use only engine-confirmed memory; never predict an ending.",
+          "canned": [
+            "The bandages on my leg aren’t mine — they came out of that pack. I wrote down everything I used."
+          ]
+        },
+        "zh-CN": {
+          "persona": "你是受伤的年轻拾荒者托娅。腿伤未愈，靠捡拾过活。你诚实，承认用过行囊里的物资，不乞求也不撒谎。",
+          "knowledge": "上个月猎犬袭击了你的营地，同伴四散。你捡到一只烙着刻名木哨记号的旧行囊，里面的绷带和口粮救了你的命，你把用掉的数目记在纸上。行囊的主人是同行的斥候布拉姆；你不知道他会怎么决定，也不替他决定。只使用引擎已确认的记忆，不预言结局。",
+          "canned": [
+            "腿上的绷带不是我的——是从那只行囊里拿的。用掉的数目我都记在纸上了。"
+          ]
+        }
+      }
+    }
+  },
+  "scenes": [
+    {
+      "id": "hollow",
+      "kind": "story",
+      "companion": true,
+      "doorId": "hound_barricade",
+      "guardIds": ["hound_gate", "hound_rocks"],
+      "name": "第一处选择：兽栏前的旧账",
+      "prompt": "布拉姆在兽栏前停下，指节因攥紧弓身而发白。倒木后，两只谷中猎犬正嗅着空气，另一只在北边岩石间踱步。“就是它们。上个月，就是这群东西把他的行囊拖进了谷里——人差点也没了。”他喉结滚动了一下。“我要清算这笔账。你要是用肉干把它们引开，我也拦不住你。但先说好：行囊是我的，里面每一根绷带我都要收回来。”",
+      "localized": {
+        "en": {
+          "name": "Choice I: The Old Debt at the Barricade",
+          "prompt": "Bram stops at the barricade, knuckles white around his bow. Beyond the fallen timber two hollow hounds scent the air, and another paces among the northern rocks. “These are the ones. Last month they dragged my brother’s pack into the hollow — and nearly took him with it.” He swallows. “I mean to settle that debt. Feed them your rations and slip past if you must — I won’t stop you. But hear me: the pack is mine, and I will carry back every bandage in it.”",
+          "objective": "和布拉姆一起过猎犬谷的兽栏。"
+        },
+        "zh-CN": {
+          "name": "第一处选择：兽栏前的旧账",
+          "prompt": "布拉姆在兽栏前停下，指节因攥紧弓身而发白。倒木后，两只谷中猎犬正嗅着空气，另一只在北边岩石间踱步。“就是它们。上个月，就是这群东西把他的行囊拖进了谷里——人差点也没了。”他喉结滚动了一下。“我要清算这笔账。你要是用肉干把它们引开，我也拦不住你。但先说好：行囊是我的，里面每一根绷带我都要收回来。”",
+          "objective": "和布拉姆一起过猎犬谷的兽栏。"
+        }
+      },
+      "choices": [
+        {
+          "id": "hunt",
+          "fact": "bloodied_trail",
+          "condition": { "type": "always" },
+          "effect": { "type": "combat", "loyalty": 3 },
+          "label": "与猎犬交战，用武力清算旧账",
+          "response": "猎犬们在箭雨和刀锋下相继倒下，兽栏后的路空了出来。布拉姆收弓，久久看着倒下的猎犬。“旧账两清。”他的肩膀松了一点，“走。他的行囊还在前面等。”战斗按现有规则结算经验和掉落。",
+          "memory": "你陪我清算旧账。这份情我记下了。",
+          "localized": {
+            "en": {
+              "label": "Fight the hound and settle the debt by force",
+              "response": "The hounds fall one after another to arrows and steel, and the way past the barricade opens. Bram lowers his bow and looks at the dead beast for a long moment. “The old debt is settled.” His shoulders ease a little. “Go. His pack is still waiting ahead.” Combat pays experience and drops by the standing rules.",
+              "memory": "You settled the old debt at my side. I remember that."
+            },
+            "zh-CN": {
+              "label": "与猎犬交战，用武力清算旧账",
+              "response": "猎犬在箭雨和刀锋下倒下，兽栏后的路空了出来。布拉姆收弓，久久看着倒下的猎犬。“旧账两清。”他的肩膀松了一点，“走。他的行囊还在前面等。”战斗按现有规则结算经验和掉落。",
+              "memory": "你陪我清算旧账。这份情我记下了。"
+            }
+          },
+          "reactions": {
+            "bram": {
+              "text": "旧账两清。接下来听你的——但行囊由我背着。",
+              "localized": {
+                "en": { "text": "The debt is settled. Your lead from here — but I carry the pack." },
+                "zh-CN": { "text": "旧账两清。接下来听你的——但行囊由我背着。" }
+              }
+            }
+          }
+        },
+        {
+          "id": "lure",
+          "fact": "lured_hounds",
+          "condition": { "type": "has_item", "itemId": "trail_ration" },
+          "effect": { "type": "passage", "consumeItem": "trail_ration", "loyalty": 1 },
+          "label": "用行路干粮引开猎犬，悄声通过",
+          "response": "你把肉干抛向侧谷，两只猎犬嗅着气味跑远了。布拉姆看着空无一犬的兽栏，低声说：“省了血也好……他当年就是这么从猎犬嘴里绕过去的。走，趁它没回来。”你们翻过倒木，谷地深处的岩棚隐约可见炊烟。",
+          "memory": "你没用刀就过了谷。他当年也会这么做。",
+          "localized": {
+            "en": {
+              "label": "Lure the hound away with a trail ration and slip past",
+              "response": "You toss the dried meat toward the side valley and the hounds lope off after the smell. Bram looks at the empty barricade and says quietly, “Spilled no blood — that’s how my brother got past hounds too. Move, before it comes back.” You climb the fallen timber; a thread of smoke rises from the rock shelter deeper in.",
+              "memory": "You crossed the hollow without a blade. He would have done the same."
+            },
+            "zh-CN": {
+              "label": "用行路干粮引开猎犬，悄声通过",
+              "response": "你把肉干抛向侧谷，猎犬嗅着气味跑远了。布拉姆看着空无一犬的兽栏，低声说：“省了血也好……他当年就是这么从猎犬嘴里绕过去的。走，趁它没回来。”你们翻过倒木，谷地深处的岩棚隐约可见炊烟。",
+              "memory": "你没用刀就过了谷。他当年也会这么做。"
+            }
+          },
+          "reactions": {
+            "bram": {
+              "text": "没流血就过了谷。他也会夸你这一手。",
+              "localized": {
+                "en": { "text": "No blood spilled, and we crossed. He would have praised that trick." },
+                "zh-CN": { "text": "没流血就过了谷。他也会夸你这一手。" }
+              }
+            }
+          }
+        }
+      ],
+      "objective": "和布拉姆一起过猎犬谷的兽栏。"
+    },
+    {
+      "id": "witness",
+      "kind": "story",
+      "npcId": "tova",
+      "requiresScene": "hollow",
+      "guardIds": [],
+      "name": "第二处选择：岩棚下的证词",
+      "prompt": "岩棚下烧着一小堆火。年轻的拾荒者托娅靠墙坐着，腿上的伤口敷着不属于自己的绷带——绷带的角上烙着一枚刻名木哨的印记。她身边摊开的旧行囊里，剩下的口粮和药草排得整整齐齐。“……你们是来找它的吧。”她把行囊往身前拢了拢，没有抱死的打算，“上个月猎犬袭了我们的营地，别人都散了，是这包东西撑着我活到现在。我不知道它的主人是谁。你们说了算——但听完我的一句话。”布拉姆的手一直没离开刀柄。",
+      "localized": {
+        "en": {
+          "name": "Choice II: Testimony Under the Rocks",
+          "prompt": "A small fire burns under the rock shelter. Tova, a young scavenger, sits against the wall, the wound on her leg dressed in bandages that are not hers — each corner branded with a carved wooden whistle. An old pack lies open beside her, its remaining rations and herbs arranged with care. “…You’ve come for it, haven’t you.” She draws the pack a little closer, not clutching it. “Hounds hit our camp last month and everyone scattered. This is what kept me alive. I don’t know whose it was. It’s your call — but hear one thing first.” Bram’s hand never leaves his knife.",
+          "objective": "在岩棚找到拾荒者托娅，弄清行囊的下落。"
+        },
+        "zh-CN": {
+          "name": "第二处选择：岩棚下的证词",
+          "prompt": "岩棚下烧着一小堆火。年轻的拾荒者托娅靠墙坐着，腿上的伤口敷着不属于自己的绷带——绷带的角上烙着一枚刻名木哨的印记。她身边摊开的旧行囊里，剩下的口粮和药草排得整整齐齐。“……你们是来找它的吧。”她把行囊往身前拢了拢，没有抱死的打算，“上个月猎犬袭了我们的营地，别人都散了，是这包东西撑着我活到现在。我不知道它的主人是谁。你们说了算——但听完我的一句话。”布拉姆的手一直没离开刀柄。",
+          "objective": "在岩棚找到拾荒者托娅，弄清行囊的下落。"
+        }
+      },
+      "choices": [
+        {
+          "id": "hear_out",
+          "fact": "heard_tova",
+          "condition": { "type": "always" },
+          "effect": { "type": "decision", "giveItem": "brams_pack" },
+          "label": "听托娅把话说完，再收下兄弟的行囊",
+          "response": "你坐下来听她说完。猎犬夜袭、营地四散、她拖着伤腿靠行囊里的绷带和口粮撑了三周。说完，她把行囊推过来，只抽走了两指宽的一小捆绷带。“签和印都在，我没动过别的。”布拉姆接过行囊，指腹在刻名木哨的烙印上停了很久。“……人没事就好。”他把行囊背上肩，语气硬得像在掩饰什么，“回营火去。这一趟怎么收尾，你来定。”",
+          "memory": "你听完了她的话才收行囊。这份体面，兄弟也会认。",
+          "localized": {
+            "en": {
+              "label": "Hear Tova out, then take the brother’s pack",
+              "response": "You sit and listen to the end of it: the hounds’ night raid, the camp scattering, three weeks on a hurt leg with nothing but this pack’s bandages and rations. When she finishes she pushes the pack over, keeping back only a hand-width of bandage. “The seal and the marks are all there; I touched nothing else.” Bram takes the pack, his thumb resting a long time on the branded whistle. “…Alive is what matters.” He slings it over his shoulder, his voice rougher than the words need. “Back to the fire. How this ends — that’s your call.”",
+              "memory": "You heard her out before taking the pack. My brother would call that decent."
+            },
+            "zh-CN": {
+              "label": "听托娅把话说完，再收下兄弟的行囊",
+              "response": "你坐下来听她说完。猎犬夜袭、营地四散、她拖着伤腿靠行囊里的绷带和口粮撑了三周。说完，她把行囊推过来，只抽走了两指宽的一小捆绷带。“签和印都在，我没动过别的。”布拉姆接过行囊，指腹在刻名木哨的烙印上停了很久。“……人没事就好。”他把行囊背上肩，语气硬得像在掩饰什么，“回营火去。这一趟怎么收尾，你来定。”",
+              "memory": "你听完了她的话才收行囊。这份体面，兄弟也会认。"
+            }
+          },
+          "reactions": {
+            "bram": {
+              "text": "行囊回来了，她的话我也听完了。别催我表态。",
+              "localized": {
+                "en": { "text": "The pack is back, and I heard her out too. Don’t push me for a verdict." },
+                "zh-CN": { "text": "行囊回来了，她的话我也听完了。别催我表态。" }
+              }
+            }
+          }
+        },
+        {
+          "id": "treat",
+          "fact": "treated_tova",
+          "condition": { "type": "has_item", "itemId": "potion_healing" },
+          "effect": { "type": "decision", "consumeItem": "potion_healing", "giveItem": "brams_pack" },
+          "label": "先给她一瓶治疗药水，再收下兄弟的行囊",
+          "response": "你把一瓶治疗药水递过去。托娅愣了一下才接住，仰头喝下，腿伤的血色很快退了。她把行囊推给你，眼睛有点红：“……谢谢。我不知道该说什么。”布拉姆看着空掉的行囊和退下去的血色，喉咙动了动：“先给她敷上吧。兄弟也不会让伤者干等着。”他背上行囊，走得比来时慢了半步。",
+          "memory": "你先救人再收行囊。我嘴上不说，心里记着。",
+          "localized": {
+            "en": {
+              "label": "Give her a healing potion first, then take the brother’s pack",
+              "response": "You hand over a healing potion. Tova catches it half a beat late, drinks, and the color drains out of the wound. She pushes the pack toward you, eyes red. “…Thank you. I don’t know what to say.” Bram watches the emptied pack and the fading wound, and his throat moves. “Dress it first. My brother wouldn’t let a wounded woman wait, either.” He shoulders the pack and walks half a step slower than he came.",
+              "memory": "You treated her before you took the pack. I won’t say it aloud, but I remember."
+            },
+            "zh-CN": {
+              "label": "先给她一瓶治疗药水，再收下兄弟的行囊",
+              "response": "你把一瓶治疗药水递过去。托娅愣了一下才接住，仰头喝下，腿伤的血色很快退了。她把行囊推给你，眼睛有点红：“……谢谢。我不知道该说什么。”布拉姆看着空掉的行囊和退下去的血色，喉咙动了动：“先给她敷上吧。兄弟也不会让伤者干等着。”他背上行囊，走得比来时慢了半步。",
+              "memory": "你先救人再收行囊。我嘴上不说，心里记着。"
+            }
+          },
+          "reactions": {
+            "bram": {
+              "text": "药是你出的，人情是她的。走吧。",
+              "localized": {
+                "en": { "text": "The potion was yours; the debt is hers. Let’s move." },
+                "zh-CN": { "text": "药是你出的，人情是她的。走吧。" }
+              }
+            }
+          }
+        }
+      ],
+      "objective": "在岩棚找到拾荒者托娅，弄清行囊的下落。"
+    },
+    {
+      "id": "reckoning",
+      "kind": "story",
+      "npcId": "tova",
+      "requiresScene": "witness",
+      "guardIds": [],
+      "name": "第三处选择：行囊的去留",
+      "prompt": "回到岩棚，托娅的行装已经打好了一半。布拉姆把兄弟的行囊放在两人之间的石头上。“东西认过了，是真的。”他看着托娅，“绷带救了你的命，我知道。可这是他的东西——我答应过要带回去的。”托娅点头：“该还的还。我下一城去投亲，走之前把用过的数目都记在这张纸上了。”她的目光在布拉姆和你之间来回。石头的另一侧，整袋口粮和剩下的绷带码得整整齐齐——对一个还要赶路的人来说，那点东西撑不了几天。",
+      "localized": {
+        "en": {
+          "name": "Choice III: Who Keeps the Pack",
+          "prompt": "Back at the shelter, Tova has half-packed her belongings. Bram lays his brother’s pack on the stone between them. “It’s been seen to. It’s real.” He looks at her. “The bandages saved your life — I know that. But these are his things, and I promised to bring them home.” Tova nods. “What’s owed comes back. I’m heading to the next city to find kin, and I wrote down everything I used before I go.” Her eyes move between Bram and you. On the far side of the stone a neat bundle of rations and the last bandages sit stacked — not enough to keep a traveler fed for long.",
+          "objective": "决定兄弟行囊的去留：收回、补上物资，或说服布拉姆留给托娅。"
+        },
+        "zh-CN": {
+          "name": "第三处选择：行囊的去留",
+          "prompt": "回到岩棚，托娅的行装已经打好了一半。布拉姆把兄弟的行囊放在两人之间的石头上。“东西认过了，是真的。”他看着托娅，“绷带救了你的命，我知道。可这是他的东西——我答应过要带回去的。”托娅点头：“该还的还。我下一城去投亲，走之前把用过的数目都记在这张纸上了。”她的目光在布拉姆和你之间来回。石头的另一侧，整袋口粮和剩下的绷带码得整整齐齐——对一个还要赶路的人来说，那点东西撑不了几天。",
+          "objective": "决定兄弟行囊的去留：收回、补上物资，或说服布拉姆留给托娅。"
+        }
+      },
+      "choices": [
+        {
+          "id": "reclaim",
+          "fact": "pack_reclaimed",
+          "condition": { "type": "has_item", "itemId": "brams_pack" },
+          "effect": { "type": "decision", "consumeItem": "brams_pack", "loyalty": 8 },
+          "label": "收回整只行囊，按承诺带回去",
+          "response": "结局：物归原主。你把行囊递还给布拉姆。他单手接过，另一只手在刻名木哨上按了按，像在跟什么人对账。“一根绷带都不少……不对，”他纠正自己，“少了很多，但都是救人用掉的。这笔账我认。”他把行囊背上肩，冲托娅点了下头，又冲你点了下头——后一次更慢。返回西岸营火完成本次冒险。",
+          "memory": "你把行囊完整地带回给了我。兄弟要是见过你，也会这么说。",
+          "localized": {
+            "en": {
+              "label": "Reclaim the whole pack, as promised",
+              "response": "Ending: Homecoming. You hand the pack back to Bram. He takes it one-handed; the other presses the carved whistle branded into the corner, like settling an account with someone far away. “Not one bandage missing — no,” he corrects himself, “many missing, and all of them spent keeping someone alive. That account I accept.” He shoulders the pack, nods once to Tova, then to you — the second nod slower. Return to the west campfire to finish this adventure.",
+              "memory": "You brought the pack home to me whole. If my brother had met you, he’d say the same."
+            },
+            "zh-CN": {
+              "label": "收回整只行囊，按承诺带回去",
+              "response": "结局：物归原主。你把行囊递还给布拉姆。他单手接过，另一只手在刻名木哨上按了按，像在跟什么人对账。“一根绷带都不少……不对，”他纠正自己，“少了很多，但都是救人用掉的。这笔账我认。”他把行囊背上肩，冲托娅点了下头，又冲你点了下头——后一次更慢。返回西岸营火完成本次冒险。",
+              "memory": "你把行囊完整地带回给了我。兄弟要是见过你，也会这么说。"
+            }
+          },
+          "reactions": {
+            "bram": {
+              "text": "东西回来了，账两清了。今天你做的，我记下了。",
+              "localized": {
+                "en": { "text": "The pack is home and the account is closed. What you did today, I remember." },
+                "zh-CN": { "text": "东西回来了，账两清了。今天你做的，我记下了。" }
+              }
+            }
+          },
+          "ending": "reclaimed"
+        },
+        {
+          "id": "share",
+          "fact": "pack_shared",
+          "condition": { "type": "has_item", "itemId": "brams_pack" },
+          "effect": { "type": "decision", "consumeItem": "brams_pack", "costGold": 10, "loyalty": 2 },
+          "label": "收回行囊，付十枚金币替托娅补上物资",
+          "response": "结局：算清的账。你把行囊交还布拉姆，另外数出十枚金币放在托娅的记账纸上：“用掉的要补上——不是还你，是替他谢你。”托娅想推辞，布拉姆先开了口：“收下。他的行囊回家的路上，不该欠人情。”你们一人一半，把新买的口粮装进她的包袱。返回西岸营火完成本次冒险。",
+          "memory": "行囊回来了，你也替他把人情还清了。这算两清。",
+          "localized": {
+            "en": {
+              "label": "Reclaim the pack and pay ten gold to replace Tova’s supplies",
+              "response": "Ending: The Settled Account. You return the pack to Bram and count out ten gold onto Tova’s tally sheet. “What was used gets replaced — not as repayment, but as his thanks.” Tova moves to refuse, but Bram speaks first. “Take it. His pack shouldn’t travel home owing a favor.” Between you, the newly bought rations fill her bundle. Return to the west campfire to finish this adventure.",
+              "memory": "The pack came home, and you cleared his debts on the way. We’re even."
+            },
+            "zh-CN": {
+              "label": "收回行囊，付十枚金币替托娅补上物资",
+              "response": "结局：算清的账。你把行囊交还布拉姆，另外数出十枚金币放在托娅的记账纸上：“用掉的要补上——不是还你，是替他谢你。”托娅想推辞，布拉姆先开了口：“收下。他的行囊回家的路上，不该欠人情。”你们一人一半，把新买的口粮装进她的包袱。返回西岸营火完成本次冒险。",
+              "memory": "行囊回来了，你也替他把人情还清了。这算两清。"
+            }
+          },
+          "reactions": {
+            "bram": {
+              "text": "你付的是你自己的钱。这算两清。",
+              "localized": {
+                "en": { "text": "You paid with your own coin. That makes us even." },
+                "zh-CN": { "text": "你付的是你自己的钱。这算两清。" }
+              }
+            }
+          },
+          "ending": "shared"
+        },
+        {
+          "id": "persuade",
+          "fact": "pack_entrusted",
+          "condition": { "type": "has_item", "itemId": "brams_pack" },
+          "effect": { "type": "check", "skill": "persuasion", "dc": 13, "consumeItem": "brams_pack", "loyalty": 2 },
+          "label": "劝布拉姆把行囊留给托娅",
+          "response": "结局：托付。你没有去碰行囊，而是看着布拉姆：“绷带救了她的命，口粮还在撑她的路。你兄弟要是站在这块石头前，他会怎么做？”布拉姆沉默了很久，久到火堆爆了两次火星。“……你真的愿意为我以外的人争。”他弯腰把行囊推回托娅面前，只解下那枚刻名木哨攥进手心，“东西你留着，用到能自己走为止。哨子我带走——他听得见。”托娅抱着行囊，哭着道了谢。返回西岸营火完成本次冒险。",
+          "memory": "你为别人跟我争，还争赢了。这份胆气我认。",
+          "localized": {
+            "en": {
+              "label": "Talk Bram into leaving the pack with Tova",
+              "response": "Ending: Entrusted. You don’t touch the pack; you look at Bram instead. “The bandages saved her life, the rations are still carrying her down the road. If your brother stood at this stone, what would he do?” Bram is silent long enough for the fire to spit twice. “…You really will fight for someone who isn’t me.” He bends and pushes the pack back to Tova, unclipping only the carved whistle into his palm. “Keep it until you can walk on your own. The whistle comes with me — he’ll hear it.” Tova thanks him through tears, holding the pack. Return to the west campfire to finish this adventure.",
+              "memory": "You argued with me for someone else’s sake — and won. I respect that spine."
+            },
+            "zh-CN": {
+              "label": "劝布拉姆把行囊留给托娅",
+              "response": "结局：托付。你没有去碰行囊，而是看着布拉姆：“绷带救了她的命，口粮还在撑她的路。你兄弟要是站在这块石头前，他会怎么做？”布拉姆沉默了很久，久到火堆爆了两次火星。“……你真的愿意为我以外的人争。”他弯腰把行囊推回托娅面前，只解下那枚刻名木哨攥进手心，“东西你留着，用到能自己走为止。哨子我带走——他听得见。”托娅抱着行囊，哭着道了谢。返回西岸营火完成本次冒险。",
+              "memory": "你为别人跟我争，还争赢了。这份胆气我认。"
+            }
+          },
+          "reactions": {
+            "bram": {
+              "text": "行囊是她的了，哨子是我的。你我之间，这页翻过去了。",
+              "localized": {
+                "en": { "text": "The pack is hers, the whistle is mine. That page is turned between us." },
+                "zh-CN": { "text": "行囊是她的了，哨子是我的。你我之间，这页翻过去了。" }
+              }
+            }
+          },
+          "ending": "entrusted_earned",
+          "failure": {
+            "fact": "bram_took_back",
+            "ending": "reclaimed",
+            "loyalty": -3,
+            "response": "你的道理没能说服布拉姆。他摇头，伸手把行囊拎了起来：“我为兄弟收下它。别指望我每次都让步。”托娅没有争辩，只问了一句绷带能不能留下。布拉姆把剩下的绷带和半袋口粮放回她的包袱里，背上行囊朝谷口走。他不是不讲理的人——只是这一次，账要按他的算法算。返回西岸营火完成本次冒险。",
+            "memory": "你想把行囊留给托娅，被我拦下了。分歧归分歧，账还没断。",
+            "localized": {
+              "en": {
+                "response": "Your reasons don’t move Bram. He shakes his head and lifts the pack himself. “I take it home for my brother. Don’t expect me to yield every time.” Tova doesn’t argue; she only asks to keep the bandages. Bram sets the last bandages and half the rations back into her bundle, shoulders the pack, and walks toward the mouth of the hollow. He is not a cruel man — but this time the account is settled his way. Return to the west campfire to finish this adventure.",
+                "memory": "You tried to leave the pack with Tova and I stopped it. We disagree; the account is not broken."
+              },
+              "zh-CN": {
+                "response": "你的道理没能说服布拉姆。他摇头，伸手把行囊拎了起来：“我为兄弟收下它。别指望我每次都让步。”托娅没有争辩，只问了一句绷带能不能留下。布拉姆把剩下的绷带和半袋口粮放回她的包袱里，背上行囊朝谷口走。他不是不讲理的人——只是这一次，账要按他的算法算。返回西岸营火完成本次冒险。",
+                "memory": "你想把行囊留给托娅，被我拦下了。分歧归分歧，账还没断。"
+              }
+            },
+            "reactions": {
+              "bram": {
+                "text": "我为兄弟收下了行囊。你为她说的话，我也听见了。",
+                "localized": {
+                  "en": { "text": "I took the pack home for my brother. And I heard every word you said for her." },
+                  "zh-CN": { "text": "我为兄弟收下了行囊。你为她说的话，我也听见了。" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "objective": "决定兄弟行囊的去留：收回、补上物资，或说服布拉姆留给托娅。"
+    }
+  ]
+}

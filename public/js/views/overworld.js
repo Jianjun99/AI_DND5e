@@ -1,3 +1,4 @@
+import { contentLabel,  t, label, localizeText, translateDOM, onLocaleChange, displayText, displayLabel } from "../i18n.js";
 // overworld.js — Overworld Region Map & Oakhaven City Hub
 import { api } from '../api.js';
 import { esc, toast, state as appState } from '../app.js';
@@ -5,6 +6,9 @@ import { sfx } from '../sfx.js';
 import { openLevelUpModal } from './levelup.js';
 import { createDistricts } from './overworld/districts.js';
 import { showRoadEncounterModal } from './overworld/road-encounter.js';
+import { createAdventureDirectory } from '../adventure-directory.js';
+import { createRegionMap, waypointSymbol } from '../region-map.js';
+import { createFullscreenControls } from '../fullscreen.js';
 
 // Level-up readiness ships with the character from the server (character.levelUp) — the
 // client no longer keeps its own XP table, which could drift from the engine's.
@@ -15,6 +19,11 @@ const hallFilter = { seen: 'all', cr: 'all', sort: 'cr' };
 let currentTab = 'map'; // 'map' or 'city'
 let currentDistrict = 'tavern'; // 'tavern', 'armory', 'apothecary', 'guildhall', 'hall_of_heroes'
 let selectedNodeId = 'oakhaven';
+let directoryUI = null;
+let regionUI = null;
+let fullscreenUI = null;
+const directoryFilters = { query: '', source: '', scroll: 0 };
+function dispatchNodes() { return [...(cityData?.mapNodes || []).filter(n => n.safe), ...(cityData?.adventures || [])]; }
 // T7a: one token per overworld mount — async embark/restore callbacks drop their result
 // when a newer view (or hero switch) took over, so a late response can never start a
 // delve for the old hero or re-open a stale encounter modal.
@@ -22,6 +31,8 @@ let overworldToken = 0;
 // one embark flow at a time (trigger → modal → resolve → startGame), shared by the
 // Embark button and the restore modal's continue path
 let embarkBusy = false;
+/** @type {import('../navigation.js').Navigation | null} */
+let overworldNavigation = null;
 
 // The town-district subsystem (tavern, gamble tables, armory, apothecary,
 // guildhall, hall of heroes) lives in overworld/districts.js. Its renderers and
@@ -41,19 +52,31 @@ const {
   getCityData: () => cityData,
   getHallFilter: () => hallFilter,
   getCurrentDistrict: () => currentDistrict,
-  loadCityInfo,
+  loadCityInfo: async () => { await loadCityInfo(); },
   render,
   rerenderPanel,
   getCompanionName
 });
 
-// The early "no heroes" path returns undefined; the normal path returns a cleanup
-// (stops the ambient soundscape). The router only calls the cleanup when truthy.
+// Own the lifetime before the first await, including the no-heroes branch.
 /**
+ * @param {import('../navigation.js').Navigation} navigation
  * @returns {Promise<(function(): void) | undefined>} optional view cleanup function
  */
-export async function overworldView(main, ...args) {
+export async function overworldView(main, navigation) {
   const myToken = ++overworldToken;
+  overworldNavigation = navigation;
+  let stopLocale = () => {}, ambientStarted = false;
+  const cleanup = navigation.onDispose(() => {
+    stopLocale();
+    directoryUI?.dispose();
+    directoryUI = null;
+    regionUI?.dispose();
+    regionUI = null;
+    fullscreenUI = null;
+    if (myToken === overworldToken) { overworldToken++; embarkBusy = false; }
+    if (ambientStarted) sfx.stopAmbient();
+  });
   embarkBusy = false;
   // Parse query parameters
   const qStr = location.hash.includes('?') ? location.hash.split('?')[1] : '';
@@ -63,56 +86,58 @@ export async function overworldView(main, ...args) {
   const nodeParam = params.get('node');
 
   const chars = await api.listCharacters();
+  if (!navigation.isCurrent()) return undefined;
   if (!chars.length) {
     main.innerHTML = `
       <div class="card" style="max-width:600px; margin:40px auto; text-align:center; padding:32px;">
-        <h1>🏰 No Heroes Found</h1>
-        <p class="muted" style="margin:16px 0;">You need a hero before setting foot in Oakhaven or exploring the realm.</p>
-        <a class="btn primary big" href="#/create">✨ Create Your First Hero</a>
+        <h1>${label("ui.overworld.no_heroes_found")}</h1>
+        <p class="muted" style="margin:16px 0;">${label("ui.overworld.you_need_a_hero_before_setting_foot")}</p>
+        <a class="btn primary big" href="#/create">${label("ui.overworld.create_your_first_hero")}</a>
       </div>`;
-    return undefined; // no cleanup — matches the normal path's "cleanup or undefined" contract
+    stopLocale = onLocaleChange(() => translateDOM(main));
+    return cleanup;
   }
 
   // Pick active character
   activeChar = (charIdFromUrl ? chars.find(c => c.id === charIdFromUrl) : null) || chars[0];
 
   // Fetch city and map data
-  await loadCityInfo();
+  await loadCityInfo(navigation);
+  if (!navigation.isCurrent()) return undefined;
 
   // The guidance's destination arrives as a map id (?node=<mapId>) from home/summary —
   // resolve it against the real nodes so a stale/unknown id simply leaves the selection
   // alone. A destination link always lands on the region map, never a memorised city tab.
   if (nodeParam) {
     currentTab = 'map';
-    const target = (cityData?.mapNodes || []).find(n => n.mapId === nodeParam || n.id === nodeParam);
+    const target = dispatchNodes().find(n => n.mapId === nodeParam || n.id === nodeParam);
     if (target) selectedNodeId = target.id;
   }
 
   // If returning from a delve, display welcome banner
   if (returnParam) {
-    toast(`⚔ Welcome back to Oakhaven, ${activeChar.name}! Your delve rewards have been secured.`);
+    toast(() => t('ui.overworld.welcome', { name: (activeChar.nameDisplay || activeChar.name) }));
   }
 
   // Start ambient soundscape for current tab
   sfx.startAmbient(currentTab === 'city' ? 'town' : 'hills');
+  ambientStarted = true;
 
   render(main, chars);
+  fullscreenUI = createFullscreenControls(main, navigation, toast);
+  const topbar = document.querySelector('.topbar');
+  const headerObserver = new ResizeObserver(() => main.style.setProperty('--overworld-topbar-height', topbar.getBoundingClientRect().height + 'px'));
+  headerObserver.observe(topbar);
+  navigation.onDispose(() => { headerObserver.disconnect(); main.style.removeProperty('--overworld-topbar-height'); });
 
   // T7a: restore an in-flight road encounter (unresolved, or resolved but not yet
   // consumed by a delve start) on (re-)entering the overworld — the server's live
   // instance is authoritative and the status query spends no RNG. No-op when the
   // character has nothing pending (the common case).
   restorePendingEncounter(myToken);
-
-  return () => {
-    // T7a: leaving the overworld (home / settings / any other view) invalidates THIS
-    // mount's identity — in-flight trigger/status/restore responses and continue
-    // callbacks see alive() === false and act on nothing. The server keeps the pending
-    // instance untouched; the next overworld mount restores it.
-    overworldToken++;
-    embarkBusy = false;
-    sfx.stopAmbient();
-  };
+  function refreshLocalizedText() { translateDOM(main); directoryUI?.refreshLocale(); regionUI?.refresh(); }
+  stopLocale = onLocaleChange(refreshLocalizedText);
+  return cleanup;
 }
 
 // Shared embark flow (T7a): one live encounter lifecycle — trigger (reuses the server's
@@ -123,17 +148,22 @@ export async function overworldView(main, ...args) {
 async function startEmbarkFlow(btn, myToken, mapId, difficulty, bringAlly, knownEncounter = null) {
   if (embarkBusy) return false;
   embarkBusy = true;
+  directoryUI?.setDisabled(true);
   const char = activeChar;
   const alive = () => myToken === overworldToken && activeChar && activeChar.id === char.id;
-  const label = btn ? btn.textContent : '';
+  const resetLabel = () => {
+    const node = dispatchNodes().find(n => n.mapId === mapId);
+    return t('ui.overworld.embark_to_values', { p9: node?.nameDisplay || node?.name || mapId });
+  };
   const reset = () => {
     embarkBusy = false;
-    if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = label; }
+    if (alive()) directoryUI?.setDisabled(false);
+    if (btn && btn.isConnected) { btn.disabled = false; localizeText(btn, resetLabel); }
   };
   const embarkAction = async () => {
     // returns true when navigation happened, false when the player must retry
     if (!alive()) return false;
-    if (btn && btn.isConnected) { btn.disabled = true; btn.textContent = '⚔️ Embarking...'; }
+    if (btn && btn.isConnected) { btn.disabled = true; localizeText(btn, () => t("ui.overworld.embarking")); }
     try {
       const res = await api.startGame(char.id, {
         bringAlly: /** @type {false | 'bram' | 'valeria' | 'aldous'} */ (bringAlly),
@@ -144,13 +174,20 @@ async function startEmbarkFlow(btn, myToken, mapId, difficulty, bringAlly, known
         if (alive()) location.hash = `#/play/${res.state.id}`;
         return true;
       }
-      if (alive()) toast('Failed to start delve expedition.');
+      if (alive()) toast(() => t("ui.overworld.failed_to_start_delve_expedition"));
       return false;
     } catch (err) {
-      if (alive()) toast(err.message || 'Error starting delve.');
+      if (alive()) toast(() => err.message || t("ui.overworld.error_starting_delve"));
+      if (alive() && err.display?.key === 'api.unknownMap') {
+        await loadCityInfo();
+        if (alive()) {
+          document.getElementById('roadEncounterModal')?.remove();
+          render(document.getElementById('view'), [activeChar]);
+        }
+      }
       return false;
     } finally {
-      if (btn && btn.isConnected && alive()) { btn.disabled = false; btn.textContent = label; }
+      if (btn && btn.isConnected && alive()) { btn.disabled = false; localizeText(btn, resetLabel); }
     }
   };
 
@@ -160,13 +197,13 @@ async function startEmbarkFlow(btn, myToken, mapId, difficulty, bringAlly, known
     // modal, leaving no in-place retry. With the result kept, the modal stays with its
     // continue button and the resolved instance is never re-resolved or re-awarded.
     if (knownEncounter) return await embarkAction();
-    if (btn && btn.isConnected) { btn.disabled = true; btn.textContent = '⚔️ Checking the road…'; }
+    if (btn && btn.isConnected) { btn.disabled = true; localizeText(btn, () => t("ui.overworld.checking_the_road")); }
     let encRes;
     try {
       encRes = await api.triggerRoadEncounter(char.id);
     } catch (err) {
       // a failed trigger is NOT "no encounter" — never silently embark past it (T7a)
-      if (alive()) toast(`路遇检查失败，请重试：${err.message || '网络错误'}`);
+      if (alive()) toast(() => t('ui.overworld.roadFailure', { error: err.message || t('ui.overworld.network_error') }));
       return false;
     }
     if (!alive()) return false; // hero switched / view replaced while the request was in flight
@@ -208,18 +245,31 @@ async function restorePendingEncounter(myToken) {
   showRoadEncounterModal(char, mapId, () => startEmbarkFlow(embarkBtn, myToken, mapId, difficulty, bringAlly, enc), enc, { alive: () => myToken === overworldToken && activeChar && activeChar.id === char.id });
 }
 
-async function loadCityInfo() {
+async function loadCityInfo(navigation = overworldNavigation) {
+  const charId = activeChar ? activeChar.id : null;
   try {
-    cityData = await api.cityInfo(activeChar ? activeChar.id : null);
+    const result = await api.cityInfo(charId);
+    if (!navigation?.isCurrent() || charId !== (activeChar ? activeChar.id : null)) return false;
+    cityData = result;
+    if (!dispatchNodes().some(n => n.id === selectedNodeId)) selectedNodeId = dispatchNodes()[0]?.id || 'oakhaven';
     if (cityData.character) {
       activeChar = cityData.character;
     }
+    return true;
   } catch (err) {
+    if (!navigation?.isCurrent()) return false;
     console.error('Failed to load city info', err);
+    toast(() => err.message);
+    return false;
   }
 }
 
 function render(main, allChars) {
+  regionUI?.dispose();
+  regionUI = null;
+  if (!overworldNavigation?.isCurrent()) return;
+  directoryUI?.dispose();
+  directoryUI = null;
   main.innerHTML = `
     <div class="overworld-view">
       <!-- Header with Hero Strip -->
@@ -227,25 +277,25 @@ function render(main, allChars) {
         <div class="hero-strip">
           <div class="hero-avatar">
             <img src="${activeChar.portraitUrl || '/portraits/hero_' + activeChar.id + '.svg'}"
-                 alt="${esc(activeChar.name)}"
+                 alt="${contentLabel(activeChar,"name")}"
                  onerror="this.src='/portraits/hero_${activeChar.id}.svg'; this.onerror=null;">
           </div>
           <div class="hero-meta">
             <div class="hero-name-row">
-              <span class="hero-name">${esc(activeChar.name)}</span>
-              <span class="chip">Level ${activeChar.level || 1} ${esc(activeChar.className || '')}</span>
-              <span class="chip blue">${esc(activeChar.species || '')}</span>
-              ${activeChar.companion ? `<span class="chip green">Companion: ${getCompanionName(activeChar.companion)}</span>` : ''}
+              <span class="hero-name">${contentLabel(activeChar,"name")}</span>
+              <span class="chip" data-hero-class>${label("ui.overworld.level_values", {p4: activeChar.level || 1, p5: activeChar.classNameDisplay || activeChar.className || ''})}</span>
+              <span class="chip blue" data-hero-species>${contentLabel(activeChar,'species')}</span>
+              ${activeChar.companion ? `<span class="chip green">${label("ui.overworld.companion_values", {p0: getCompanionName(activeChar.companion)})}</span>` : ''}
               ${(() => {
                 const lu = activeChar.levelUp || {};
                 const nextLvl = lu.nextLevel || ((activeChar.level || 1) + 1);
-                return lu.canLevelUp ? `<button class="btn small levelup-badge-btn" id="btnTownLevelUp" style="padding:2px 10px; margin-left:8px;" title="${lu.currentXp || 0} / ${lu.xpNeeded || '—'} XP">⚡ LEVEL UP (Lvl ${nextLvl})</button>` : '';
+                return lu.canLevelUp ? `<button class="btn small levelup-badge-btn" id="btnTownLevelUp" style="padding:2px 10px; margin-left:8px;" title="${lu.currentXp || 0} / ${lu.xpNeeded || '—'} XP">${label("ui.overworld.level_up_lvl_values", {p2: nextLvl})}</button>` : '';
               })()}
             </div>
             <div class="hero-stats-row">
               <span>❤️ HP: <b>${activeChar.hp || activeChar.hpMax}/${activeChar.hpMax}</b></span>
               <span>🛡️ AC: <b>${activeChar.acBase || 10}</b></span>
-              <span>💰 Gold: <b class="gold-text">${activeChar.gold || 0} GP</b></span>
+              <span>${label("ui.overworld.gold")} <b class="gold-text">${activeChar.gold || 0} GP</b></span>
               <span>⭐ XP: <b>${activeChar.xp || 0}</b></span>
             </div>
           </div>
@@ -253,17 +303,18 @@ function render(main, allChars) {
 
         <div class="header-actions">
           <div class="char-switch-wrap">
-            <label class="small muted">Active Hero:</label>
+            <label class="small muted">${label("ui.overworld.active_hero")}</label>
             <select id="charSwitcher" style="min-width:140px;">
               ${allChars.map(c => `
                 <option value="${c.id}" ${c.id === activeChar.id ? 'selected' : ''}>
-                  ${esc(c.name)} (Lv ${c.level} ${esc(c.className)})
+                  ${label("ui.overworld.lv_values", {p2: (c.nameDisplay || c.name), p3: c.level, p4: (c.classNameDisplay || c.className)})}
                 </option>`).join('')}
             </select>
           </div>
           <div class="tab-switcher">
-            <button class="btn ${currentTab === 'map' ? 'primary' : ''}" id="tabMapBtn">🗺️ Region Map</button>
-            <button class="btn ${currentTab === 'city' ? 'primary' : ''}" id="tabCityBtn">🏰 Oakhaven Town</button>
+            <button class="btn" type="button" data-app-fullscreen>${label('ui.fullscreen.enter')}</button>
+            <button class="btn ${currentTab === 'map' ? 'primary' : ''}" id="tabMapBtn">${label("ui.overworld.region_map")}</button>
+            <button class="btn ${currentTab === 'city' ? 'primary' : ''}" id="tabCityBtn">${label("ui.overworld.oakhaven_town")}</button>
           </div>
         </div>
       </div>
@@ -278,10 +329,11 @@ function render(main, allChars) {
   attachHeaderEvents(main, allChars);
   if (currentTab === 'map') attachMapEvents(main);
   else attachCityEvents(main);
+  fullscreenUI?.refresh();
 }
 
 function getCompanionName(compVal) {
-  if (!compVal) return 'None';
+  if (!compVal) return t("ui.overworld.none");
   const c = (cityData?.companions || []).find(x => x.id === compVal);
   return c ? c.name : compVal;
 }
@@ -291,7 +343,7 @@ function getCompanionName(compVal) {
 // -------------------------------------------------------------
 function renderMapContent() {
   const nodes = cityData?.mapNodes || [];
-  const selectedNode = nodes.find(n => n.id === selectedNodeId) || nodes[0];
+  const selectedNode = dispatchNodes().find(n => n.id === selectedNodeId) || nodes[0];
   const camp = cityData?.campaign || null;
   const campObjective = camp?.objective || null;
   const campProgress = camp?.progress || null;
@@ -300,34 +352,36 @@ function renderMapContent() {
   const guide = cityData?.guidance || null;
   const guidePrimary = guide && guide.primary ? guide.primary : null;
   const nodeByMapId = {};
-  nodes.forEach(n => { if (n.mapId) nodeByMapId[n.mapId] = n; });
+  dispatchNodes().forEach(n => { if (n.mapId) nodeByMapId[n.mapId] = n; });
   const guideNode = guidePrimary && guidePrimary.mapId ? nodeByMapId[guidePrimary.mapId] : null;
 
   return `
     ${campObjective ? `
       <div class="card campaign-banner ${campObjective.done ? 'campaign-done' : ''}" style="margin-bottom:14px; border-color:var(--gold-dim);">
         <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap;">
-          <h3 style="margin:0;">📜 主线 · ${campObjective.done ? '已完成' : (campObjective.act ? `第 ${campObjective.act} 幕` : '')}</h3>
-          <span class="chip gold-chip" title="四幕主线进度">${campProgress ? campProgress.label : ''}</span>
+          <h3 style="margin:0;">${label("ui.overworld.story")}${campObjective.done ? label("ui.overworld.complete") : (campObjective.act ? label("ui.overworld.act", { act: campObjective.act }) : "")}</h3>
+          <span class="chip gold-chip" data-i18n-title="ui.overworld.four_act_story_progress" title="${esc(t("ui.overworld.four_act_story_progress"))}">${campProgress ? displayLabel(campProgress.labelDisplay, campProgress.label) : ''}</span>
         </div>
-        <p class="small" style="margin:6px 0 0; color:var(--gold);">${esc(campObjective.text)}</p>
+        <p class="small" style="margin:6px 0 0; color:var(--gold);">${contentLabel(campObjective,"text")}</p>
         ${guidePrimary ? `
         <div class="guidance-banner-row">
           ${guidePrimary.kind === 'resume' && guidePrimary.saveId
-            ? `<a class="btn primary small" href="#/play/${guidePrimary.saveId}">▶ ${esc(guidePrimary.text)}</a>`
-            : (guideNode ? `<button class="btn primary small" data-guidance-node="${guideNode.id}">▶ ${esc(guidePrimary.text)}</button>` : '')}
-          ${guidePrimary.reason ? `<span class="muted small">${esc(guidePrimary.reason)}</span>` : ''}
+            ? `<a class="btn primary small" href="#/play/${guidePrimary.saveId}">▶ ${displayLabel(guidePrimary.textDisplay, guidePrimary.text)}</a>`
+            : (guideNode ? `<button class="btn primary small" data-guidance-node="${guideNode.id}">▶ ${displayLabel(guidePrimary.textDisplay, guidePrimary.text)}</button>` : '')}
+          ${guidePrimary.reason ? `<span class="muted small">${displayLabel(guidePrimary.reasonDisplay, guidePrimary.reason)}</span>` : ''}
         </div>` : ''}
-        ${campObjective.done ? `<p class="muted small" style="margin:6px 0 0;">想看收场词？<a href="#/campaign/${activeChar.id}">打开结局面板 ↗</a></p>` : ''}
+        ${campObjective.done ? `<p class="muted small" style="margin:6px 0 0;">${label("ui.overworld.read_the_epilogue")}<a href="#/campaign/${activeChar.id}">${label("ui.overworld.open_the_ending_panel")}</a></p>` : ''}
       </div>
     ` : ''}
 
+    <div class="overworld-map-layout">
+    <div class="card" data-town-adventures></div>
     <div class="region-map-container">
       <!-- SVG Map Canvas -->
       <div class="map-viewport card">
-        <div class="map-title-overlay">
-          <h2>Province of The Sunlit Vale</h2>
-          <p class="muted small">Select a waypoint on the provincial road to dispatch an expedition or visit town.</p>
+        <div class="region-map-heading">
+          <h2>${label("ui.overworld.province_of_the_sunlit_vale")}</h2>
+          <p class="muted small">${label("ui.overworld.select_a_waypoint_on_the_provincial_road")}</p>
         </div>
 
         <svg class="region-svg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
@@ -354,35 +408,28 @@ function renderMapContent() {
           <!-- Mountain ranges & landscape shapes -->
           <path d="M 450,80 L 520,30 L 600,90 L 680,40 L 740,110 L 820,60 L 920,130 L 980,180 L 1000,160 L 1000,0 L 400,0 Z"
                 fill="#1f1a14" opacity="0.6" />
-          <text x="700" y="70" fill="#544837" font-family="Georgia, serif" font-size="14" letter-spacing="4">THE BARREN RIDGES</text>
+          <text x="700" y="70" fill="#544837" font-family="Georgia, serif" font-size="14" letter-spacing="4" data-i18n="ui.overworld.the_barren_ridges">${esc(t("ui.overworld.the_barren_ridges"))}</text>
 
           <!-- Forest cluster in west -->
           <path d="M 40,240 Q 120,200 180,260 Q 220,330 170,400 Q 90,430 40,360 Z"
                 fill="#162215" opacity="0.4" />
-          <text x="80" y="320" fill="#3f583e" font-family="Georgia, serif" font-size="13" letter-spacing="3">WHISPERWOOD</text>
+          <text x="80" y="320" fill="#3f583e" font-family="Georgia, serif" font-size="13" letter-spacing="3" data-i18n="ui.overworld.whisperwood">${esc(t("ui.overworld.whisperwood"))}</text>
 
           <!-- Weeping Marsh in southeast -->
           <path d="M 620,440 Q 740,380 880,420 Q 980,500 890,580 Q 720,590 620,520 Z"
                 fill="#142125" opacity="0.45" />
-          <text x="730" y="520" fill="#3b5d63" font-family="Georgia, serif" font-size="13" letter-spacing="3">THE WEEPING MARSH</text>
+          <text x="730" y="520" fill="#3b5d63" font-family="Georgia, serif" font-size="13" letter-spacing="3" data-i18n="ui.overworld.the_weeping_marsh">${esc(t("ui.overworld.the_weeping_marsh"))}</text>
 
           <!-- Highways and Roads -->
-          <!-- Road: Oakhaven (220, 312) to Sunless Crypt (580, 156) -->
-          <path class="map-road" d="M 220,312 C 340,300 440,230 580,156" stroke="#8a7440" stroke-width="4" stroke-dasharray="8 6" fill="none" />
-          <text x="360" y="240" class="road-label" transform="rotate(-15 360 240)">Old King's Highway</text>
-
-          <!-- Road: Oakhaven (220, 312) to Drowned Vault (780, 444) -->
-          <path class="map-road" d="M 220,312 C 380,380 560,420 780,444" stroke="#5f7e6f" stroke-width="4" stroke-dasharray="8 6" fill="none" />
-          <text x="460" y="395" class="road-label" transform="rotate(8 460 395)">Weeping Marsh Causeway</text>
-
-          <!-- Road: Sunless Crypt (580, 156) to Drowned Vault (780, 444) -->
-          <path class="map-road" d="M 580,156 C 680,240 730,340 780,444" stroke="#685542" stroke-width="3" stroke-dasharray="5 5" fill="none" />
-          <text x="700" y="300" class="road-label" transform="rotate(50 700 300)">Sunken Barrow Path</text>
+          ${(cityData?.mapRoads || []).map(road => {
+            const from = nodes.find(n => n.id === road.from), to = nodes.find(n => n.id === road.to);
+            if (!from || !to) return '';
+            const x1 = from.x * 10, y1 = from.y * 6, x2 = to.x * 10, y2 = to.y * 6;
+            return `<path class="map-road" data-road-from="${esc(road.from)}" data-road-to="${esc(road.to)}" d="M ${x1},${y1} L ${x2},${y2}" stroke="#8a7440" stroke-width="2" stroke-dasharray="8 6" fill="none"><title data-i18n-display="${esc(JSON.stringify(road.labelDisplay))}" data-i18n-fallback="${esc(road.label)}">${esc(displayText(road.labelDisplay,road.label))}</title></path>`;
+          }).join('')}
 
           <!-- Location Nodes -->
           ${nodes.map(n => {
-            const cx = n.x * 10;
-            const cy = n.y * 6;
             const isSel = n.id === selectedNodeId;
             const isCity = n.type === 'city';
             const color = isCity ? '#c9a959' : (n.id === 'crypt' ? '#b8433a' : '#5f8fb4');
@@ -390,17 +437,14 @@ function renderMapContent() {
             const isCampaignStep = !!(camp?.currentActId && actByMap[n.mapId] === camp.currentActId);
 
             return `
-              <g class="map-node-group ${isSel ? 'active' : ''}" data-node-id="${n.id}" style="cursor:pointer;">
-                ${isSel ? `<circle cx="${cx}" cy="${cy}" r="34" fill="${color}" opacity="0.25" filter="url(#glowEffect)" />` : ''}
-                ${isCampaignStep ? `<circle class="campaign-ring" cx="${cx}" cy="${cy}" r="28" fill="none" stroke="#f5c451" stroke-width="2" stroke-dasharray="5 4" opacity="0.95" />` : ''}
-                <circle cx="${cx}" cy="${cy}" r="22" fill="#1b1712" stroke="${isCampaignStep ? '#f5c451' : color}" stroke-width="${isSel ? '3' : '2'}" />
-                <text x="${cx}" y="${cy + 6}" font-size="20" text-anchor="middle">${n.icon}</text>
-                <!-- Name Banner Below -->
-                <rect x="${cx - 65}" y="${cy + 30}" width="130" height="22" rx="4" fill="#14110e" stroke="${isCampaignStep ? '#f5c451' : color}" stroke-width="1" opacity="0.9"/>
-                <text x="${cx}" y="${cy + 45}" fill="${isCampaignStep ? '#f5c451' : color}" font-family="Georgia, serif" font-size="12" font-weight="bold" text-anchor="middle">
-                  ${esc(n.name)}
-                </text>
-                ${isCampaignStep ? `<text x="${cx}" y="${cy - 28}" fill="#f5c451" font-size="11" font-weight="bold" text-anchor="middle">📜 主线</text>` : ''}
+              <g class="map-node-group ${isSel ? 'active' : ''}" data-node-id="${esc(n.id)}" tabindex="0" role="button" aria-pressed="${isSel}" style="color:${isCampaignStep ? '#f5c451' : color};cursor:pointer;">
+                <title data-i18n-display="${esc(JSON.stringify(n.nameDisplay))}" data-i18n-fallback="${esc(n.name)}">${esc(displayText(n.nameDisplay,n.name))}</title>
+                <line class="waypoint-leader" x1="0" y1="0" x2="0" y2="0" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+                ${isCampaignStep ? '<circle class="campaign-ring" cx="0" cy="0" r="28" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/>' : ''}
+                <circle class="waypoint-hit" cx="0" cy="0" r="22" fill="#1b1712" stroke="currentColor" stroke-width="${isSel ? '3' : '2'}" />
+                ${waypointSymbol(n.marker || n.type)}
+                <rect class="waypoint-label-box" rx="5" fill="#14110e" stroke="currentColor" stroke-width="1"/>
+                <text fill="currentColor" font-family="Georgia, serif" font-weight="600" text-anchor="middle" data-i18n-display="${esc(JSON.stringify(n.nameDisplay || { fallback:n.name }))}" data-i18n-fallback="${esc(n.name)}">${esc(displayText(n.nameDisplay,n.name))}</text>
               </g>
             `;
           }).join('')}
@@ -410,18 +454,19 @@ function renderMapContent() {
       <!-- Expedition Dispatch Drawer / Sidebar -->
       <div class="map-sidebar card">
         <div class="sidebar-header">
-          <span class="node-icon-large">${selectedNode.icon}</span>
+          <svg class="node-icon-large" viewBox="-20 -20 40 40" aria-hidden="true">${waypointSymbol(selectedNode.marker || selectedNode.type)}</svg>
           <div>
-            <h2>${esc(selectedNode.name)}</h2>
-            <div class="chip ${selectedNode.safe ? 'green' : 'blue'}">${esc(selectedNode.levelRange)}</div>
-            <span class="muted small">· ${esc(selectedNode.region || 'The Sunlit Vale')}</span>
+            <h2>${contentLabel(selectedNode,"name")}</h2>
+            <div class="chip ${selectedNode.safe ? 'green' : 'blue'}">${contentLabel(selectedNode,"levelRange")}</div>
+            ${selectedNode.region ? `<span class="muted small">· ${contentLabel(selectedNode,"region")}</span>` : ''}
           </div>
         </div>
 
-        <p class="node-blurb" style="margin:14px 0; color:var(--text);">${esc(selectedNode.blurb)}</p>
+        <p class="node-blurb" style="margin:14px 0; color:var(--text);">${contentLabel(selectedNode,"blurb")}</p>
 
         ${selectedNode.safe ? renderCityDispatch() : renderDungeonDispatch(selectedNode)}
       </div>
+    </div>
     </div>
   `;
 }
@@ -430,16 +475,16 @@ function renderCityDispatch() {
   return `
     <div class="city-dispatch-box">
       <div class="card" style="background:var(--bg2); margin-bottom:14px;">
-        <h3>Oakhaven Amenities</h3>
+        <h3>${label("ui.overworld.oakhaven_amenities")}</h3>
         <ul class="trait-list">
-          <li>🍺 <b>The Boar & Lantern</b> — Rest, recover HP & spells, hire mercenaries</li>
-          <li>⚔️ <b>Ironforge Smithy</b> — Weapons, shields, forged heavy armor & sales</li>
-          <li>🧪 <b>Willow & Wick</b> — Healing potions, reagents, spell scrolls</li>
-          <li>📜 <b>Delvers' Guildhall</b> — High-stake bounties & rewards</li>
+          <li>🍺 <b>${label("ui.overworld.the_boar_lantern")}</b> ${label("ui.overworld.rest_recover_hp_spells_hire_mercenaries")}</li>
+          <li>⚔️ <b>${label("ui.overworld.ironforge_smithy")}</b> ${label("ui.overworld.weapons_shields_forged_heavy_armor_sales")}</li>
+          <li>🧪 <b>${label("ui.overworld.willow_wick")}</b> ${label("ui.overworld.healing_potions_reagents_spell_scrolls")}</li>
+          <li>📜 <b>${label("ui.overworld.delvers_guildhall")}</b> ${label("ui.overworld.high_stake_bounties_rewards")}</li>
         </ul>
       </div>
       <button class="btn primary big" id="enterCityFromMapBtn" style="width:100%;">
-        🏰 Enter Oakhaven Town
+        ${label("ui.overworld.enter_oakhaven_town")}
       </button>
     </div>
   `;
@@ -448,9 +493,9 @@ function renderCityDispatch() {
 function renderDungeonDispatch(node) {
   const rules = appState.rules || {};
   const diffs = rules.difficulty || {
-    easy: { label: 'Easy', blurb: 'Monsters have 25% less HP' },
-    normal: { label: 'Normal', blurb: 'The crypt as intended' },
-    hard: { label: 'Hard', blurb: 'Monsters are mighty (+25% HP and damage)' }
+    easy: { label: t("ui.overworld.easy"), blurb: t("ui.overworld.monsters_have_25_less_hp") },
+    normal: { label: t("ui.overworld.normal"), blurb: t("ui.overworld.the_crypt_as_intended") },
+    hard: { label: t("ui.overworld.hard"), blurb: t("ui.overworld.monsters_are_mighty_25_hp_and_damage") }
   };
   const companions = cityData?.companions || [];
   // the story's recommended destination gets its reason spelled out next to the options
@@ -459,34 +504,34 @@ function renderDungeonDispatch(node) {
 
   return `
     <div class="dungeon-dispatch-box">
-      ${rec ? `<div class="recommend-box">📜 主线推荐 · ${esc(rec.reason || '')}</div>` : ''}
+      ${rec ? `<div class="recommend-box">${label("ui.overworld.story")}${displayLabel(rec.reasonDisplay, rec.reason || "")}</div>` : ''}
       <div class="field">
-        <label><b>Select Expedition Difficulty:</b></label>
+        <label><b>${label("ui.overworld.select_expedition_difficulty")}</b></label>
         <select id="dispatchDifficulty">
           ${Object.entries(diffs).map(([k, d]) => `
-            <option value="${k}" ${k === 'normal' ? 'selected' : ''}>${esc(d.label)} (${esc(d.blurb)})</option>
+            <option value="${k}" ${k === 'normal' ? 'selected' : ''} data-i18n="difficulty.${k}.option">${esc(displayText(d.labelDisplay, d.label))} (${esc(displayText(d.blurbDisplay, d.blurb))})</option>
           `).join('')}
         </select>
       </div>
 
       <div class="field" style="margin-top:10px;">
-        <label><b>Assigned Mercenary Companion:</b></label>
+        <label><b>${label("ui.overworld.assigned_mercenary_companion")}</b></label>
         <select id="dispatchCompanion">
-          <option value="none" ${!activeChar.companion ? 'selected' : ''}>Solo Expedition (No Companion)</option>
+          <option value="none" ${!activeChar.companion ? 'selected' : ''} data-i18n="ui.overworld.solo_expedition_no_companion">${esc(t("ui.overworld.solo_expedition_no_companion"))}</option>
           ${companions.map(c => `
             <option value="${c.id}" ${activeChar.companion === c.id ? 'selected' : ''}>
-              ${c.icon} ${esc(c.name)} — ${esc(c.role)} (AC ${c.ac}, HP ${c.hp})
+              ${c.icon} ${contentLabel(c,"name")} — ${contentLabel(c,"role")} (AC ${c.ac}, HP ${c.hp})
             </option>
           `).join('')}
         </select>
         <p class="muted small" style="margin-top:4px;">
-          Hire companions at the Tavern or pick an ally above.
+          ${label("ui.overworld.hire_companions_at_the_tavern_or_pick")}
         </p>
       </div>
 
       <div class="dispatch-actions" style="margin-top:18px;">
         <button class="btn primary big" id="embarkBtn" style="width:100%;" data-map-id="${node.mapId}">
-          ⚔️ Embark to ${esc(node.name)}
+          ${label("ui.overworld.embark_to_values", {p9: (node.nameDisplay || node.name)})}
         </button>
       </div>
     </div>
@@ -506,7 +551,7 @@ function renderCityContent() {
         ${districts.map(d => `
           <button class="district-pill ${currentDistrict === d.id ? 'active' : ''}" data-district="${d.id}">
             <span class="district-pill-icon">${d.icon}</span>
-            <span class="district-pill-name">${esc(d.name)}</span>
+            <span class="district-pill-name">${displayLabel(d.nameDisplay, d.name)}</span>
           </button>
         `).join('')}
       </div>
@@ -588,13 +633,34 @@ function attachHeaderEvents(main, allChars) {
         activeChar = updated;
         await loadCityInfo();
         render(main, chars);
-        toast(`⚡ Level Up applied: Level ${activeChar.level}!`);
+        toast(() => t('ui.common.levelApplied', { level: activeChar.level }));
       });
     });
   }
 }
 
 function attachMapEvents(main) {
+  const select = id => {
+    selectedNodeId = id;
+    render(main, [activeChar]);
+    const input = [...main.querySelectorAll('[data-adventure-id]')].find(el => el.getAttribute('data-adventure-id') === id)?.querySelector('input');
+    input?.focus({ preventScroll: true });
+  };
+  directoryUI = createAdventureDirectory(main.querySelector('[data-town-adventures]'), {
+    entries: cityData?.adventures || [], selectedId: selectedNodeId, filterState: directoryFilters, allowEmptySelection: true,
+    onSelect: entry => select(entry.id),
+    onRefresh: async () => {
+      const token = overworldToken, previous = selectedNodeId;
+      directoryUI.setDisabled(true);
+      const loaded = await loadCityInfo();
+      if (!overworldNavigation?.isCurrent() || token !== overworldToken) return;
+      render(main, [activeChar]);
+      if (loaded) toast(() => t(previous === selectedNodeId ? 'adventure.updated' : 'adventure.removed'));
+      main.querySelector('[data-adventure-refresh]')?.focus();
+    }
+  });
+  directoryUI.setDisabled(embarkBusy);
+  regionUI = createRegionMap(main.querySelector('.region-svg'), cityData?.mapNodes || []);
   // Node selection on SVG
   const nodeGroups = main.querySelectorAll('.map-node-group');
   nodeGroups.forEach(g => {
@@ -603,6 +669,13 @@ function attachMapEvents(main) {
       selectedNodeId = nodeId;
       const chars = [activeChar];
       render(main, chars);
+    });
+    g.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      const id = g.getAttribute('data-node-id');
+      select(id);
+      [...main.querySelectorAll('[data-node-id]')].find(el => el.getAttribute('data-node-id') === id)?.focus({ preventScroll: true });
     });
   });
 
@@ -660,6 +733,7 @@ function attachCityEvents(main) {
 
 // redraw just the district panel (keeps the selected tab, stakes and scroll position intact)
 function rerenderPanel(main) {
+  if (!overworldNavigation?.isCurrent()) return;
   const panel = main.querySelector('.district-panel');
   if (panel) {
     panel.innerHTML = renderCurrentDistrict();

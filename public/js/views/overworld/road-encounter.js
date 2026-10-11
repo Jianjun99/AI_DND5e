@@ -1,3 +1,4 @@
+import { contentLabel,  t, label } from "../../i18n.js";
 // road-encounter.js — the roadside encounter modal (wandering peddler, goblin ambush,
 // wayside shrine). T7a lifecycle rules:
 //   - the modal NEVER triggers an encounter itself; callers pass the server's engine-built
@@ -19,7 +20,7 @@ export async function showRoadEncounterModal(char, mapId, embarkCallback, encoun
   const enc = encounterData;
   if (!enc) {
     // never silently "continue past" a missing encounter — the caller's failure toast owns this
-    toast('路遇数据缺失，请重试。');
+    toast(() => t("ui.road-encounter.road_encounter_data_missing_please_retry"));
     return;
   }
 
@@ -31,7 +32,8 @@ export async function showRoadEncounterModal(char, mapId, embarkCallback, encoun
   document.body.appendChild(modal);
 
   let resolved = !!enc.resolved;
-  const initialResult = resolved && enc.result && enc.result.text ? enc.result.text.replace(/\n/g, '<br>') : '';
+  const resultLabel = result => '<span style="white-space:pre-line">' + contentLabel(result,'text') + '</span>';
+  const initialResult = resolved && enc.result && enc.result.text ? resultLabel(enc.result) : '';
 
   const render = (resHtml = '') => {
     if (!alive() || !modal.isConnected) return;
@@ -41,20 +43,20 @@ export async function showRoadEncounterModal(char, mapId, embarkCallback, encoun
           <div class="encounter-header">
             <span style="font-size:32px;">${enc.icon}</span>
             <div>
-              <h2 class="encounter-title">${esc(enc.title)}</h2>
-              <span class="badge" style="color:var(--gold);">Roadside Encounter</span>
+              <h2 class="encounter-title">${contentLabel(enc,"title")}</h2>
+              <span class="badge" style="color:var(--gold);">${label("ui.road-encounter.roadside_encounter")}</span>
             </div>
           </div>
-          <p class="encounter-blurb">${esc(enc.desc)}</p>
+          <p class="encounter-blurb">${contentLabel(enc,"desc")}</p>
           <div style="background:rgba(0,0,0,0.3); border-left:3px solid var(--gold); padding:8px 12px; margin-bottom:14px; font-style:italic;" class="small">
-            ${esc(enc.blurb)}
+            ${contentLabel(enc,"blurb")}
           </div>
-          <p class="small">Your purse: <b style="color:var(--gold);">${char.gold || 0} GP</b></p>
+          <p class="small">${label("ui.road-encounter.your_purse")} <b style="color:var(--gold);">${char.gold || 0} GP</b></p>
           <div style="display:flex; flex-direction:column; gap:8px; margin:12px 0;">
             ${enc.wares.map(w => `
               <div class="stat-line" style="background:var(--bg-box); padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
                 <div>
-                  <b>${esc(w.name)}</b> <span class="muted small">— ${esc(w.desc)}</span>
+                  <b>${contentLabel(w,"name")}</b> <span class="muted small">— ${contentLabel(w,"desc")}</span>
                 </div>
                 <div>
                   <button class="btn small" data-buy-item="${w.id}" data-price="${w.price}" ${(char.gold || 0) >= w.price ? '' : 'disabled'}>
@@ -66,7 +68,7 @@ export async function showRoadEncounterModal(char, mapId, embarkCallback, encoun
           </div>
           ${resHtml ? `<div class="encounter-res-box">${resHtml}</div>` : ''}
           <div style="margin-top:16px; text-align:right;">
-            <button class="btn primary big" id="continueDelveBtn">🚶 Bid Farewell & Enter Delve</button>
+            <button class="btn primary big" id="continueDelveBtn">${label("ui.road-encounter.bid_farewell_enter_delve")}</button>
           </div>
         </div>
       `;
@@ -74,6 +76,8 @@ export async function showRoadEncounterModal(char, mapId, embarkCallback, encoun
       (/** @type {NodeListOf<HTMLButtonElement>} */ (modal.querySelectorAll('[data-buy-item]'))).forEach(btn => {
         btn.addEventListener('click', async () => {
           const itemId = btn.getAttribute('data-buy-item');
+          const ware = enc.wares.find(w => w.id === itemId);
+          const itemDisplay = ware?.nameDisplay || ware?.name || itemId;
           const price = parseInt(btn.getAttribute('data-price'), 10);
           if ((char.gold || 0) < price) return;
           try {
@@ -84,11 +88,11 @@ export async function showRoadEncounterModal(char, mapId, embarkCallback, encoun
             char.inventory = char.inventory || [];
             const ex = char.inventory.find(i => i.itemId === itemId);
             if (ex) ex.qty++; else char.inventory.push({ itemId, qty: 1 });
-            toast(`Purchased ${itemId} for ${price} GP from Garrick!`);
-            render(`<span style="color:var(--green)">✓ Bought ${itemId}! Added to your inventory.</span>`);
+            toast(() => t('ui.road.purchased', { item: itemDisplay, price }));
+            render(`<span style="color:var(--green)">${label("ui.road-encounter.bought_added_to_your_inventory_values", {p0: itemDisplay})}</span>`);
           } catch (e) {
             if (!alive()) return;
-            toast(e.message);
+            toast(() => e.message);
             btn.disabled = false;
           }
         });
@@ -110,7 +114,7 @@ export async function showRoadEncounterModal(char, mapId, embarkCallback, encoun
             } catch (e) {
               // resolve failed — keep the modal open so the choice can be retried (T7a)
               if (!alive()) return;
-              toast(e.message);
+              toast(() => e.message);
               render(`<b style="color:var(--red)">${esc(e.message)}</b>`);
               return;
             }
@@ -135,34 +139,34 @@ export async function showRoadEncounterModal(char, mapId, embarkCallback, encoun
           <div class="encounter-header">
             <span style="font-size:32px;">${enc.icon}</span>
             <div>
-              <h2 class="encounter-title">${esc(enc.title)}</h2>
-              <span class="badge" style="color:var(--red);">Roadside Ambush!</span>
+              <h2 class="encounter-title">${contentLabel(enc,"title")}</h2>
+              <span class="badge" style="color:var(--red);">${label("ui.road-encounter.roadside_ambush")}</span>
             </div>
           </div>
-          <p class="encounter-blurb">${esc(enc.desc)}</p>
+          <p class="encounter-blurb">${contentLabel(enc,"desc")}</p>
           <div style="background:rgba(0,0,0,0.3); border-left:3px solid var(--red); padding:8px 12px; margin-bottom:14px; font-style:italic;" class="small">
-            ${esc(enc.blurb)}
+            ${contentLabel(enc,"blurb")}
           </div>
           ${!resolved ? `
             <div class="encounter-options">
               <button class="encounter-option-btn" id="optFight">
-                <b>⚔️ Skirmish! (Attack Check DC 11)</b>
-                <span class="small muted">Draw your weapon and charge.${fightMod != null ? ` Modifier: <b>${fmtMod(fightMod)}</b>.` : ''} Victory yields coins (+25 GP, +50 XP); defeat incurs an arrow wound.</span>
+                <b>${label("ui.road-encounter.skirmish_attack_check_dc_11")}</b>
+                <span class="small muted">${label("ui.road.fightHelp")}${fightMod != null ? label("ui.road.modifier", { modifier: fmtMod(fightMod) }) : ""}</span>
               </button>
               <button class="encounter-option-btn" id="optBribe" ${(char.gold || 0) >= 10 ? '' : 'disabled'}>
-                <b>💰 Bribe Passage (10 GP)</b>
-                <span class="small muted">Toss a coin purse into the weeds to distract them and slip past safely. (Your gold: ${char.gold || 0} GP)</span>
+                <b>${label("ui.road-encounter.bribe_passage_10_gp")}</b>
+                <span class="small muted">${label("ui.road-encounter.toss_a_coin_purse_into_the_values", {p4: char.gold || 0})}</span>
               </button>
               <button class="encounter-option-btn" id="optSneak">
-                <b>🏃 Slip Past (Stealth DC 12)</b>
-                <span class="small muted">Duck into the dense thicket.${sneakMod != null ? ` Modifier: <b>${fmtMod(sneakMod)}</b>.` : ''} Fail means fleeing under fire (-2 HP).</span>
+                <b>${label("ui.road-encounter.slip_past_stealth_dc_12")}</b>
+                <span class="small muted">${label("ui.road.sneakHelp")}${sneakMod != null ? label("ui.road.modifier", { modifier: fmtMod(sneakMod) }) : ""}</span>
               </button>
             </div>
           ` : ''}
           ${resHtml ? `<div class="encounter-res-box">${resHtml}</div>` : ''}
           ${resolved ? `
             <div style="margin-top:16px; text-align:right;">
-              <button class="btn primary big" id="continueDelveBtn">⚔️ Proceed to Delve</button>
+              <button class="btn primary big" id="continueDelveBtn">${label("ui.road-encounter.proceed_to_delve")}</button>
             </div>
           ` : ''}
         </div>
@@ -176,16 +180,16 @@ export async function showRoadEncounterModal(char, mapId, embarkCallback, encoun
             if (!alive()) return;
             resolved = true;
             if (res.natural != null) {
-              await rollAnimated(20, choice === 'sneak' ? 'Stealth Check' : 'Ambush Skirmish', res.natural);
+              await rollAnimated(20, choice === 'sneak' ? t("ui.road-encounter.stealth_check") : t("ui.road-encounter.ambush_skirmish"), res.natural);
             }
             char.gold = res.gold != null ? res.gold : char.gold;
             char.hp = res.hp != null ? res.hp : char.hp;
             char.xp = res.xp != null ? res.xp : char.xp;
-            render(res.text.replace(/\n/g, '<br>'));
+            render(resultLabel(res));
           } catch (e) {
             // failed resolve: re-render with the options live again for an explicit retry
             if (!alive()) return;
-            toast(e.message);
+            toast(() => e.message);
             render(`<b style="color:var(--red)">${esc(e.message)}</b>`);
           }
           wireContinue();
@@ -213,34 +217,34 @@ export async function showRoadEncounterModal(char, mapId, embarkCallback, encoun
           <div class="encounter-header">
             <span style="font-size:32px;">${enc.icon}</span>
             <div>
-              <h2 class="encounter-title">${esc(enc.title)}</h2>
-              <span class="badge" style="color:var(--blue);">Wayside Sanctuary</span>
+              <h2 class="encounter-title">${contentLabel(enc,"title")}</h2>
+              <span class="badge" style="color:var(--blue);">${label("ui.road-encounter.wayside_sanctuary")}</span>
             </div>
           </div>
-          <p class="encounter-blurb">${esc(enc.desc)}</p>
+          <p class="encounter-blurb">${contentLabel(enc,"desc")}</p>
           <div style="background:rgba(0,0,0,0.3); border-left:3px solid var(--blue); padding:8px 12px; margin-bottom:14px; font-style:italic;" class="small">
-            ${esc(enc.blurb)}
+            ${contentLabel(enc,"blurb")}
           </div>
           ${!resolved ? `
             <div class="encounter-options">
               <button class="encounter-option-btn" id="optPray">
-                <b>🙏 Kneel and Pray for Guidance</b>
-                <span class="small muted">Receive the Dawnmother's vigor (+5 Temporary HP for the delve).</span>
+                <b>${label("ui.road-encounter.kneel_and_pray_for_guidance")}</b>
+                <span class="small muted">${label("ui.road-encounter.receive_the_dawnmother_s_vigor_5_temporary")}</span>
               </button>
               <button class="encounter-option-btn" id="optOffer" ${(char.gold || 0) >= 5 ? '' : 'disabled'}>
-                <b>🪙 Leave a 5 GP Offering</b>
-                <span class="small muted">Drop coins into the consecrated font. Receive Heroic Inspiration (+2 to saves). (Your gold: ${char.gold || 0} GP)</span>
+                <b>${label("ui.road-encounter.leave_a_5_gp_offering")}</b>
+                <span class="small muted">${label("ui.road-encounter.drop_coins_into_the_consecrated_font_values", {p4: char.gold || 0})}</span>
               </button>
               <button class="encounter-option-btn" id="optProceed">
-                <b>🚶 Pay Respects & Proceed</b>
-                <span class="small muted">Bow quietly and continue along the highway without lingering.</span>
+                <b>${label("ui.road-encounter.pay_respects_proceed")}</b>
+                <span class="small muted">${label("ui.road-encounter.bow_quietly_and_continue_along_the_highway")}</span>
               </button>
             </div>
           ` : ''}
           ${resHtml ? `<div class="encounter-res-box">${resHtml}</div>` : ''}
           ${resolved ? `
             <div style="margin-top:16px; text-align:right;">
-              <button class="btn primary big" id="continueDelveBtn">⚔️ Enter Delve</button>
+              <button class="btn primary big" id="continueDelveBtn">${label("ui.road-encounter.enter_delve")}</button>
             </div>
           ` : ''}
         </div>
@@ -254,10 +258,10 @@ export async function showRoadEncounterModal(char, mapId, embarkCallback, encoun
             if (!alive()) return;
             resolved = true;
             if (apply) apply(res);
-            render(res.text.replace(/\n/g, '<br>'));
+            render(resultLabel(res));
           } catch (e) {
             if (!alive()) return;
-            toast(e.message);
+            toast(() => e.message);
             render(`<b style="color:var(--red)">${esc(e.message)}</b>`);
           }
           wireContinue();

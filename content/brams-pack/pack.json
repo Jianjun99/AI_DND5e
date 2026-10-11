@@ -1,0 +1,16 @@
+{
+  "id": "brams-pack",
+  "author": "AI Dungeon",
+  "name": "猎犬谷的行囊",
+  "blurb": "带上斥候布拉姆，追回他兄弟被猎犬夺走的行囊——而行囊里的物资正救着一个伤者。无需 AI 的完整双语同伴短篇。",
+  "localized": {
+    "en": {
+      "name": "The Pack of Hound Hollow",
+      "blurb": "Bring Bram the Scout to reclaim his brother’s pack from the hounds — the supplies inside are keeping a wounded stranger alive. A complete bilingual companion story with no AI required."
+    },
+    "zh-CN": {
+      "name": "猎犬谷的行囊",
+      "blurb": "带上斥候布拉姆，追回他兄弟被猎犬夺走的行囊——而行囊里的物资正救着一个伤者。无需 AI 的完整双语同伴短篇。"
+    }
+  }
+}

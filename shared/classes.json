@@ -32,7 +32,15 @@
         {
           "id": "none",
           "label": "No armor (Unarmored Defense: 10 + DEX + CON)",
-          "items": []
+          "items": [],
+          "localized": {
+            "en": {
+              "label": "No armor (Unarmored Defense: 10 + DEX + CON)"
+            },
+            "zh-CN": {
+              "label": "不穿护甲（无甲防御：10 + 敏捷调整值 + 体质调整值）"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -44,7 +52,15 @@
               "id": "greataxe",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Greataxe"
+            },
+            "zh-CN": {
+              "label": "巨斧"
+            }
+          }
         },
         {
           "id": "martial_pack",
@@ -58,7 +74,15 @@
               "id": "handaxe",
               "qty": 2
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Battleaxe + 2 Handaxes"
+            },
+            "zh-CN": {
+              "label": "战斧 + 2 把手斧"
+            }
+          }
         }
       ],
       "features": [
@@ -70,28 +94,68 @@
           "button": true,
           "kind": "bonus",
           "uses": "2/short",
-          "mech": "rage"
+          "mech": "rage",
+          "localized": {
+            "en": {
+              "name": "Rage",
+              "desc": "Bonus action: +2 damage to STR melee attacks, resistance to bludgeoning/piercing/slashing, advantage on STR checks and saves. Lasts 10 minutes. 2 uses per Short Rest."
+            },
+            "zh-CN": {
+              "name": "狂暴",
+              "desc": "附赠动作：力量近战攻击伤害 +2，抵抗钝击、穿刺与挥砍伤害，力量检定与豁免具有优势。持续 10 分钟，每次短休可用 2 次。"
+            }
+          }
         },
         {
           "level": 1,
           "id": "unarmored_defense_barb",
           "name": "Unarmored Defense",
           "desc": "While not wearing armor, your AC = 10 + DEX mod + CON mod.",
-          "mech": "ac_unarmored_con"
+          "mech": "ac_unarmored_con",
+          "localized": {
+            "en": {
+              "name": "Unarmored Defense",
+              "desc": "While not wearing armor, your AC = 10 + DEX mod + CON mod."
+            },
+            "zh-CN": {
+              "name": "无甲防御",
+              "desc": "不穿护甲时，护甲等级 = 10 + 敏捷调整值 + 体质调整值。"
+            }
+          }
         },
         {
           "level": 1,
           "id": "weapon_mastery_barb",
           "name": "Weapon Mastery",
           "desc": "You can use the mastery properties of 2 kinds of weapons.",
-          "mech": null
+          "mech": null,
+          "localized": {
+            "en": {
+              "name": "Weapon Mastery",
+              "desc": "You can use the mastery properties of 2 kinds of weapons."
+            },
+            "zh-CN": {
+              "name": "武器精通",
+              "desc": "你可使用 2 种武器的精通属性。"
+            }
+          }
         },
         {
           "level": 2,
           "id": "danger_sense",
           "name": "Danger Sense",
           "desc": "Advantage on DEX saving throws unless Incapacitated.",
-          "mech": "dex_save_adv"
+          "mech": "dex_save_adv",
+          "localized": {
+            "en": {
+              "name": "Danger Sense",
+              "desc": "Advantage on DEX saving throws unless Incapacitated."
+            },
+            "zh-CN": {
+              "name": "危险感知",
+              "desc": "除非陷入失能，敏捷豁免具有优势。"
+            }
+          }
         },
         {
           "level": 2,
@@ -100,7 +164,17 @@
           "desc": "Gain advantage on STR melee attacks, but attacks against you have advantage.",
           "button": true,
           "kind": "free",
-          "mech": "reckless_toggle"
+          "mech": "reckless_toggle",
+          "localized": {
+            "en": {
+              "name": "Reckless Attack",
+              "desc": "Gain advantage on STR melee attacks, but attacks against you have advantage."
+            },
+            "zh-CN": {
+              "name": "鲁莽攻击",
+              "desc": "力量近战攻击获得优势，但对你的攻击也具有优势。"
+            }
+          }
         },
         {
           "level": 3,
@@ -109,32 +183,92 @@
           "desc": "Bonus action (while raging): one extra melee weapon attack.",
           "button": true,
           "kind": "bonus",
-          "mech": "berserker_attack"
+          "mech": "berserker_attack",
+          "localized": {
+            "en": {
+              "name": "Frenzy Attack",
+              "desc": "Bonus action (while raging): one extra melee weapon attack."
+            },
+            "zh-CN": {
+              "name": "狂乱攻击",
+              "desc": "附赠动作（狂暴期间）：额外进行一次近战武器攻击。"
+            }
+          }
         },
         {
           "level": 5,
           "id": "extra_attack",
           "name": "Extra Attack",
-          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically.",
+          "localized": {
+            "en": {
+              "name": "Extra Attack",
+              "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+            },
+            "zh-CN": {
+              "name": "额外攻击",
+              "desc": "执行攻击动作时自动攻击两次。"
+            }
+          }
         },
         {
           "level": 7,
           "id": "feral_instinct",
           "name": "Feral Instinct",
-          "desc": "+2 to Initiative; you are rarely caught unaware."
+          "desc": "+2 to Initiative; you are rarely caught unaware.",
+          "localized": {
+            "en": {
+              "name": "Feral Instinct",
+              "desc": "+2 to Initiative; you are rarely caught unaware."
+            },
+            "zh-CN": {
+              "name": "野性直觉",
+              "desc": "先攻 +2，你很少被打个措手不及。"
+            }
+          }
         },
         {
           "level": 11,
           "id": "relentless_rage",
           "name": "Relentless Rage",
-          "desc": "While raging, when dropped to 0 HP you make a DC 10 CON save to stay at 1 HP instead."
+          "desc": "While raging, when dropped to 0 HP you make a DC 10 CON save to stay at 1 HP instead.",
+          "localized": {
+            "en": {
+              "name": "Relentless Rage",
+              "desc": "While raging, when dropped to 0 HP you make a DC 10 CON save to stay at 1 HP instead."
+            },
+            "zh-CN": {
+              "name": "坚韧狂暴",
+              "desc": "狂暴期间降至 0 点生命时，进行难度 10 的体质豁免，成功则保留 1 点生命。"
+            }
+          }
         }
       ],
       "subclass": {
         "level": 3,
         "id": "berserker",
         "name": "Path of the Berserker",
-        "desc": "While raging, you can make one extra melee weapon attack as a bonus action on your turn."
+        "desc": "While raging, you can make one extra melee weapon attack as a bonus action on your turn.",
+        "localized": {
+          "en": {
+            "name": "Path of the Berserker",
+            "desc": "While raging, you can make one extra melee weapon attack as a bonus action on your turn."
+          },
+          "zh-CN": {
+            "name": "狂战士之道",
+            "desc": "狂暴期间，每回合可用附赠动作额外进行一次近战武器攻击。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Barbarian",
+          "blurb": "A fierce warrior of primal fury who shrugs off wounds that would fell lesser folk."
+        },
+        "zh-CN": {
+          "name": "野蛮人",
+          "blurb": "原始怒火驱动的战士，能承受令常人倒下的伤势。"
+        }
       }
     },
     {
@@ -171,7 +305,15 @@
               "id": "leather",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Leather armor"
+            },
+            "zh-CN": {
+              "label": "皮甲"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -183,7 +325,15 @@
               "id": "rapier",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Rapier"
+            },
+            "zh-CN": {
+              "label": "刺剑"
+            }
+          }
         },
         {
           "id": "longsword",
@@ -193,7 +343,15 @@
               "id": "longsword",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Longsword"
+            },
+            "zh-CN": {
+              "label": "长剑"
+            }
+          }
         }
       ],
       "features": [
@@ -205,33 +363,93 @@
           "button": true,
           "kind": "bonus",
           "uses": "cha/short",
-          "mech": "bardic_inspiration"
+          "mech": "bardic_inspiration",
+          "localized": {
+            "en": {
+              "name": "Bardic Inspiration",
+              "desc": "Bonus action: grant yourself a d6 to add to one attack roll, ability check, or saving throw within 10 minutes. CHA mod uses per Short Rest."
+            },
+            "zh-CN": {
+              "name": "诗人激励",
+              "desc": "附赠动作：获得一个 d6，可在 10 分钟内加到一次攻击、属性检定或豁免。每次短休可用次数等于魅力调整值。"
+            }
+          }
         },
         {
           "level": 2,
           "id": "expertise_bard",
           "name": "Expertise",
           "desc": "Double your proficiency bonus on two of your skill proficiencies.",
-          "mech": "expertise_auto"
+          "mech": "expertise_auto",
+          "localized": {
+            "en": {
+              "name": "Expertise",
+              "desc": "Double your proficiency bonus on two of your skill proficiencies."
+            },
+            "zh-CN": {
+              "name": "专精",
+              "desc": "两项已熟练技能的熟练加值翻倍。"
+            }
+          }
         },
         {
           "level": 10,
           "id": "insp_d10",
           "name": "Greater Inspiration",
-          "desc": "Your Bardic Inspiration die grows to a d10 at level 10."
+          "desc": "Your Bardic Inspiration die grows to a d10 at level 10.",
+          "localized": {
+            "en": {
+              "name": "Greater Inspiration",
+              "desc": "Your Bardic Inspiration die grows to a d10 at level 10."
+            },
+            "zh-CN": {
+              "name": "强效激励",
+              "desc": "10 级时，诗人激励骰提升至 d10。"
+            }
+          }
         },
         {
           "level": 10,
           "id": "magical_secrets",
           "name": "Magical Secrets",
-          "desc": "You learn one spell from any class list."
+          "desc": "You learn one spell from any class list.",
+          "localized": {
+            "en": {
+              "name": "Magical Secrets",
+              "desc": "You learn one spell from any class list."
+            },
+            "zh-CN": {
+              "name": "魔法奥秘",
+              "desc": "学习任意职业列表中的一个法术。"
+            }
+          }
         }
       ],
       "subclass": {
         "level": 3,
         "id": "lore",
         "name": "College of Lore",
-        "desc": "Your Bardic Inspiration die becomes a d8, and you collect cutting truths and forgotten lore."
+        "desc": "Your Bardic Inspiration die becomes a d8, and you collect cutting truths and forgotten lore.",
+        "localized": {
+          "en": {
+            "name": "College of Lore",
+            "desc": "Your Bardic Inspiration die becomes a d8, and you collect cutting truths and forgotten lore."
+          },
+          "zh-CN": {
+            "name": "逸闻学院",
+            "desc": "诗人激励骰提升至 d8，你搜集尖锐真相与失落知识。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Bard",
+          "blurb": "An inspiring magician whose performance weaves song into magic."
+        },
+        "zh-CN": {
+          "name": "吟游诗人",
+          "blurb": "以表演鼓舞他人，将歌声编织成魔法的施法者。"
+        }
       }
     },
     {
@@ -279,7 +497,15 @@
               "id": "shield",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Chain shirt + shield"
+            },
+            "zh-CN": {
+              "label": "链甲衫 + 盾牌"
+            }
+          }
         },
         {
           "id": "scale",
@@ -289,7 +515,15 @@
               "id": "scale_mail",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Scale mail"
+            },
+            "zh-CN": {
+              "label": "鳞甲"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -301,7 +535,15 @@
               "id": "warhammer",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Warhammer"
+            },
+            "zh-CN": {
+              "label": "战锤"
+            }
+          }
         },
         {
           "id": "mace",
@@ -311,7 +553,15 @@
               "id": "mace",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Mace"
+            },
+            "zh-CN": {
+              "label": "硬头锤"
+            }
+          }
         }
       ],
       "features": [
@@ -323,14 +573,34 @@
           "button": true,
           "kind": "action",
           "uses": "2/short",
-          "mech": "divine_spark"
+          "mech": "divine_spark",
+          "localized": {
+            "en": {
+              "name": "Channel Divinity: Divine Spark",
+              "desc": "Action: 1d8 + WIS mod radiant damage (ranged 30 ft) or healing (touch). 2 uses per Short Rest."
+            },
+            "zh-CN": {
+              "name": "引导神力：神圣火花",
+              "desc": "动作：造成 1d8 + 感知调整值的光耀伤害（射程 30 英尺），或触摸治疗等量生命。每次短休可用 2 次。"
+            }
+          }
         },
         {
           "level": 1,
           "id": "divine_order",
           "name": "Divine Order",
           "desc": "You are blessed with martial training: you may wear medium armor and use martial weapons.",
-          "mech": null
+          "mech": null,
+          "localized": {
+            "en": {
+              "name": "Divine Order",
+              "desc": "You are blessed with martial training: you may wear medium armor and use martial weapons."
+            },
+            "zh-CN": {
+              "name": "神圣职守",
+              "desc": "获得武艺训练，可穿中甲并使用军用武器。"
+            }
+          }
         },
         {
           "level": 10,
@@ -340,14 +610,44 @@
           "button": true,
           "kind": "action",
           "uses": "1/long",
-          "mech": "divine_intervention"
+          "mech": "divine_intervention",
+          "localized": {
+            "en": {
+              "name": "Divine Intervention",
+              "desc": "Once per Long Rest, call upon your god for miraculous aid (heal to full)."
+            },
+            "zh-CN": {
+              "name": "神圣干预",
+              "desc": "每次长休可呼唤一次神明援助，将生命恢复至满值。"
+            }
+          }
         }
       ],
       "subclass": {
         "level": 3,
         "id": "life",
         "name": "Life Domain",
-        "desc": "Your healing spells restore 3 extra HP."
+        "desc": "Your healing spells restore 3 extra HP.",
+        "localized": {
+          "en": {
+            "name": "Life Domain",
+            "desc": "Your healing spells restore 3 extra HP."
+          },
+          "zh-CN": {
+            "name": "生命领域",
+            "desc": "治疗法术额外恢复 3 点生命。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Cleric",
+          "blurb": "A divine conduit wielding the power of their god to smite and to heal."
+        },
+        "zh-CN": {
+          "name": "牧师",
+          "blurb": "神力的引导者，借助信仰惩击敌人、治愈伤者。"
+        }
       }
     },
     {
@@ -398,7 +698,15 @@
               "id": "shield",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Leather armor + wooden shield"
+            },
+            "zh-CN": {
+              "label": "皮甲 + 木盾"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -410,7 +718,15 @@
               "id": "quarterstaff",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Quarterstaff"
+            },
+            "zh-CN": {
+              "label": "长棍"
+            }
+          }
         },
         {
           "id": "club",
@@ -424,7 +740,15 @@
               "id": "dagger",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Club + dagger"
+            },
+            "zh-CN": {
+              "label": "木棒 + 匕首"
+            }
+          }
         }
       ],
       "features": [
@@ -436,27 +760,77 @@
           "button": true,
           "kind": "bonus",
           "uses": "2/short",
-          "mech": "wild_shape"
+          "mech": "wild_shape",
+          "localized": {
+            "en": {
+              "name": "Wild Shape (simplified)",
+              "desc": "Bonus action: take Wolf form for 10 rounds — AC 12, speed 40 ft, Bite attack (+PB+WIS, 1d8+WIS piercing). You keep your HP. Ends on Long Rest. 2 uses per Short Rest."
+            },
+            "zh-CN": {
+              "name": "荒野形态（简化）",
+              "desc": "附赠动作：变为狼，持续 10 回合；护甲 12、速度 40 英尺，啮咬攻击加值为熟练加值 + 感知调整值，造成 1d8 + 感知调整值穿刺伤害。保留生命，长休结束形态，每次短休可用 2 次。"
+            }
+          }
         },
         {
           "level": 1,
           "id": "primal_order",
           "name": "Primal Order (Magical)",
           "desc": "You gain one extra Druid cantrip and proficiency in Nature.",
-          "mech": "extra_cantrip"
+          "mech": "extra_cantrip",
+          "localized": {
+            "en": {
+              "name": "Primal Order (Magical)",
+              "desc": "You gain one extra Druid cantrip and proficiency in Nature."
+            },
+            "zh-CN": {
+              "name": "原初职守（魔法）",
+              "desc": "获得额外一个德鲁伊戏法与自然技能熟练。"
+            }
+          }
         },
         {
           "level": 10,
           "id": "nature_ward",
           "name": "Nature's Ward",
-          "desc": "You are immune to poison and disease."
+          "desc": "You are immune to poison and disease.",
+          "localized": {
+            "en": {
+              "name": "Nature's Ward",
+              "desc": "You are immune to poison and disease."
+            },
+            "zh-CN": {
+              "name": "自然庇护",
+              "desc": "免疫毒素与疾病。"
+            }
+          }
         }
       ],
       "subclass": {
         "level": 3,
         "id": "land",
         "name": "Circle of the Land",
-        "desc": "Natural Recovery: once per Long Rest, a Short Rest also restores one level-1 spell slot."
+        "desc": "Natural Recovery: once per Long Rest, a Short Rest also restores one level-1 spell slot.",
+        "localized": {
+          "en": {
+            "name": "Circle of the Land",
+            "desc": "Natural Recovery: once per Long Rest, a Short Rest also restores one level-1 spell slot."
+          },
+          "zh-CN": {
+            "name": "大地结社",
+            "desc": "自然恢复：每次长休限一次，短休同时恢复一个 1 环法术位。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Druid",
+          "blurb": "A priest of the Old Faith, wielding nature's power and beast shapes."
+        },
+        "zh-CN": {
+          "name": "德鲁伊",
+          "blurb": "侍奉古老信仰的祭司，运用自然力量与野兽形态。"
+        }
       }
     },
     {
@@ -507,7 +881,15 @@
               "id": "chain_mail",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Chain mail"
+            },
+            "zh-CN": {
+              "label": "链甲"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -523,7 +905,15 @@
               "id": "shield",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Longsword + shield"
+            },
+            "zh-CN": {
+              "label": "长剑 + 盾牌"
+            }
+          }
         },
         {
           "id": "great",
@@ -533,7 +923,15 @@
               "id": "greatsword",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Greatsword"
+            },
+            "zh-CN": {
+              "label": "巨剑"
+            }
+          }
         },
         {
           "id": "archer",
@@ -547,7 +945,15 @@
               "id": "shortsword",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Longbow, arrows + shortsword"
+            },
+            "zh-CN": {
+              "label": "长弓、箭矢 + 短剑"
+            }
+          }
         }
       ],
       "features": [
@@ -559,14 +965,34 @@
           "button": true,
           "kind": "bonus",
           "uses": "2/short",
-          "mech": "second_wind"
+          "mech": "second_wind",
+          "localized": {
+            "en": {
+              "name": "Second Wind",
+              "desc": "Bonus action: regain 1d10 + Fighter level HP. 2 uses per Short Rest."
+            },
+            "zh-CN": {
+              "name": "回气",
+              "desc": "附赠动作：恢复 1d10 + 战士等级点生命，每次短休可用 2 次。"
+            }
+          }
         },
         {
           "level": 1,
           "id": "weapon_mastery_ftr",
           "name": "Weapon Mastery",
           "desc": "You can use the mastery properties of 2 kinds of weapons.",
-          "mech": null
+          "mech": null,
+          "localized": {
+            "en": {
+              "name": "Weapon Mastery",
+              "desc": "You can use the mastery properties of 2 kinds of weapons."
+            },
+            "zh-CN": {
+              "name": "武器精通",
+              "desc": "你可使用 2 种武器的精通属性。"
+            }
+          }
         },
         {
           "level": 2,
@@ -576,7 +1002,17 @@
           "button": true,
           "kind": "free",
           "uses": "1/short",
-          "mech": "action_surge"
+          "mech": "action_surge",
+          "localized": {
+            "en": {
+              "name": "Action Surge",
+              "desc": "Take one additional Action on your turn. Once per Short Rest."
+            },
+            "zh-CN": {
+              "name": "动作如潮",
+              "desc": "本回合额外获得一个动作，每次短休可用一次。"
+            }
+          }
         },
         {
           "level": 3,
@@ -586,32 +1022,92 @@
           "button": true,
           "kind": "action",
           "uses": "1/short",
-          "mech": "commanders_strike"
+          "mech": "commanders_strike",
+          "localized": {
+            "en": {
+              "name": "Commander’s Strike",
+              "desc": "Action: one attack that deals +1d8 damage. Once per Short Rest."
+            },
+            "zh-CN": {
+              "name": "指挥打击",
+              "desc": "动作：一次攻击额外造成 +1d8 伤害，每次短休可用一次。"
+            }
+          }
         },
         {
           "level": 5,
           "id": "extra_attack",
           "name": "Extra Attack",
-          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically.",
+          "localized": {
+            "en": {
+              "name": "Extra Attack",
+              "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+            },
+            "zh-CN": {
+              "name": "额外攻击",
+              "desc": "执行攻击动作时自动攻击两次。"
+            }
+          }
         },
         {
           "level": 9,
           "id": "indomitable",
           "name": "Indomitable",
-          "desc": "Once per Long Rest, reroll a failed saving throw."
+          "desc": "Once per Long Rest, reroll a failed saving throw.",
+          "localized": {
+            "en": {
+              "name": "Indomitable",
+              "desc": "Once per Long Rest, reroll a failed saving throw."
+            },
+            "zh-CN": {
+              "name": "不屈",
+              "desc": "每次长休可重掷一次失败的豁免。"
+            }
+          }
         },
         {
           "level": 11,
           "id": "extra_attack_2",
           "name": "Extra Attack (2)",
-          "desc": "Your Extra Attack now grants three attacks instead of two."
+          "desc": "Your Extra Attack now grants three attacks instead of two.",
+          "localized": {
+            "en": {
+              "name": "Extra Attack (2)",
+              "desc": "Your Extra Attack now grants three attacks instead of two."
+            },
+            "zh-CN": {
+              "name": "额外攻击（二）",
+              "desc": "额外攻击由两次提升为三次攻击。"
+            }
+          }
         }
       ],
       "subclass": {
         "level": 3,
         "id": "battlemaster",
         "name": "Battle Master",
-        "desc": "You know Superiority Dice. Once per Short Rest, command a strike that deals +1d8 damage."
+        "desc": "You know Superiority Dice. Once per Short Rest, command a strike that deals +1d8 damage.",
+        "localized": {
+          "en": {
+            "name": "Battle Master",
+            "desc": "You know Superiority Dice. Once per Short Rest, command a strike that deals +1d8 damage."
+          },
+          "zh-CN": {
+            "name": "战斗大师",
+            "desc": "获得卓越骰，每次短休可指挥一次额外造成 +1d8 伤害的打击。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Fighter",
+          "blurb": "A master of weapons and tactics, equally deadly up close or at range."
+        },
+        "zh-CN": {
+          "name": "战士",
+          "blurb": "精通武器与战术，无论近身还是远射都同样致命。"
+        }
       }
     },
     {
@@ -641,7 +1137,15 @@
         {
           "id": "none",
           "label": "No armor (Unarmored Defense: 10 + DEX + WIS)",
-          "items": []
+          "items": [],
+          "localized": {
+            "en": {
+              "label": "No armor (Unarmored Defense: 10 + DEX + WIS)"
+            },
+            "zh-CN": {
+              "label": "不穿护甲（无甲防御：10 + 敏捷调整值 + 感知调整值）"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -653,7 +1157,15 @@
               "id": "quarterstaff",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Quarterstaff"
+            },
+            "zh-CN": {
+              "label": "长棍"
+            }
+          }
         },
         {
           "id": "shortsword",
@@ -663,7 +1175,15 @@
               "id": "shortsword",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Shortsword"
+            },
+            "zh-CN": {
+              "label": "短剑"
+            }
+          }
         }
       ],
       "features": [
@@ -672,21 +1192,51 @@
           "id": "martial_arts",
           "name": "Martial Arts",
           "desc": "DEX for unarmed/monk weapon attacks; unarmed strikes deal 1d6; Bonus action unarmed strike after the Attack action.",
-          "mech": "martial_arts"
+          "mech": "martial_arts",
+          "localized": {
+            "en": {
+              "name": "Martial Arts",
+              "desc": "DEX for unarmed/monk weapon attacks; unarmed strikes deal 1d6; Bonus action unarmed strike after the Attack action."
+            },
+            "zh-CN": {
+              "name": "武艺",
+              "desc": "徒手或武僧武器攻击可用敏捷；徒手打击伤害为 1d6，攻击动作后可用附赠动作徒手打击。"
+            }
+          }
         },
         {
           "level": 1,
           "id": "unarmored_defense_monk",
           "name": "Unarmored Defense",
           "desc": "While not wearing armor, your AC = 10 + DEX mod + WIS mod.",
-          "mech": "ac_unarmored_wis"
+          "mech": "ac_unarmored_wis",
+          "localized": {
+            "en": {
+              "name": "Unarmored Defense",
+              "desc": "While not wearing armor, your AC = 10 + DEX mod + WIS mod."
+            },
+            "zh-CN": {
+              "name": "无甲防御",
+              "desc": "不穿护甲时，护甲等级 = 10 + 敏捷调整值 + 感知调整值。"
+            }
+          }
         },
         {
           "level": 2,
           "id": "focus",
           "name": "Focus Points",
           "desc": "You have Focus Points equal to your level (refresh on Short Rest) to power your Monk abilities.",
-          "mech": "focus_points"
+          "mech": "focus_points",
+          "localized": {
+            "en": {
+              "name": "Focus Points",
+              "desc": "You have Focus Points equal to your level (refresh on Short Rest) to power your Monk abilities."
+            },
+            "zh-CN": {
+              "name": "专注点",
+              "desc": "专注点等于等级，短休恢复，用于武僧能力。"
+            }
+          }
         },
         {
           "level": 2,
@@ -695,7 +1245,17 @@
           "desc": "Bonus action, 1 Focus: make two unarmed strikes.",
           "button": true,
           "kind": "bonus",
-          "mech": "flurry"
+          "mech": "flurry",
+          "localized": {
+            "en": {
+              "name": "Flurry of Blows",
+              "desc": "Bonus action, 1 Focus: make two unarmed strikes."
+            },
+            "zh-CN": {
+              "name": "疾风连击",
+              "desc": "附赠动作，消耗 1 点专注：进行两次徒手打击。"
+            }
+          }
         },
         {
           "level": 2,
@@ -704,7 +1264,17 @@
           "desc": "Bonus action, 1 Focus: attacks against you have disadvantage until your next turn.",
           "button": true,
           "kind": "bonus",
-          "mech": "patient_defense"
+          "mech": "patient_defense",
+          "localized": {
+            "en": {
+              "name": "Patient Defense",
+              "desc": "Bonus action, 1 Focus: attacks against you have disadvantage until your next turn."
+            },
+            "zh-CN": {
+              "name": "闪身防御",
+              "desc": "附赠动作，消耗 1 点专注：直到下回合，对你的攻击具有劣势。"
+            }
+          }
         },
         {
           "level": 2,
@@ -713,39 +1283,109 @@
           "desc": "Bonus action, 1 Focus: take the Dash or Disengage action.",
           "button": true,
           "kind": "bonus",
-          "mech": "step_of_wind"
+          "mech": "step_of_wind",
+          "localized": {
+            "en": {
+              "name": "Step of the Wind",
+              "desc": "Bonus action, 1 Focus: take the Dash or Disengage action."
+            },
+            "zh-CN": {
+              "name": "疾步如风",
+              "desc": "附赠动作，消耗 1 点专注：疾走或撤离。"
+            }
+          }
         },
         {
           "level": 2,
           "id": "unarmored_movement",
           "name": "Unarmored Movement",
           "desc": "+10 ft speed while unarmored.",
-          "mech": "unarmored_movement"
+          "mech": "unarmored_movement",
+          "localized": {
+            "en": {
+              "name": "Unarmored Movement",
+              "desc": "+10 ft speed while unarmored."
+            },
+            "zh-CN": {
+              "name": "无甲移动",
+              "desc": "不穿护甲时速度 +10 英尺。"
+            }
+          }
         },
         {
           "level": 5,
           "id": "extra_attack",
           "name": "Extra Attack",
-          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically.",
+          "localized": {
+            "en": {
+              "name": "Extra Attack",
+              "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+            },
+            "zh-CN": {
+              "name": "额外攻击",
+              "desc": "执行攻击动作时自动攻击两次。"
+            }
+          }
         },
         {
           "level": 10,
           "id": "monk_dice10",
           "name": "Martial Arts (1d10)",
-          "desc": "Your unarmed strikes deal 1d10 damage at level 10."
+          "desc": "Your unarmed strikes deal 1d10 damage at level 10.",
+          "localized": {
+            "en": {
+              "name": "Martial Arts (1d10)",
+              "desc": "Your unarmed strikes deal 1d10 damage at level 10."
+            },
+            "zh-CN": {
+              "name": "武艺（1d10）",
+              "desc": "10 级时徒手打击造成 1d10 伤害。"
+            }
+          }
         },
         {
           "level": 10,
           "id": "purity",
           "name": "Purity of Body",
-          "desc": "You are immune to poison and disease."
+          "desc": "You are immune to poison and disease.",
+          "localized": {
+            "en": {
+              "name": "Purity of Body",
+              "desc": "You are immune to poison and disease."
+            },
+            "zh-CN": {
+              "name": "身心纯净",
+              "desc": "免疫毒素与疾病。"
+            }
+          }
         }
       ],
       "subclass": {
         "level": 3,
         "id": "openhand",
         "name": "Way of the Open Hand",
-        "desc": "Your Flurry of Blows can shove — each hit can knock the target back 5 feet."
+        "desc": "Your Flurry of Blows can shove — each hit can knock the target back 5 feet.",
+        "localized": {
+          "en": {
+            "name": "Way of the Open Hand",
+            "desc": "Your Flurry of Blows can shove — each hit can knock the target back 5 feet."
+          },
+          "zh-CN": {
+            "name": "散打宗",
+            "desc": "疾风连击的每次命中都能将目标击退 5 英尺。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Monk",
+          "blurb": "A martial artist who channels ki — focusing body and mind into a living weapon."
+        },
+        "zh-CN": {
+          "name": "武僧",
+          "blurb": "以专注协调身心，将自身化作武器的武术家。"
+        }
       }
     },
     {
@@ -797,7 +1437,15 @@
               "id": "chain_mail",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Chain mail"
+            },
+            "zh-CN": {
+              "label": "链甲"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -813,7 +1461,15 @@
               "id": "shield",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Longsword + shield"
+            },
+            "zh-CN": {
+              "label": "长剑 + 盾牌"
+            }
+          }
         },
         {
           "id": "great",
@@ -823,7 +1479,15 @@
               "id": "greatsword",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Greatsword"
+            },
+            "zh-CN": {
+              "label": "巨剑"
+            }
+          }
         }
       ],
       "features": [
@@ -835,21 +1499,51 @@
           "button": true,
           "kind": "bonus",
           "uses": "pool5xlevel/long",
-          "mech": "lay_on_hands"
+          "mech": "lay_on_hands",
+          "localized": {
+            "en": {
+              "name": "Lay On Hands",
+              "desc": "Bonus action (touch): heal from a pool of 5 HP × Paladin level. Heals can be split across uses. Pool refreshes on Long Rest."
+            },
+            "zh-CN": {
+              "name": "圣疗",
+              "desc": "附赠动作（触摸）：从等于 5 × 圣武士等级的生命池中治疗，可分次使用，长休恢复。"
+            }
+          }
         },
         {
           "level": 1,
           "id": "weapon_mastery_pal",
           "name": "Weapon Mastery",
           "desc": "You can use the mastery properties of 2 kinds of weapons.",
-          "mech": null
+          "mech": null,
+          "localized": {
+            "en": {
+              "name": "Weapon Mastery",
+              "desc": "You can use the mastery properties of 2 kinds of weapons."
+            },
+            "zh-CN": {
+              "name": "武器精通",
+              "desc": "你可使用 2 种武器的精通属性。"
+            }
+          }
         },
         {
           "level": 2,
           "id": "fighting_style_pal",
           "name": "Fighting Style",
           "desc": "Gain a Fighting Style feat.",
-          "mech": "fighting_style"
+          "mech": "fighting_style",
+          "localized": {
+            "en": {
+              "name": "Fighting Style",
+              "desc": "Gain a Fighting Style feat."
+            },
+            "zh-CN": {
+              "name": "战斗风格",
+              "desc": "获得一个战斗风格专长。"
+            }
+          }
         },
         {
           "level": 2,
@@ -858,7 +1552,17 @@
           "desc": "Bonus action + 1 spell slot: your next weapon hit this turn deals +2d8 radiant damage.",
           "button": true,
           "kind": "bonus",
-          "mech": "divine_smite"
+          "mech": "divine_smite",
+          "localized": {
+            "en": {
+              "name": "Divine Smite",
+              "desc": "Bonus action + 1 spell slot: your next weapon hit this turn deals +2d8 radiant damage."
+            },
+            "zh-CN": {
+              "name": "至圣斩",
+              "desc": "附赠动作并消耗一个法术位：本回合下次武器命中额外造成 +2d8 光耀伤害。"
+            }
+          }
         },
         {
           "level": 3,
@@ -868,33 +1572,93 @@
           "button": true,
           "kind": "bonus",
           "uses": "1/short",
-          "mech": "sacred_weapon"
+          "mech": "sacred_weapon",
+          "localized": {
+            "en": {
+              "name": "Sacred Weapon",
+              "desc": "Bonus action: +1 to attack and +CHA radiant damage for 10 rounds. Once per Short Rest."
+            },
+            "zh-CN": {
+              "name": "神圣武器",
+              "desc": "附赠动作：攻击 +1、额外光耀伤害等于魅力调整值，持续 10 回合，每次短休可用一次。"
+            }
+          }
         },
         {
           "level": 5,
           "id": "extra_attack",
           "name": "Extra Attack",
-          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically.",
+          "localized": {
+            "en": {
+              "name": "Extra Attack",
+              "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+            },
+            "zh-CN": {
+              "name": "额外攻击",
+              "desc": "执行攻击动作时自动攻击两次。"
+            }
+          }
         },
         {
           "level": 6,
           "id": "aura_protection",
           "name": "Aura of Protection",
-          "desc": "You and companions near you add your CHA modifier to saving throws (you always do)."
+          "desc": "You and companions near you add your CHA modifier to saving throws (you always do).",
+          "localized": {
+            "en": {
+              "name": "Aura of Protection",
+              "desc": "You and companions near you add your CHA modifier to saving throws (you always do)."
+            },
+            "zh-CN": {
+              "name": "守护灵光",
+              "desc": "你与附近同伴的豁免加上你的魅力调整值；你始终享受此加值。"
+            }
+          }
         },
         {
           "level": 11,
           "id": "improved_smite",
           "name": "Improved Divine Smite",
           "desc": "Your weapon attacks deal an extra +1d8 radiant damage.",
-          "mech": "improved_smite"
+          "mech": "improved_smite",
+          "localized": {
+            "en": {
+              "name": "Improved Divine Smite",
+              "desc": "Your weapon attacks deal an extra +1d8 radiant damage."
+            },
+            "zh-CN": {
+              "name": "精通至圣斩",
+              "desc": "武器攻击额外造成 +1d8 光耀伤害。"
+            }
+          }
         }
       ],
       "subclass": {
         "level": 3,
         "id": "devotion",
         "name": "Oath of Devotion",
-        "desc": "Sacred Weapon: bonus action, for 10 rounds your weapon gains +1 attack and +CHA radiant damage."
+        "desc": "Sacred Weapon: bonus action, for 10 rounds your weapon gains +1 attack and +CHA radiant damage.",
+        "localized": {
+          "en": {
+            "name": "Oath of Devotion",
+            "desc": "Sacred Weapon: bonus action, for 10 rounds your weapon gains +1 attack and +CHA radiant damage."
+          },
+          "zh-CN": {
+            "name": "奉献之誓",
+            "desc": "神圣武器：附赠动作，武器获得攻击 +1 与魅力调整值的额外光耀伤害，持续 10 回合。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Paladin",
+          "blurb": "A holy warrior bound by an oath, wielding divine power in battle."
+        },
+        "zh-CN": {
+          "name": "圣武士",
+          "blurb": "受誓言约束、在战斗中运用神力的神圣战士。"
+        }
       }
     },
     {
@@ -949,7 +1713,15 @@
               "id": "studded_leather",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Studded leather armor"
+            },
+            "zh-CN": {
+              "label": "镶钉皮甲"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -965,7 +1737,15 @@
               "id": "shortsword",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Longbow + shortsword"
+            },
+            "zh-CN": {
+              "label": "长弓 + 短剑"
+            }
+          }
         },
         {
           "id": "dual",
@@ -975,7 +1755,15 @@
               "id": "shortsword",
               "qty": 2
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "2 Shortswords"
+            },
+            "zh-CN": {
+              "label": "2 把短剑"
+            }
+          }
         }
       ],
       "features": [
@@ -984,53 +1772,143 @@
           "id": "expertise_ranger",
           "name": "Expertise",
           "desc": "Double your proficiency bonus on one skill (auto: Perception, or your first class skill).",
-          "mech": "expertise_auto"
+          "mech": "expertise_auto",
+          "localized": {
+            "en": {
+              "name": "Expertise",
+              "desc": "Double your proficiency bonus on one skill (auto: Perception, or your first class skill)."
+            },
+            "zh-CN": {
+              "name": "专精",
+              "desc": "一项技能的熟练加值翻倍，自动选察觉或首个职业技能。"
+            }
+          }
         },
         {
           "level": 1,
           "id": "weapon_mastery_rng",
           "name": "Weapon Mastery",
           "desc": "You can use the mastery properties of 2 kinds of weapons.",
-          "mech": null
+          "mech": null,
+          "localized": {
+            "en": {
+              "name": "Weapon Mastery",
+              "desc": "You can use the mastery properties of 2 kinds of weapons."
+            },
+            "zh-CN": {
+              "name": "武器精通",
+              "desc": "你可使用 2 种武器的精通属性。"
+            }
+          }
         },
         {
           "level": 2,
           "id": "fighting_style_rng",
           "name": "Fighting Style",
           "desc": "Gain a Fighting Style feat.",
-          "mech": "fighting_style"
+          "mech": "fighting_style",
+          "localized": {
+            "en": {
+              "name": "Fighting Style",
+              "desc": "Gain a Fighting Style feat."
+            },
+            "zh-CN": {
+              "name": "战斗风格",
+              "desc": "获得一个战斗风格专长。"
+            }
+          }
         },
         {
           "level": 2,
           "id": "hunters_mark",
           "name": "Hunter's Mark (free casts)",
           "desc": "Hunter's Mark is always prepared; cast it without a slot twice per Long Rest.",
-          "mech": "hunters_mark_free"
+          "mech": "hunters_mark_free",
+          "localized": {
+            "en": {
+              "name": "Hunter's Mark (free casts)",
+              "desc": "Hunter's Mark is always prepared; cast it without a slot twice per Long Rest."
+            },
+            "zh-CN": {
+              "name": "猎人印记（免费施放）",
+              "desc": "始终准备猎人印记，每次长休可不耗法术位施放两次。"
+            }
+          }
         },
         {
           "level": 5,
           "id": "extra_attack",
           "name": "Extra Attack",
-          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+          "desc": "When you take the Attack action, you strike twice — the second attack follows automatically.",
+          "localized": {
+            "en": {
+              "name": "Extra Attack",
+              "desc": "When you take the Attack action, you strike twice — the second attack follows automatically."
+            },
+            "zh-CN": {
+              "name": "额外攻击",
+              "desc": "执行攻击动作时自动攻击两次。"
+            }
+          }
         },
         {
           "level": 6,
           "id": "roving",
           "name": "Roving",
-          "desc": "Your speed increases by 10 ft."
+          "desc": "Your speed increases by 10 ft.",
+          "localized": {
+            "en": {
+              "name": "Roving",
+              "desc": "Your speed increases by 10 ft."
+            },
+            "zh-CN": {
+              "name": "漫游者",
+              "desc": "速度提升 10 英尺。"
+            }
+          }
         },
         {
           "level": 10,
           "id": "natures_veil",
           "name": "Nature's Veil",
-          "desc": "You can cloak yourself in nature to become invisible as a bonus action."
+          "desc": "You can cloak yourself in nature to become invisible as a bonus action.",
+          "localized": {
+            "en": {
+              "name": "Nature's Veil",
+              "desc": "You can cloak yourself in nature to become invisible as a bonus action."
+            },
+            "zh-CN": {
+              "name": "自然面纱",
+              "desc": "可用附赠动作借自然之力隐形。"
+            }
+          }
         }
       ],
       "subclass": {
         "level": 3,
         "id": "hunter",
         "name": "Hunter",
-        "desc": "Colossus Slayer: once per turn, +1d8 damage against a wounded target."
+        "desc": "Colossus Slayer: once per turn, +1d8 damage against a wounded target.",
+        "localized": {
+          "en": {
+            "name": "Hunter",
+            "desc": "Colossus Slayer: once per turn, +1d8 damage against a wounded target."
+          },
+          "zh-CN": {
+            "name": "猎人",
+            "desc": "巨像屠夫：每回合一次，对受伤目标额外造成 +1d8 伤害。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Ranger",
+          "blurb": "A wilderness hunter who tracks their quarry and strikes from afar."
+        },
+        "zh-CN": {
+          "name": "游侠",
+          "blurb": "追踪猎物、从远处出击的荒野猎手。"
+        }
       }
     },
     {
@@ -1073,7 +1951,15 @@
               "id": "leather",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Leather armor"
+            },
+            "zh-CN": {
+              "label": "皮甲"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -1093,7 +1979,15 @@
               "id": "thieves_tools",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Shortsword + dagger + thieves' tools"
+            },
+            "zh-CN": {
+              "label": "短剑 + 匕首 + 盗贼工具"
+            }
+          }
         },
         {
           "id": "rapier",
@@ -1107,7 +2001,15 @@
               "id": "thieves_tools",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Rapier + thieves' tools"
+            },
+            "zh-CN": {
+              "label": "刺剑 + 盗贼工具"
+            }
+          }
         }
       ],
       "features": [
@@ -1116,21 +2018,51 @@
           "id": "sneak_attack",
           "name": "Sneak Attack",
           "desc": "Once per turn, deal +1d6 extra damage when you have advantage on the attack or an ally is within 5 ft of the target.",
-          "mech": "sneak_attack"
+          "mech": "sneak_attack",
+          "localized": {
+            "en": {
+              "name": "Sneak Attack",
+              "desc": "Once per turn, deal +1d6 extra damage when you have advantage on the attack or an ally is within 5 ft of the target."
+            },
+            "zh-CN": {
+              "name": "偷袭",
+              "desc": "每回合一次，攻击具有优势或目标 5 英尺内有盟友时，额外造成 +1d6 伤害。"
+            }
+          }
         },
         {
           "level": 1,
           "id": "expertise_rogue",
           "name": "Expertise",
           "desc": "Double proficiency bonus on two skills (auto: Stealth and one more you know).",
-          "mech": "expertise_auto"
+          "mech": "expertise_auto",
+          "localized": {
+            "en": {
+              "name": "Expertise",
+              "desc": "Double proficiency bonus on two skills (auto: Stealth and one more you know)."
+            },
+            "zh-CN": {
+              "name": "专精",
+              "desc": "两项技能的熟练加值翻倍，自动选隐匿与另一项已熟练技能。"
+            }
+          }
         },
         {
           "level": 1,
           "id": "thieves_cant",
           "name": "Thieves' Cant",
           "desc": "You understand thieves' cant and can read hidden messages.",
-          "mech": null
+          "mech": null,
+          "localized": {
+            "en": {
+              "name": "Thieves' Cant",
+              "desc": "You understand thieves' cant and can read hidden messages."
+            },
+            "zh-CN": {
+              "name": "盗贼黑话",
+              "desc": "你能理解盗贼黑话，读懂暗藏的信息。"
+            }
+          }
         },
         {
           "level": 2,
@@ -1139,7 +2071,17 @@
           "desc": "Bonus action: Dash, Disengage, or Hide.",
           "button": true,
           "kind": "bonus",
-          "mech": "cunning_action"
+          "mech": "cunning_action",
+          "localized": {
+            "en": {
+              "name": "Cunning Action",
+              "desc": "Bonus action: Dash, Disengage, or Hide."
+            },
+            "zh-CN": {
+              "name": "灵巧动作",
+              "desc": "附赠动作：疾走、撤离或躲藏。"
+            }
+          }
         },
         {
           "level": 2,
@@ -1148,26 +2090,76 @@
           "desc": "Bonus action: advantage on your next attack this turn; your speed becomes 0.",
           "button": true,
           "kind": "bonus",
-          "mech": "steady_aim"
+          "mech": "steady_aim",
+          "localized": {
+            "en": {
+              "name": "Steady Aim",
+              "desc": "Bonus action: advantage on your next attack this turn; your speed becomes 0."
+            },
+            "zh-CN": {
+              "name": "稳定瞄准",
+              "desc": "附赠动作：本回合下次攻击具有优势，速度变为 0。"
+            }
+          }
         },
         {
           "level": 7,
           "id": "evasion",
           "name": "Evasion",
-          "desc": "On DEX saves that deal half damage on a success, you take none on a success and half on a failure."
+          "desc": "On DEX saves that deal half damage on a success, you take none on a success and half on a failure.",
+          "localized": {
+            "en": {
+              "name": "Evasion",
+              "desc": "On DEX saves that deal half damage on a success, you take none on a success and half on a failure."
+            },
+            "zh-CN": {
+              "name": "反射闪避",
+              "desc": "敏捷豁免成功本应减半的伤害，改为成功不受伤、失败受一半伤害。"
+            }
+          }
         },
         {
           "level": 11,
           "id": "reliable_talent",
           "name": "Reliable Talent",
-          "desc": "Whenever you make an ability check you are proficient in, treat any d20 roll below 10 as a 10."
+          "desc": "Whenever you make an ability check you are proficient in, treat any d20 roll below 10 as a 10.",
+          "localized": {
+            "en": {
+              "name": "Reliable Talent",
+              "desc": "Whenever you make an ability check you are proficient in, treat any d20 roll below 10 as a 10."
+            },
+            "zh-CN": {
+              "name": "可靠才能",
+              "desc": "已熟练的属性检定中，将低于 10 的 d20 结果视为 10。"
+            }
+          }
         }
       ],
       "subclass": {
         "level": 3,
         "id": "thief",
         "name": "Thief",
-        "desc": "Second-story Work: you make Stealth checks with advantage."
+        "desc": "Second-story Work: you make Stealth checks with advantage.",
+        "localized": {
+          "en": {
+            "name": "Thief",
+            "desc": "Second-story Work: you make Stealth checks with advantage."
+          },
+          "zh-CN": {
+            "name": "盗贼",
+            "desc": "二层作业：隐匿检定具有优势。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Rogue",
+          "blurb": "A skilled striker of shadows who deals devastating precise blows."
+        },
+        "zh-CN": {
+          "name": "游荡者",
+          "blurb": "藏身阴影、以精准打击重创敌人的技巧型战士。"
+        }
       }
     },
     {
@@ -1198,7 +2190,15 @@
         {
           "id": "none",
           "label": "No armor",
-          "items": []
+          "items": [],
+          "localized": {
+            "en": {
+              "label": "No armor"
+            },
+            "zh-CN": {
+              "label": "不穿护甲"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -1210,7 +2210,15 @@
               "id": "dagger",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Dagger"
+            },
+            "zh-CN": {
+              "label": "匕首"
+            }
+          }
         },
         {
           "id": "quarterstaff",
@@ -1220,7 +2228,15 @@
               "id": "quarterstaff",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Quarterstaff"
+            },
+            "zh-CN": {
+              "label": "长棍"
+            }
+          }
         }
       ],
       "spellcasting": {
@@ -1239,13 +2255,33 @@
           "button": true,
           "kind": "bonus",
           "uses": "1/long",
-          "mech": "innate_sorcery"
+          "mech": "innate_sorcery",
+          "localized": {
+            "en": {
+              "name": "Innate Sorcery",
+              "desc": "Bonus action: for 1 minute, spell attack rolls have advantage and your spell save DC is +1. Once per Long Rest."
+            },
+            "zh-CN": {
+              "name": "天生术法",
+              "desc": "附赠动作：法术攻击具有优势、法术豁免难度 +1，持续 1 分钟，每次长休可用一次。"
+            }
+          }
         },
         {
           "level": 12,
           "id": "sorcery_incarnate",
           "name": "Sorcery Incarnate",
-          "desc": "You can use your Innate Sorcery twice per Long Rest."
+          "desc": "You can use your Innate Sorcery twice per Long Rest.",
+          "localized": {
+            "en": {
+              "name": "Sorcery Incarnate",
+              "desc": "You can use your Innate Sorcery twice per Long Rest."
+            },
+            "zh-CN": {
+              "name": "术法化身",
+              "desc": "每次长休可使用天生术法两次。"
+            }
+          }
         }
       ],
       "subclass": {
@@ -1253,7 +2289,27 @@
         "id": "draconic",
         "name": "Draconic Bloodline",
         "desc": "Draconic Resilience: +3 max HP and +1 AC while unarmored; your spells carry the fire of your bloodline.",
-        "hpBonus": 3
+        "hpBonus": 3,
+        "localized": {
+          "en": {
+            "name": "Draconic Bloodline",
+            "desc": "Draconic Resilience: +3 max HP and +1 AC while unarmored; your spells carry the fire of your bloodline."
+          },
+          "zh-CN": {
+            "name": "龙族血脉",
+            "desc": "龙族韧性：不穿护甲时最大生命 +3、护甲 +1；法术带着血脉的火焰。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Sorcerer",
+          "blurb": "Magic flows innately through your blood, shaped by will alone."
+        },
+        "zh-CN": {
+          "name": "术士",
+          "blurb": "魔力在血脉中流动，只凭意志便能塑形。"
+        }
       }
     },
     {
@@ -1293,22 +2349,62 @@
         {
           "id": "agonizing_blast",
           "name": "Agonizing Blast",
-          "desc": "Add your CHA modifier to Eldritch Blast damage."
+          "desc": "Add your CHA modifier to Eldritch Blast damage.",
+          "localized": {
+            "en": {
+              "name": "Agonizing Blast",
+              "desc": "Add your CHA modifier to Eldritch Blast damage."
+            },
+            "zh-CN": {
+              "name": "痛苦魔爆",
+              "desc": "魔能爆伤害加上魅力调整值。"
+            }
+          }
         },
         {
           "id": "repelling_blast",
           "name": "Repelling Blast",
-          "desc": "When you hit with Eldritch Blast, push the target 10 ft away."
+          "desc": "When you hit with Eldritch Blast, push the target 10 ft away.",
+          "localized": {
+            "en": {
+              "name": "Repelling Blast",
+              "desc": "When you hit with Eldritch Blast, push the target 10 ft away."
+            },
+            "zh-CN": {
+              "name": "斥力魔爆",
+              "desc": "魔能爆命中时将目标击退 10 英尺。"
+            }
+          }
         },
         {
           "id": "devils_sight",
           "name": "Devil's Sight",
-          "desc": "See normally in darkness out to 120 ft."
+          "desc": "See normally in darkness out to 120 ft.",
+          "localized": {
+            "en": {
+              "name": "Devil's Sight",
+              "desc": "See normally in darkness out to 120 ft."
+            },
+            "zh-CN": {
+              "name": "魔鬼视界",
+              "desc": "能正常看清 120 英尺内的黑暗。"
+            }
+          }
         },
         {
           "id": "armor_of_shadows",
           "name": "Armor of Shadows",
-          "desc": "Your AC becomes 13 + DEX mod while unarmored."
+          "desc": "Your AC becomes 13 + DEX mod while unarmored.",
+          "localized": {
+            "en": {
+              "name": "Armor of Shadows",
+              "desc": "Your AC becomes 13 + DEX mod while unarmored."
+            },
+            "zh-CN": {
+              "name": "阴影护甲",
+              "desc": "不穿护甲时，护甲等级变为 13 + 敏捷调整值。"
+            }
+          }
         }
       ],
       "armorOptions": [
@@ -1320,7 +2416,15 @@
               "id": "leather",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Leather armor"
+            },
+            "zh-CN": {
+              "label": "皮甲"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -1332,7 +2436,15 @@
               "id": "dagger",
               "qty": 2
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "2 Daggers"
+            },
+            "zh-CN": {
+              "label": "2 把匕首"
+            }
+          }
         },
         {
           "id": "quarterstaff",
@@ -1342,7 +2454,15 @@
               "id": "quarterstaff",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Quarterstaff"
+            },
+            "zh-CN": {
+              "label": "长棍"
+            }
+          }
         }
       ],
       "features": [
@@ -1351,7 +2471,17 @@
           "id": "pact_magic",
           "name": "Pact Magic",
           "desc": "Your spell slots refresh on a Short Rest (2 slots per rest in this build).",
-          "mech": "pact_magic"
+          "mech": "pact_magic",
+          "localized": {
+            "en": {
+              "name": "Pact Magic",
+              "desc": "Your spell slots refresh on a Short Rest (2 slots per rest in this build)."
+            },
+            "zh-CN": {
+              "name": "契约魔法",
+              "desc": "短休恢复法术位，本实现每次休息恢复 2 个法术位。"
+            }
+          }
         },
         {
           "level": 2,
@@ -1361,20 +2491,60 @@
           "button": true,
           "kind": "free",
           "uses": "1/long",
-          "mech": "magical_cunning"
+          "mech": "magical_cunning",
+          "localized": {
+            "en": {
+              "name": "Magical Cunning",
+              "desc": "Restore your expended Pact Magic slots. Once per Long Rest (also usable on a Short Rest)."
+            },
+            "zh-CN": {
+              "name": "魔能巧思",
+              "desc": "恢复已消耗契约法术位，每次长休可用一次，也可在短休使用。"
+            }
+          }
         },
         {
           "level": 12,
           "id": "eldritch_master",
           "name": "Eldritch Master",
-          "desc": "Once per Long Rest, regain all Pact Magic slots."
+          "desc": "Once per Long Rest, regain all Pact Magic slots.",
+          "localized": {
+            "en": {
+              "name": "Eldritch Master",
+              "desc": "Once per Long Rest, regain all Pact Magic slots."
+            },
+            "zh-CN": {
+              "name": "魔能宗师",
+              "desc": "每次长休可恢复全部契约法术位一次。"
+            }
+          }
         }
       ],
       "subclass": {
         "level": 3,
         "id": "fiend",
         "name": "The Fiend",
-        "desc": "Dark One’s Blessing: when you reduce an enemy to 0 HP, gain Temporary HP equal to CHA mod + level."
+        "desc": "Dark One’s Blessing: when you reduce an enemy to 0 HP, gain Temporary HP equal to CHA mod + level.",
+        "localized": {
+          "en": {
+            "name": "The Fiend",
+            "desc": "Dark One’s Blessing: when you reduce an enemy to 0 HP, gain Temporary HP equal to CHA mod + level."
+          },
+          "zh-CN": {
+            "name": "邪魔宗主",
+            "desc": "黑暗赐福：将敌人生命降至 0 时，获得魅力调整值 + 等级点临时生命。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Warlock",
+          "blurb": "A pact-sworn spellcaster drawing power from an otherworldly patron."
+        },
+        "zh-CN": {
+          "name": "邪术师",
+          "blurb": "与异界宗主订立契约，从中汲取力量的施法者。"
+        }
       }
     },
     {
@@ -1406,7 +2576,15 @@
         {
           "id": "none",
           "label": "No armor",
-          "items": []
+          "items": [],
+          "localized": {
+            "en": {
+              "label": "No armor"
+            },
+            "zh-CN": {
+              "label": "不穿护甲"
+            }
+          }
         }
       ],
       "weaponOptions": [
@@ -1418,7 +2596,15 @@
               "id": "quarterstaff",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Quarterstaff"
+            },
+            "zh-CN": {
+              "label": "长棍"
+            }
+          }
         },
         {
           "id": "dagger",
@@ -1428,7 +2614,15 @@
               "id": "dagger",
               "qty": 1
             }
-          ]
+          ],
+          "localized": {
+            "en": {
+              "label": "Dagger"
+            },
+            "zh-CN": {
+              "label": "匕首"
+            }
+          }
         }
       ],
       "spellcasting": {
@@ -1444,27 +2638,77 @@
           "name": "Arcane Recovery",
           "desc": "On a Short Rest, regain spell slots totalling half your level (rounded up). Once per Long Rest.",
           "button": false,
-          "mech": "arcane_recovery"
+          "mech": "arcane_recovery",
+          "localized": {
+            "en": {
+              "name": "Arcane Recovery",
+              "desc": "On a Short Rest, regain spell slots totalling half your level (rounded up). Once per Long Rest."
+            },
+            "zh-CN": {
+              "name": "奥术恢复",
+              "desc": "短休恢复总环数等于等级一半（向上取整）的法术位，每次长休可用一次。"
+            }
+          }
         },
         {
           "level": 2,
           "id": "scholar",
           "name": "Scholar",
           "desc": "Expertise in two of Arcana, History, Nature, or Religion (auto-granted where proficient).",
-          "mech": "expertise_auto"
+          "mech": "expertise_auto",
+          "localized": {
+            "en": {
+              "name": "Scholar",
+              "desc": "Expertise in two of Arcana, History, Nature, or Religion (auto-granted where proficient)."
+            },
+            "zh-CN": {
+              "name": "学术专精",
+              "desc": "在奥秘、历史、自然或宗教中获得两项专精，自动选已熟练项。"
+            }
+          }
         },
         {
           "level": 12,
           "id": "spell_mastery",
           "name": "Spell Mastery",
-          "desc": "You can cast one 1st-level spell at will without expending a slot."
+          "desc": "You can cast one 1st-level spell at will without expending a slot.",
+          "localized": {
+            "en": {
+              "name": "Spell Mastery",
+              "desc": "You can cast one 1st-level spell at will without expending a slot."
+            },
+            "zh-CN": {
+              "name": "法术精通",
+              "desc": "可随意施放一个 1 环法术，不消耗法术位。"
+            }
+          }
         }
       ],
       "subclass": {
         "level": 3,
         "id": "evoker",
         "name": "School of Evocation",
-        "desc": "Empowered Evocation: your damaging spells add your INT modifier to the damage."
+        "desc": "Empowered Evocation: your damaging spells add your INT modifier to the damage.",
+        "localized": {
+          "en": {
+            "name": "School of Evocation",
+            "desc": "Empowered Evocation: your damaging spells add your INT modifier to the damage."
+          },
+          "zh-CN": {
+            "name": "塑能学派",
+            "desc": "强化塑能：伤害法术额外造成智力调整值的伤害。"
+          }
+        }
+      },
+      "localized": {
+        "en": {
+          "name": "Wizard",
+          "blurb": "A scholar of the arcane who bends reality through rigorous study."
+        },
+        "zh-CN": {
+          "name": "法师",
+          "blurb": "严谨研习奥术、借知识扭转现实的学者。"
+        }
       }
     }
   ]

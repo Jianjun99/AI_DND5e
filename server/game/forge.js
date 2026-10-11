@@ -1,3 +1,4 @@
+const presentation = require("./presentation");
 // forge.js — the armory forge: salvage unwanted magic gear into essence, then reroll an
 // affix or upgrade an item's rarity. Every transformation goes back through
 // affixes.buildAffixItem, so forged items obey exactly the same rules as dropped ones.
@@ -53,6 +54,7 @@ function forgeCost(action, rarity) {
 
 // Swap the affix, keep the rarity and the identity (uniqueId stays put so equipped slots,
 // favourite macros and tooltips all keep pointing at the same item).
+/** @returns {{ok:boolean,error?:string,item?:any,text?:string,messageKey?:string,params?:Record<string,any>,from?:string,to?:string}} */
 function rerollAffix(item, rng = Math.random) {
   if (!isForgeable(item)) return { ok: false, error: '这件装备没有可重铸的词缀。' };
   const base = affixes.baseById(item.itemId);
@@ -66,11 +68,12 @@ function rerollAffix(item, rng = Math.random) {
     item: rebuilt,
     from: item.affix,
     to: next.id,
-    text: `${rebuilt.name}（${next.desc}）`
+    ...presentation.eventMessage("event.forge.rerollAffix.1",[presentation.name(rebuilt),presentation.field(next,"desc")],["","（","）"])
   };
 }
 
 // Raise rarity one step: magic -> rare -> legendary, same affix, same identity.
+/** @returns {{ok:boolean,error?:string,item?:any,text?:string,messageKey?:string,params?:Record<string,any>,from?:string,to?:string}} */
 function upgradeRarity(item) {
   if (!isForgeable(item)) return { ok: false, error: '这件装备无法升阶。' };
   const idx = RARITY_ORDER.indexOf(item.rarity);
@@ -85,7 +88,7 @@ function upgradeRarity(item) {
     item: rebuilt,
     from: item.rarity,
     to: nextRarity,
-    text: `${rebuilt.name}（${rebuilt.desc}）`
+    ...presentation.eventMessage("event.forge.upgradeRarity.2",[presentation.name(rebuilt),presentation.field(rebuilt,"desc")],["","（","）"])
   };
 }
 

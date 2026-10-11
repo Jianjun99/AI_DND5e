@@ -1,0 +1,16 @@
+{
+  "id": "missing-courier",
+  "author": "AI Dungeon",
+  "name": "渡口的失踪信使",
+  "blurb": "两名 NPC、三处选择、公开证词或秘密渡船；无需 AI 的完整双语支线。",
+  "localized": {
+    "en": {
+      "name": "The Missing Courier",
+      "blurb": "Two NPCs, three choices, public testimony or a quiet ferry: a complete bilingual story with no AI required."
+    },
+    "zh-CN": {
+      "name": "渡口的失踪信使",
+      "blurb": "两名 NPC、三处选择、公开证词或秘密渡船；无需 AI 的完整双语支线。"
+    }
+  }
+}

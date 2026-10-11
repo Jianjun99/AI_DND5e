@@ -16,14 +16,17 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "/vendor/three.module.js": ["./public/js/vendor-three.d.ts"]
+      "/vendor/three.module.js": ["./public/js/vendor-three.d.ts"],
+      "/vendor/addons/loaders/GLTFLoader.js": ["./public/js/vendor-gltf.d.ts"],
+      "/vendor/addons/utils/SkeletonUtils.js": ["./public/js/vendor-gltf.d.ts"]
     }
   },
   "include": [
     "server/**/*.js",
     "server/game/typedefs.d.ts",
     "public/js/globals.d.ts",
-    "public/js/**/*.js"
+    "public/js/**/*.js",
+    "public/js/**/*.mjs"
   ],
   "exclude": ["node_modules", "data"]
 }

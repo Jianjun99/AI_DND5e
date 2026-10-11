@@ -20,11 +20,12 @@ async function test(name, fn) {
   catch (error) { failed++; console.error('  FAIL: ' + name + '\n' + error.stack); }
 }
 const app = express(); app.use(express.json());
+app.use(require('../../server/locale.js').localeMiddleware);
 for (const route of ['game', 'city', 'content']) app.use('/api/' + route, require('../../server/routes/' + route + '.js'));
 const server = await new Promise(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
 const base = 'http://127.0.0.1:' + server.address().port;
 async function api(method, url, body) {
-  const response = await fetch(base + url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const response = await fetch(base + url, { method, headers: { 'Content-Type': 'application/json','X-Game-Locale':'zh-CN' }, body: body === undefined ? undefined : JSON.stringify(body) });
   return { status: response.status, body: await response.json() };
 }
 function hero() {

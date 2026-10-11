@@ -15,7 +15,17 @@
         "dice": "1d10",
         "type": "fire"
       },
-      "desc": "A mote of fire streaks at a creature: 1d10 fire damage on a ranged spell attack."
+      "desc": "A mote of fire streaks at a creature: 1d10 fire damage on a ranged spell attack.",
+      "localized": {
+        "en": {
+          "name": "Fire Bolt",
+          "desc": "A mote of fire streaks at a creature: 1d10 fire damage on a ranged spell attack."
+        },
+        "zh-CN": {
+          "name": "火焰箭",
+          "desc": "射出火苗，以远程法术攻击造成 1d10 火焰伤害。"
+        }
+      }
     },
     {
       "id": "ray_of_frost",
@@ -37,7 +47,17 @@
         "rounds": 1,
         "speedPenalty": 10
       },
-      "desc": "1d8 cold damage; the target's Speed drops 10 ft for a round."
+      "desc": "1d8 cold damage; the target's Speed drops 10 ft for a round.",
+      "localized": {
+        "en": {
+          "name": "Ray of Frost",
+          "desc": "1d8 cold damage; the target's Speed drops 10 ft for a round."
+        },
+        "zh-CN": {
+          "name": "冷冻射线",
+          "desc": "造成 1d8 寒冷伤害，目标速度降低 10 英尺，持续一回合。"
+        }
+      }
     },
     {
       "id": "sacred_flame",
@@ -56,7 +76,17 @@
         "dice": "1d8",
         "type": "radiant"
       },
-      "desc": "DEX save or take 1d8 radiant damage."
+      "desc": "DEX save or take 1d8 radiant damage.",
+      "localized": {
+        "en": {
+          "name": "Sacred Flame",
+          "desc": "DEX save or take 1d8 radiant damage."
+        },
+        "zh-CN": {
+          "name": "圣火术",
+          "desc": "敏捷豁免失败则受到 1d8 光耀伤害。"
+        }
+      }
     },
     {
       "id": "toll_the_dead",
@@ -76,7 +106,17 @@
         "dice": "1d8",
         "type": "necrotic"
       },
-      "desc": "A mournful bell tolls: WIS save or take 1d8 necrotic damage."
+      "desc": "A mournful bell tolls: WIS save or take 1d8 necrotic damage.",
+      "localized": {
+        "en": {
+          "name": "Toll the Dead",
+          "desc": "A mournful bell tolls: WIS save or take 1d8 necrotic damage."
+        },
+        "zh-CN": {
+          "name": "亡者丧钟",
+          "desc": "哀伤钟声响起，感知豁免失败则受到 1d8 黯蚀伤害。"
+        }
+      }
     },
     {
       "id": "eldritch_blast",
@@ -92,7 +132,17 @@
         "dice": "1d10",
         "type": "force"
       },
-      "desc": "A beam of crackling force: 1d10 force damage on a ranged spell attack."
+      "desc": "A beam of crackling force: 1d10 force damage on a ranged spell attack.",
+      "localized": {
+        "en": {
+          "name": "Eldritch Blast",
+          "desc": "A beam of crackling force: 1d10 force damage on a ranged spell attack."
+        },
+        "zh-CN": {
+          "name": "魔能爆",
+          "desc": "噼啪作响的力场射线，以远程法术攻击造成 1d10 力场伤害。"
+        }
+      }
     },
     {
       "id": "poison_spray",
@@ -113,7 +163,17 @@
         "dice": "1d12",
         "type": "poison"
       },
-      "desc": "CON save or take 1d12 poison damage (10 ft range)."
+      "desc": "CON save or take 1d12 poison damage (10 ft range).",
+      "localized": {
+        "en": {
+          "name": "Poison Spray",
+          "desc": "CON save or take 1d12 poison damage (10 ft range)."
+        },
+        "zh-CN": {
+          "name": "毒气喷溅",
+          "desc": "射程 10 英尺，体质豁免失败则受到 1d12 毒素伤害。"
+        }
+      }
     },
     {
       "id": "vicious_mockery",
@@ -136,7 +196,17 @@
         "id": "disadv_next",
         "rounds": 1
       },
-      "desc": "WIS save or take 1d4 psychic damage and disadvantage on its next attack."
+      "desc": "WIS save or take 1d4 psychic damage and disadvantage on its next attack.",
+      "localized": {
+        "en": {
+          "name": "Vicious Mockery",
+          "desc": "WIS save or take 1d4 psychic damage and disadvantage on its next attack."
+        },
+        "zh-CN": {
+          "name": "恶言相加",
+          "desc": "感知豁免失败则受到 1d4 心灵伤害，下次攻击具有劣势。"
+        }
+      }
     },
     {
       "id": "true_strike",
@@ -154,7 +224,17 @@
         "id": "adv_next_attack",
         "rounds": 1
       },
-      "desc": "Your next attack roll this turn is made with advantage."
+      "desc": "Your next attack roll this turn is made with advantage.",
+      "localized": {
+        "en": {
+          "name": "True Strike",
+          "desc": "Your next attack roll this turn is made with advantage."
+        },
+        "zh-CN": {
+          "name": "克敌机先",
+          "desc": "本回合下次攻击检定具有优势。"
+        }
+      }
     },
     {
       "id": "guidance",
@@ -170,7 +250,17 @@
         "id": "guidance",
         "rounds": 10
       },
-      "desc": "Adds 1d4 to your next ability check."
+      "desc": "Adds 1d4 to your next ability check.",
+      "localized": {
+        "en": {
+          "name": "Guidance",
+          "desc": "Adds 1d4 to your next ability check."
+        },
+        "zh-CN": {
+          "name": "神导术",
+          "desc": "下次属性检定加上 1d4。"
+        }
+      }
     },
     {
       "id": "shillelagh",
@@ -185,7 +275,17 @@
         "id": "shillelagh",
         "rounds": 10
       },
-      "desc": "Your club or quarterstaff attacks use your spellcasting ability and deal 1d8 damage."
+      "desc": "Your club or quarterstaff attacks use your spellcasting ability and deal 1d8 damage.",
+      "localized": {
+        "en": {
+          "name": "Shillelagh",
+          "desc": "Your club or quarterstaff attacks use your spellcasting ability and deal 1d8 damage."
+        },
+        "zh-CN": {
+          "name": "橡棍术",
+          "desc": "木棒或长棍攻击使用施法属性，造成 1d8 伤害。"
+        }
+      }
     },
     {
       "id": "mage_hand",
@@ -199,7 +299,17 @@
       ],
       "target": "flavor",
       "range": 30,
-      "desc": "A spectral hand performs simple tasks."
+      "desc": "A spectral hand performs simple tasks.",
+      "localized": {
+        "en": {
+          "name": "Mage Hand",
+          "desc": "A spectral hand performs simple tasks."
+        },
+        "zh-CN": {
+          "name": "法师之手",
+          "desc": "幽灵般的手能完成简单任务。"
+        }
+      }
     },
     {
       "id": "minor_illusion",
@@ -213,7 +323,17 @@
       ],
       "target": "flavor",
       "range": 30,
-      "desc": "Create a sound or an image to distract and deceive."
+      "desc": "Create a sound or an image to distract and deceive.",
+      "localized": {
+        "en": {
+          "name": "Minor Illusion",
+          "desc": "Create a sound or an image to distract and deceive."
+        },
+        "zh-CN": {
+          "name": "次级幻影",
+          "desc": "制造声音或影像，分散注意力、蒙骗他人。"
+        }
+      }
     },
     {
       "id": "light",
@@ -227,7 +347,17 @@
       ],
       "target": "flavor",
       "range": 0,
-      "desc": "An object sheds bright light — banishing the crypt's gloom."
+      "desc": "An object sheds bright light — banishing the crypt's gloom.",
+      "localized": {
+        "en": {
+          "name": "Light",
+          "desc": "An object sheds bright light — banishing the crypt's gloom."
+        },
+        "zh-CN": {
+          "name": "光亮术",
+          "desc": "使物体发出明亮光照，驱散墓穴的阴暗。"
+        }
+      }
     },
     {
       "id": "magic_missile",
@@ -244,7 +374,17 @@
         "dice": "3d4+3",
         "type": "force"
       },
-      "desc": "Three darts of force strike unerringly: 3d4+3 force damage, no attack or save."
+      "desc": "Three darts of force strike unerringly: 3d4+3 force damage, no attack or save.",
+      "localized": {
+        "en": {
+          "name": "Magic Missile",
+          "desc": "Three darts of force strike unerringly: 3d4+3 force damage, no attack or save."
+        },
+        "zh-CN": {
+          "name": "魔法飞弹",
+          "desc": "三枚力场飞弹必定命中，造成 3d4+3 力场伤害，无须攻击或豁免。"
+        }
+      }
     },
     {
       "id": "burning_hands",
@@ -264,7 +404,17 @@
         "dice": "3d6",
         "type": "fire"
       },
-      "desc": "A sheet of flame: 3d6 fire damage, DEX save for half."
+      "desc": "A sheet of flame: 3d6 fire damage, DEX save for half.",
+      "localized": {
+        "en": {
+          "name": "Burning Hands",
+          "desc": "A sheet of flame: 3d6 fire damage, DEX save for half."
+        },
+        "zh-CN": {
+          "name": "燃烧之手",
+          "desc": "喷出火焰，造成 3d6 火焰伤害，敏捷豁免成功减半。"
+        }
+      }
     },
     {
       "id": "thunderwave",
@@ -287,7 +437,17 @@
         "type": "thunder"
       },
       "push": 2,
-      "desc": "All creatures within 10 ft: CON save or 2d8 thunder damage and pushed 10 ft (half damage, no push on a save)."
+      "desc": "All creatures within 10 ft: CON save or 2d8 thunder damage and pushed 10 ft (half damage, no push on a save).",
+      "localized": {
+        "en": {
+          "name": "Thunderwave",
+          "desc": "All creatures within 10 ft: CON save or 2d8 thunder damage and pushed 10 ft (half damage, no push on a save)."
+        },
+        "zh-CN": {
+          "name": "雷鸣波",
+          "desc": "10 英尺内全部生物进行体质豁免，失败受 2d8 雷鸣伤害并被击退 10 英尺，成功伤害减半且不击退。"
+        }
+      }
     },
     {
       "id": "sleep",
@@ -301,7 +461,17 @@
       "target": "enemy",
       "range": 90,
       "sleepPool": "5d8",
-      "desc": "5d8 HP of magical slumber — creatures fall asleep if their current HP is below the pool. No save."
+      "desc": "5d8 HP of magical slumber — creatures fall asleep if their current HP is below the pool. No save.",
+      "localized": {
+        "en": {
+          "name": "Sleep",
+          "desc": "5d8 HP of magical slumber — creatures fall asleep if their current HP is below the pool. No save."
+        },
+        "zh-CN": {
+          "name": "睡眠术",
+          "desc": "以 5d8 点生命池施加睡眠，当前生命低于池值的生物入睡，无豁免。"
+        }
+      }
     },
     {
       "id": "charm_person",
@@ -325,7 +495,17 @@
         "id": "charmed",
         "rounds": 10
       },
-      "desc": "WIS save or become Charmed — it cannot attack you and regards you as a friend."
+      "desc": "WIS save or become Charmed — it cannot attack you and regards you as a friend.",
+      "localized": {
+        "en": {
+          "name": "Charm Person",
+          "desc": "WIS save or become Charmed — it cannot attack you and regards you as a friend."
+        },
+        "zh-CN": {
+          "name": "魅惑人类",
+          "desc": "感知豁免失败则陷入魅惑，不能攻击你并视你为友人。"
+        }
+      }
     },
     {
       "id": "cure_wounds",
@@ -344,7 +524,17 @@
         "dice": "1d8",
         "mod": "cast"
       },
-      "desc": "Touch: restore 1d8 + spellcasting mod HP."
+      "desc": "Touch: restore 1d8 + spellcasting mod HP.",
+      "localized": {
+        "en": {
+          "name": "Cure Wounds",
+          "desc": "Touch: restore 1d8 + spellcasting mod HP."
+        },
+        "zh-CN": {
+          "name": "疗伤术",
+          "desc": "触摸：恢复 1d8 + 施法属性调整值点生命。"
+        }
+      }
     },
     {
       "id": "healing_word",
@@ -362,7 +552,17 @@
         "dice": "2d4",
         "mod": "cast"
       },
-      "desc": "Bonus action: a creature within 60 ft regains 2d4 + spellcasting mod HP."
+      "desc": "Bonus action: a creature within 60 ft regains 2d4 + spellcasting mod HP.",
+      "localized": {
+        "en": {
+          "name": "Healing Word",
+          "desc": "Bonus action: a creature within 60 ft regains 2d4 + spellcasting mod HP."
+        },
+        "zh-CN": {
+          "name": "治愈真言",
+          "desc": "附赠动作：60 英尺内一名生物恢复 2d4 + 施法属性调整值点生命。"
+        }
+      }
     },
     {
       "id": "shield",
@@ -379,7 +579,17 @@
         "ac": 5,
         "rounds": 1
       },
-      "desc": "+5 AC until the start of your next turn."
+      "desc": "+5 AC until the start of your next turn.",
+      "localized": {
+        "en": {
+          "name": "Shield",
+          "desc": "+5 AC until the start of your next turn."
+        },
+        "zh-CN": {
+          "name": "护盾术",
+          "desc": "护甲 +5，持续至下回合开始。"
+        }
+      }
     },
     {
       "id": "mage_armor",
@@ -395,7 +605,17 @@
         "setAc": "13+dex",
         "rounds": 480
       },
-      "desc": "While unarmored, your AC becomes 13 + DEX mod for 8 hours."
+      "desc": "While unarmored, your AC becomes 13 + DEX mod for 8 hours.",
+      "localized": {
+        "en": {
+          "name": "Mage Armor",
+          "desc": "While unarmored, your AC becomes 13 + DEX mod for 8 hours."
+        },
+        "zh-CN": {
+          "name": "法师护甲",
+          "desc": "不穿护甲时，护甲等级变为 13 + 敏捷调整值，持续 8 小时。"
+        }
+      }
     },
     {
       "id": "bless",
@@ -414,7 +634,17 @@
         "saveBonus": "1d4",
         "rounds": 10
       },
-      "desc": "A blessed creature adds 1d4 to attack rolls and saving throws for 10 rounds."
+      "desc": "A blessed creature adds 1d4 to attack rolls and saving throws for 10 rounds.",
+      "localized": {
+        "en": {
+          "name": "Bless",
+          "desc": "A blessed creature adds 1d4 to attack rolls and saving throws for 10 rounds."
+        },
+        "zh-CN": {
+          "name": "祝福术",
+          "desc": "受祝福生物的攻击与豁免加上 1d4，持续 10 回合。"
+        }
+      }
     },
     {
       "id": "divine_favor",
@@ -432,7 +662,17 @@
         "damageType": "radiant",
         "rounds": 10
       },
-      "desc": "Your weapon attacks deal an extra 1d4 radiant damage for 10 rounds."
+      "desc": "Your weapon attacks deal an extra 1d4 radiant damage for 10 rounds.",
+      "localized": {
+        "en": {
+          "name": "Divine Favor",
+          "desc": "Your weapon attacks deal an extra 1d4 radiant damage for 10 rounds."
+        },
+        "zh-CN": {
+          "name": "神恩",
+          "desc": "武器攻击额外造成 1d4 光耀伤害，持续 10 回合。"
+        }
+      }
     },
     {
       "id": "longstrider",
@@ -451,7 +691,17 @@
         "speedBonus": 10,
         "rounds": 60
       },
-      "desc": "Your speed increases by 10 ft for 1 hour."
+      "desc": "Your speed increases by 10 ft for 1 hour.",
+      "localized": {
+        "en": {
+          "name": "Longstrider",
+          "desc": "Your speed increases by 10 ft for 1 hour."
+        },
+        "zh-CN": {
+          "name": "大步奔行",
+          "desc": "速度增加 10 英尺，持续 1 小时。"
+        }
+      }
     },
     {
       "id": "grease",
@@ -468,7 +718,17 @@
         "ability": "dex",
         "onSave": "prone"
       },
-      "desc": "Slick grease spreads within 10 ft: creatures must make a DEX save or fall Prone."
+      "desc": "Slick grease spreads within 10 ft: creatures must make a DEX save or fall Prone.",
+      "localized": {
+        "en": {
+          "name": "Grease",
+          "desc": "Slick grease spreads within 10 ft: creatures must make a DEX save or fall Prone."
+        },
+        "zh-CN": {
+          "name": "油腻术",
+          "desc": "10 英尺内铺开油脂，生物敏捷豁免失败则倒地。"
+        }
+      }
     },
     {
       "id": "hex",
@@ -486,7 +746,17 @@
         "damageType": "necrotic",
         "rounds": 60
       },
-      "desc": "Your attacks against the hexed target deal an extra 1d6 necrotic damage for 1 hour."
+      "desc": "Your attacks against the hexed target deal an extra 1d6 necrotic damage for 1 hour.",
+      "localized": {
+        "en": {
+          "name": "Hex",
+          "desc": "Your attacks against the hexed target deal an extra 1d6 necrotic damage for 1 hour."
+        },
+        "zh-CN": {
+          "name": "脆弱诅咒",
+          "desc": "对受诅咒目标的攻击额外造成 1d6 黯蚀伤害，持续 1 小时。"
+        }
+      }
     },
     {
       "id": "false_life",
@@ -500,7 +770,17 @@
       "target": "self",
       "range": 0,
       "tempHp": "2d4+2",
-      "desc": "Gain 2d4+2 Temporary HP."
+      "desc": "Gain 2d4+2 Temporary HP.",
+      "localized": {
+        "en": {
+          "name": "False Life",
+          "desc": "Gain 2d4+2 Temporary HP."
+        },
+        "zh-CN": {
+          "name": "虚假生命",
+          "desc": "获得 2d4+2 点临时生命。"
+        }
+      }
     },
     {
       "id": "guiding_bolt",
@@ -516,7 +796,17 @@
         "dice": "4d6",
         "type": "radiant"
       },
-      "desc": "A flash of light: 4d6 radiant damage on a ranged spell attack."
+      "desc": "A flash of light: 4d6 radiant damage on a ranged spell attack.",
+      "localized": {
+        "en": {
+          "name": "Guiding Bolt",
+          "desc": "A flash of light: 4d6 radiant damage on a ranged spell attack."
+        },
+        "zh-CN": {
+          "name": "曳光弹",
+          "desc": "闪耀的远程法术攻击，造成 4d6 光耀伤害。"
+        }
+      }
     },
     {
       "id": "hunters_mark",
@@ -534,7 +824,17 @@
         "damageType": "weapon",
         "rounds": 60
       },
-      "desc": "Your weapon attacks against the marked target deal an extra 1d6 damage."
+      "desc": "Your weapon attacks against the marked target deal an extra 1d6 damage.",
+      "localized": {
+        "en": {
+          "name": "Hunter's Mark",
+          "desc": "Your weapon attacks against the marked target deal an extra 1d6 damage."
+        },
+        "zh-CN": {
+          "name": "猎人印记",
+          "desc": "对被标记目标的武器攻击额外造成 1d6 伤害。"
+        }
+      }
     },
     {
       "id": "shatter",
@@ -555,7 +855,17 @@
         "dice": "3d8",
         "type": "thunder"
       },
-      "desc": "A ringing burst within 10 ft: CON save or 3d8 thunder damage, half on a success."
+      "desc": "A ringing burst within 10 ft: CON save or 3d8 thunder damage, half on a success.",
+      "localized": {
+        "en": {
+          "name": "Shatter",
+          "desc": "A ringing burst within 10 ft: CON save or 3d8 thunder damage, half on a success."
+        },
+        "zh-CN": {
+          "name": "粉碎音波",
+          "desc": "10 英尺内爆发震响，体质豁免失败受 3d8 雷鸣伤害，成功减半。"
+        }
+      }
     },
     {
       "id": "scorching_ray",
@@ -572,7 +882,17 @@
         "dice": "3d6",
         "type": "fire"
       },
-      "desc": "Three rays of fire streak out as one: 3d6 fire damage on a ranged spell attack."
+      "desc": "Three rays of fire streak out as one: 3d6 fire damage on a ranged spell attack.",
+      "localized": {
+        "en": {
+          "name": "Scorching Ray",
+          "desc": "Three rays of fire streak out as one: 3d6 fire damage on a ranged spell attack."
+        },
+        "zh-CN": {
+          "name": "灼热射线",
+          "desc": "三道火焰射线合为一次远程法术攻击，造成 3d6 火焰伤害。"
+        }
+      }
     },
     {
       "id": "hold_person",
@@ -596,7 +916,17 @@
         "id": "paralyzed",
         "rounds": 3
       },
-      "desc": "WIS save or be Paralyzed for up to 3 rounds — it cannot act, and wakes if harmed."
+      "desc": "WIS save or be Paralyzed for up to 3 rounds — it cannot act, and wakes if harmed.",
+      "localized": {
+        "en": {
+          "name": "Hold Person",
+          "desc": "WIS save or be Paralyzed for up to 3 rounds — it cannot act, and wakes if harmed."
+        },
+        "zh-CN": {
+          "name": "人类定身术",
+          "desc": "感知豁免失败则麻痹，最长 3 回合；无法行动，受伤后解除。"
+        }
+      }
     },
     {
       "id": "invisibility",
@@ -615,7 +945,17 @@
         "id": "invisible",
         "rounds": 30
       },
-      "desc": "You vanish for up to 30 rounds — monsters cannot target you until you attack or cast."
+      "desc": "You vanish for up to 30 rounds — monsters cannot target you until you attack or cast.",
+      "localized": {
+        "en": {
+          "name": "Invisibility",
+          "desc": "You vanish for up to 30 rounds — monsters cannot target you until you attack or cast."
+        },
+        "zh-CN": {
+          "name": "隐形术",
+          "desc": "隐形最长 30 回合，攻击或施法前，怪物不能选你为目标。"
+        }
+      }
     },
     {
       "id": "fireball",
@@ -635,7 +975,17 @@
         "dice": "6d6",
         "type": "fire"
       },
-      "desc": "A bright streak blossoms into a roiling flower of flame: DEX save or 6d6 fire damage, half on a success."
+      "desc": "A bright streak blossoms into a roiling flower of flame: DEX save or 6d6 fire damage, half on a success.",
+      "localized": {
+        "en": {
+          "name": "Fireball",
+          "desc": "A bright streak blossoms into a roiling flower of flame: DEX save or 6d6 fire damage, half on a success."
+        },
+        "zh-CN": {
+          "name": "火球术",
+          "desc": "亮光绽成翻涌火花，敏捷豁免失败受 6d6 火焰伤害，成功减半。"
+        }
+      }
     },
     {
       "id": "blight",
@@ -657,7 +1007,17 @@
         "dice": "8d8",
         "type": "necrotic"
       },
-      "desc": "Withering energy drains moisture and life: CON save or 8d8 necrotic damage, half on a success."
+      "desc": "Withering energy drains moisture and life: CON save or 8d8 necrotic damage, half on a success.",
+      "localized": {
+        "en": {
+          "name": "Blight",
+          "desc": "Withering energy drains moisture and life: CON save or 8d8 necrotic damage, half on a success."
+        },
+        "zh-CN": {
+          "name": "枯萎术",
+          "desc": "枯萎能量抽走水分与生命，体质豁免失败受 8d8 黯蚀伤害，成功减半。"
+        }
+      }
     },
     {
       "id": "wall_of_force",
@@ -674,7 +1034,17 @@
         "rounds": 10,
         "ac": 3
       },
-      "desc": "An invisible wall of force grants you +3 AC for 10 rounds. Nothing can pass through."
+      "desc": "An invisible wall of force grants you +3 AC for 10 rounds. Nothing can pass through.",
+      "localized": {
+        "en": {
+          "name": "Wall of Force",
+          "desc": "An invisible wall of force grants you +3 AC for 10 rounds. Nothing can pass through."
+        },
+        "zh-CN": {
+          "name": "力场墙",
+          "desc": "无形力场墙使护甲 +3，持续 10 回合，任何事物都不能穿过。"
+        }
+      }
     }
   ]
 }

@@ -1,0 +1,30 @@
+{
+  "format": "ai-dnd-pack",
+  "version": 1,
+  "pack": { "id": "m1-lanterns", "name": "Lantern Adventures", "author": "M1 Example", "blurb": "Two short relic adventures; original English text." },
+  "maps": [
+    {
+      "id": "m1-lantern-room", "name": "Lantern Room", "blurb": "Take the lantern relic and return to camp. No combat.", "objectiveText": "Retrieve the relic to the east, then return to the campfire.",
+      "width": 9, "height": 5, "playerStart": { "x": 1, "y": 2 },
+      "victory": { "type": "fetch_relic", "campfire": { "x": 1, "y": 2 } },
+      "rows": ["#########", "#.......#", "#.......#", "#.......#", "#########"],
+      "rooms": [{ "id": "lantern_hall", "name": "Private hall", "rect": [1, 1, 7, 3], "desc": "M1_SECRET_ROOM: revealed only during play." }],
+      "entities": [
+        { "type": "object", "id": "campfire", "name": "Campfire", "x": 1, "y": 2, "icon": "🔥" },
+        { "type": "object", "id": "relic", "name": "Lantern Relic", "x": 6, "y": 2, "icon": "💎" }
+      ], "npcs": {}
+    },
+    {
+      "id": "m1-eastern-room", "name": "Eastern Lantern Room", "blurb": "A second relic room on the eastern trail.", "objectiveText": "Retrieve the eastern relic and return to camp.",
+      "adventure": { "levels": { "min": 1, "max": 3 }, "waypoint": { "regionX": 72, "regionY": 45, "icon": "dungeon", "region": "Eastern Trail", "roads": [{ "to": "oakhaven", "label": "Lantern Trail" }] } },
+      "width": 9, "height": 5, "playerStart": { "x": 1, "y": 2 },
+      "victory": { "type": "fetch_relic", "campfire": { "x": 1, "y": 2 } },
+      "rows": ["#########", "#.......#", "#.......#", "#.......#", "#########"],
+      "rooms": [{ "id": "eastern_hall", "name": "Eastern Hall", "rect": [1, 1, 7, 3], "desc": "A lantern lights this quiet room." }],
+      "entities": [
+        { "type": "object", "id": "campfire", "name": "Campfire", "x": 1, "y": 2, "icon": "🔥" },
+        { "type": "object", "id": "relic", "name": "Eastern Relic", "x": 6, "y": 2, "icon": "💎" }
+      ], "npcs": {}
+    }
+  ], "monsters": [], "gear": []
+}

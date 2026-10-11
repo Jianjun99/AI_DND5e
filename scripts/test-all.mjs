@@ -1,45 +1,19 @@
 // scripts/test-all.mjs — Master Test Suite Runner for AI D&D 2024
+// Full acceptance: every suite in the shared list, fail-slow so the summary
+// keeps the complete red census. The quick partial check is scripts/dev-check.mjs.
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertTestContainer } from './test-container.mjs';
 import { captureBrowserArtifacts } from './cdp-artifacts.mjs';
+import { testSuites } from './test-suites.mjs';
 
 assertTestContainer();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.join(__dirname, '..');
-
-const testSuites = [
-  { name: 'Verification Environment: isolation, missing browser & WebGL failure evidence', file: 'tests/integration/verification-environment.test.mjs' },
-  { name: 'Unit Tests: D&D 2024 Rules Engine', file: 'tests/unit/rules.test.mjs' },
-  { name: 'Unit Tests: 3D Procedural Miniatures & Walk Animations', file: 'tests/unit/models3d.test.mjs' },
-  { name: 'Unit Tests: Elite Affixes & Loot Rarity', file: 'tests/unit/affixes-and-loot.test.mjs' },
-  { name: 'Unit Tests: Map Board Visibility & Camera', file: 'tests/unit/map-entities.test.mjs' },
-  { name: 'Unit Tests: Tavern Gambling & Experimental Brews', file: 'tests/unit/gambling-and-potions.test.mjs' },
-  { name: 'Unit Tests: Forge, Bestiary & Campaign', file: 'tests/unit/forge-and-campaign.test.mjs' },
-  { name: 'Unit Tests: MCP Server (stdio protocol)', file: 'tests/unit/mcp-server.test.mjs' },
-  { name: 'Unit Tests: Store Schema Versioning', file: 'tests/unit/store-versioning.test.mjs' },
-  { name: 'Unit Tests: Event Contract (emitted vs client vocabulary)', file: 'tests/unit/event-contract.test.mjs' },
-  { name: 'Integration Tests: Content Validation & Pack Roundtrip (T8)', file: 'tests/integration/content-validation.test.mjs' },
-  { name: 'Integration Tests: Remembered Encounter & Two Real Routes (T6)', file: 'tests/integration/remembered-encounter.test.mjs' },
-  { name: 'Integration Tests: Delve Replay Bot (API invariants)', file: 'scripts/replay-bot.mjs', env: { REPLAY_QUICK: '1' } },
-  { name: 'Integration Tests: Movement, Pathfinding & Vision', file: 'tests/integration/movement.test.mjs' },
-  { name: 'Integration Tests: Combat, Actions & Health', file: 'tests/integration/combat.test.mjs' },
-  { name: 'Integration Tests: Tactics (OA, Flanking, Shove)', file: 'tests/integration/tactics.test.mjs' },
-  { name: 'Integration Tests: Character Progression & Delve Systems', file: 'tests/integration/progression-systems.test.mjs' },
-  { name: 'Integration Tests: State Updates & AI Persistence (T2)', file: 'tests/integration/state-and-ai.test.mjs' },
-  { name: 'Integration Tests: One Settlement & Return to Town (T3)', file: 'tests/integration/settlement.test.mjs' },
-  { name: 'Integration Tests: Unified Server Checks & Road Encounters (T7)', file: 'tests/integration/server-checks.test.mjs' },
-  { name: 'Integration Tests: Quick Start Presets & Creation (T5)', file: 'tests/integration/quick-start.test.mjs' },
-  { name: 'End-to-End Tests: Browser 3D Rendering & Movement (CDP)', file: 'tests/e2e/browser-movement-cdp.test.mjs' },
-  { name: 'End-to-End Tests: Turn Economy, Minimap & Cleared Beacon (CDP)', file: 'tests/e2e/gameplay-refinements-cdp.test.mjs' },
-  { name: 'End-to-End Tests: Device Adaptation, phone & tablet (CDP)', file: 'tests/e2e/responsive-cdp.test.mjs' },
-  { name: 'End-to-End Tests: Quick Start & First-Delve Tutorial (CDP)', file: 'tests/e2e/quick-start-cdp.test.mjs' },
-  { name: 'End-to-End Tests: Road Lifecycle & Check Previews (CDP)', file: 'tests/e2e/t7a-road-lifecycle-cdp.test.mjs' },
-  { name: 'End-to-End Tests: Remembered Encounter Both Routes (CDP)', file: 'tests/e2e/remembered-encounter-cdp.test.mjs' }
-];
 
 async function runTest(suite) {
   return new Promise((resolve) => {
@@ -59,7 +33,7 @@ async function runTest(suite) {
       try { await captureBrowserArtifacts('suite-timeout-' + path.basename(suite.file)); } catch (error) { console.error(error); }
       try { process.kill(-proc.pid, 'SIGTERM'); } catch {}
       killTimer = setTimeout(() => { try { process.kill(-proc.pid, 'SIGKILL'); } catch {} }, 3000);
-    }, 180000);
+    }, suite.timeoutMs || 180000);
     proc.on('error', error => {
       console.error('❌ Suite failed to launch: ' + suite.name, error);
     });
@@ -97,6 +71,19 @@ for (const r of results) {
 }
 
 console.log('===============================================================');
+
+// Structured per-suite timing for the verification report (Q1): one JSON line
+// of truth next to last-verify.log, consumed by verify's timings.json.
+try {
+  fs.writeFileSync(path.join(process.env.VERIFY_ARTIFACT_DIR || path.join(ROOT, 'artifacts'), 'suite-timings.json'), JSON.stringify({
+    startedAt: new Date(Date.now() - results.reduce((sum, r) => sum + Number(r.elapsed) * 1000, 0)).toISOString(),
+    totalSeconds: Number(results.reduce((sum, r) => sum + Number(r.elapsed), 0).toFixed(2)),
+    suites: results.map(r => ({ id: r.suite.id, kind: r.suite.kind, name: r.suite.name, seconds: Number(r.elapsed), exit: r.code }))
+  }, null, 2));
+} catch (error) {
+  console.error('Failed to preserve suite timings:', error.message);
+  overallPass = false;
+}
 
 if (overallPass) {
   console.log('🎉 ALL TEST SUITES PASSED SUCCESSFULLY!\n');

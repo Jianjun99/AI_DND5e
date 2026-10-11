@@ -41,6 +41,8 @@ body {
   text-decoration: none; letter-spacing: .5px; font-weight: bold;
 }
 .topbar nav { display: flex; flex-wrap: wrap; gap: 6px; }
+.topbar-locale { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
+.topbar-locale select { width: auto; padding: 5px; min-height: 34px; }
 .topbar nav a {
   color: var(--muted); text-decoration: none; padding: 7px 14px; border-radius: 6px;
   font-size: 14px; transition: all .15s;
@@ -581,6 +583,76 @@ label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px
   align-items: start;
 }
 
+/* Public catalog shared by town and preparation, bounded for desktop landscapes. */
+.adventure-directory { margin: 12px 0; }
+.adventure-directory-heading, .adventure-filters { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.adventure-directory-heading { justify-content:space-between; }
+.adventure-directory-heading h3 { margin:0; }
+.adventure-filters { margin-top:10px; align-items:end; }
+.adventure-filters label { flex:1; min-width:180px; }
+.adventure-filters input, .adventure-filters select { display:block; width:100%; margin-top:4px; }
+.adventure-filters input[type=search] { background:var(--bg2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:9px 10px; font:inherit; }
+.adventure-list { max-height:230px; overflow:auto; border-top:1px solid var(--border); }
+.adventure-option { display:flex; gap:10px; padding:10px 6px; cursor:pointer; border-bottom:1px solid var(--border); }
+.adventure-option[hidden] { display:none; }
+.adventure-option input { width:auto; flex:none; align-self:start; margin-top:5px; }
+.adventure-option:has(input:checked) { background:var(--bg2); outline:1px solid var(--gold-dim); outline-offset:-1px; }
+.adventure-details { min-width:0; overflow-wrap:anywhere; }
+.adventure-details > span { display:block; }
+.adventure-details [hidden] { display:none; }
+
+/* L1: one horizontal workspace, with independent catalog/dispatch scrolling. */
+.region-map-heading { padding:12px 16px; border-bottom:1px solid var(--border); }
+.region-map-heading h2 { margin:0 0 4px; }
+.node-icon-large { width:42px; height:42px; flex:none; color:var(--gold); }
+.map-node-group .waypoint-symbol, .waypoint-label-box, .waypoint-leader,
+.map-node-group text { pointer-events:none; }
+.map-node-group:focus { outline:none; }
+.map-node-group:focus .waypoint-hit { stroke:var(--parchment); stroke-width:4; }
+.waypoint-hit, .campaign-ring { vector-effect:non-scaling-stroke; }
+#fullscreenBtn { display:none; }
+@media (min-width:1100px) {
+  main:has(.overworld-view) { max-width:2560px; padding:14px 18px; }
+  .overworld-view { gap:10px; }
+  .overworld-view:has(.overworld-map-layout) { height:calc(100dvh - var(--overworld-topbar-height,58px) - 28px); }
+  .overworld-header { flex:none; }
+  .overworld-body:has(.overworld-map-layout) { display:flex; flex-direction:column; min-height:0; flex:1; }
+  .overworld-body > .campaign-banner { flex:none; }
+  .topbar nav a.continue { max-width:min(430px,40vw); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .overworld-header { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:10px 14px; }
+  .overworld-header .hero-strip, .overworld-header .hero-meta { min-width:0; }
+  .overworld-header .hero-name { max-width:300px; overflow-wrap:anywhere; }
+  .overworld-header .header-actions { gap:8px; }
+  .overworld-header .char-switch-wrap { width:220px; max-width:220px; }
+  .overworld-header .char-switch-wrap select { min-width:0 !important; }
+  .overworld-body > .campaign-banner { padding:10px 14px; margin-bottom:10px !important; }
+  .overworld-map-layout { display:grid; grid-template-columns:clamp(230px,20vw,290px) minmax(0,1fr); grid-template-rows:minmax(0,1fr); gap:12px; flex:1; min-height:320px; }
+  .overworld-map-layout > [data-town-adventures] { padding:12px; min-width:0; min-height:0; overflow:hidden; }
+  [data-town-adventures] .adventure-directory { display:flex; flex-direction:column; height:100%; margin:0; min-height:0; }
+  [data-town-adventures] .adventure-filters { display:block; }
+  [data-town-adventures] .adventure-filters label { min-width:0; margin-bottom:8px; }
+  [data-town-adventures] .adventure-directory-heading { gap:6px; }
+  [data-town-adventures] .adventure-directory-heading h3 { font-size:13px; }
+  [data-town-adventures] .adventure-list { flex:1; max-height:none; min-height:0; }
+  .overworld-map-layout .region-map-container { grid-template-columns:minmax(0,1fr) clamp(270px,22vw,330px); grid-template-rows:minmax(0,1fr); align-items:stretch; gap:12px; min-width:0; min-height:0; }
+  .overworld-map-layout .map-viewport { display:flex; flex-direction:column; min-width:0; min-height:0; }
+  .overworld-map-layout .region-map-heading { flex:none; padding:8px 12px; }
+  .overworld-map-layout .region-map-heading h2 { font-size:16px; }
+  .overworld-map-layout .region-svg { flex:1; min-height:0; height:100%; }
+  .overworld-map-layout .map-sidebar { min-width:0; min-height:0; overflow:auto; overscroll-behavior:contain; padding:14px; }
+  .overworld-map-layout .sidebar-header h2 { overflow-wrap:anywhere; margin:0 0 6px; }
+  .overworld-map-layout .map-sidebar .btn.big { padding:10px 12px; }
+  .overworld-map-layout .map-sidebar label { margin-top:10px; }
+  .modal-back > .modal { max-height:calc(100dvh - 32px); overflow:auto; overscroll-behavior:contain; }
+  .pause-menu-card { max-height:calc(100dvh - 32px); overflow:auto; }
+  #fullscreenBtn { display:block; justify-self:end; grid-column:1 / -1; }
+  body.map-first #fullscreenBtn { position:fixed; top:8px; right:160px; z-index:35; }
+  body.map-first .play-layout .log-preview { right:300px; }
+  body.map-first .play-layout .guidance-objective-pill { max-width:760px; max-height:48px; white-space:normal; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-height:1.4; }
+  body.map-first .play-layout .encounter-tools { max-height:min(130px,20dvh); overflow:auto; overscroll-behavior:contain; }
+  body.map-first .delve-panel { max-height:calc(100dvh - 110px); }
+}
+
 @media (max-width: 960px) {
   .region-map-container {
     grid-template-columns: 1fr;
@@ -639,12 +711,11 @@ label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px
 }
 
 .map-node-group {
-  transition: transform 0.15s ease;
+  transition: none;
 }
 
 .map-node-group:hover circle:first-child {
-  transform-origin: center;
-  r: 28;
+  stroke-width: 3;
 }
 
 .map-sidebar {
@@ -915,6 +986,10 @@ label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px
 
 /* Modal Settings Card */
 .settings-modal-card {
+  width: min(960px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
   background: var(--panel, #1d1711);
   border: 1px solid var(--border, #4a3b2c);
   border-radius: 10px;
@@ -2363,40 +2438,17 @@ label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px
   .play-layout { grid-template-columns: 1fr; }
 }
 
-/* ==========================================================================
-   Immersive mode (toggle: ⛶ button or V) — maximize the board in small panes
-   ========================================================================== */
-#immersiveBtn, #sidePanelBtn { position: fixed; z-index: 70; }
+/* T10: one map layout, HUD (20–30), drawer (60), blocking modal (100).
+   Tactical mode retains the original document layout. */
+#immersiveBtn, #sidePanelBtn { position: fixed; z-index: 35; }
 #immersiveBtn { top: 8px; right: 8px; }
-#sidePanelBtn { top: 8px; right: 150px; display: none; }
+body:not(.map-first) .play-layout > #immersiveBtn { position:relative; top:auto; right:auto; grid-column:1 / -1; justify-self:end; }
+#sidePanelBtn { display: none; }
 body.immersive .topbar { display: none; }
-body.immersive #sidePanelBtn { display: inline-block; }
-body.immersive main:has(.play-layout) { padding-top: 40px; }
-body.immersive .play-layout { grid-template-columns: minmax(0, 1fr); }
-body.immersive .side-panel {
-  position: fixed; top: 42px; right: 8px; bottom: 8px; width: 340px; z-index: 60;
-  overflow-y: auto; background: rgba(10, 8, 6, .93); border: 1px solid var(--border);
-  border-radius: 10px; padding: 10px; backdrop-filter: blur(2px);
-}
-body.immersive .side-panel.immersive-hidden { display: none; }
-body.immersive .map-wrap.view-3d #map3d { height: min(76vh, 980px); }
-body.immersive .log-panel { height: 180px; }
-
-/* ==========================================================================
-   Immersive v2: log/chat = bottom-left overlay, topbar = pause menu (Esc/Menu)
-   ========================================================================== */
 .log-panel { position: relative; }
 .log-min-btn { position: absolute; top: 6px; right: 6px; padding: 0 8px; font-size: 11px; line-height: 18px; z-index: 3; }
-#pauseMenuBtn { position: fixed; top: 8px; left: 8px; z-index: 70; display: none; }
-body.immersive #pauseMenuBtn { display: inline-block; }
-body.immersive .log-panel {
-  position: fixed; left: 8px; bottom: 8px; width: min(460px, 52vw); height: auto;
-  z-index: 55; background: rgba(10, 8, 6, .84); backdrop-filter: blur(2px);
-}
-body.immersive .log-panel .log-entries { height: auto; max-height: 21vh; }
-body.immersive .log-panel.log-min .log-entries { display: none; }
-body.immersive .map-wrap.view-3d #map3d { height: min(calc(100vh - 132px), 1150px); }
-body.immersive .map-wrap.view-3d .minimap-container { bottom: 150px; }
+#pauseMenuBtn { position: fixed; top: 8px; left: 8px; z-index: 35; display:none; }
+body.map-first #pauseMenuBtn { display:block; }
 .pause-menu { position: fixed; inset: 0; z-index: 80; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; }
 .pause-menu.hidden { display: none; }
 .pause-menu-card { background: var(--panel); border: 1px solid var(--gold-dim); border-radius: 12px; padding: 18px 22px; display: flex; flex-direction: column; gap: 8px; min-width: 270px; box-shadow: 0 10px 40px rgba(0, 0, 0, .6); }
@@ -2404,17 +2456,73 @@ body.immersive .map-wrap.view-3d .minimap-container { bottom: 150px; }
 .pause-menu-card a, .pause-menu-card button { display: block; width: 100%; text-align: left; padding: 8px 12px; border-radius: 8px; color: var(--text); text-decoration: none; background: var(--bg2); border: 1px solid var(--border); cursor: pointer; font-size: 14px; }
 .pause-menu-card a:hover, .pause-menu-card button:hover { border-color: var(--gold-dim); color: var(--gold); }
 
-/* ==========================================================================
-   Immersive v3: MMO-style HUD — quests top-left, status/actions top-right,
-   log/chat bottom-left, minimap bottom-right, guidance pills top-center
-   ========================================================================== */
-#questTrackerHost {
-  position: fixed; top: 42px; left: 8px; width: 320px; z-index: 55; display: none;
+.delve-tools { display:flex; gap:6px; flex-wrap:wrap; grid-column:1 / -1; }
+.delve-panel { position:fixed; z-index:60; top:48px; right:12px; width:min(430px, calc(100vw - 24px)); max-height:calc(100dvh - 120px); background:var(--panel); border:1px solid var(--gold-dim); border-radius:12px; display:flex; flex-direction:column; box-shadow:0 8px 28px #0009; }
+.delve-panel[hidden] { display:none; }
+.delve-panel > header { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border-bottom:1px solid var(--border); }
+.delve-panel-content { overflow:auto; overscroll-behavior:contain; padding:10px; min-height:0; }
+.delve-panel .side-panel, .delve-panel #questTrackerHost, .delve-panel .log-panel { display:none; }
+.delve-panel[data-active-panel="character"] .side-panel { display:flex; }
+.delve-panel[data-active-panel="quests"] #questTrackerHost { display:block; }
+.delve-panel[data-active-panel="log"] .log-panel, .delve-panel[data-active-panel="chat"] .log-panel { display:flex; height:min(55dvh, 520px); margin:0; }
+.delve-panel[data-active-panel="log"] .chat-bar { display:none; }
+.delve-panel .log-entries { min-height:0; flex:1; }
+.delve-panel .log-min-btn { display:none; }
+.hero-hud, .core-hud, .encounter-tools, .log-preview { display:none; }
+.map-top-hud { display:contents; }
+body.map-first main:has(.play-layout) { max-width:none; padding:0; }
+body.map-first .play-layout { display:block; height:100dvh; overflow:hidden; }
+body.map-first .map-wrap { position:fixed; inset:calc(42px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left)); height:auto; }
+body.map-first .map-wrap.view-3d #map3d { height:100%; }
+body.map-first .map-top-hud { position:absolute; top:8px; left:12px; right:12px; display:flex; flex-direction:column; gap:6px; z-index:24; pointer-events:none; }
+body.map-first .hero-hud { display:flex; flex-wrap:wrap; gap:8px; font-size:13px; pointer-events:none; }
+body.map-first .delve-guidance-hud { position:static; padding:6px 10px; }
+body.map-first .guidance-status-group { min-width:0; max-width:100%; }
+body.map-first .guidance-main-row { min-width:0; }
+body.map-first .guidance-hover-bar { max-height:36px; overflow:hidden; }
+body.map-first .initiative-ribbon-container { position:static; transform:none; align-self:center; max-width:100%; overflow-x:auto; pointer-events:auto; }
+body.map-first .core-hud { display:block; position:absolute; bottom:12px; left:12px; width:min(520px, calc(100% - 260px)); z-index:25; background:#17130feb; padding:8px; border:1px solid var(--border); border-radius:10px; }
+body.map-first .core-hud .action-grid { grid-template-columns:repeat(3, minmax(0,1fr)); gap:5px; }
+body.map-first .core-hud .action-grid .btn { grid-column:auto !important; font-size:12px; padding:7px 4px; white-space:normal; }
+body.map-first .core-hud .turn-economy-bar { margin:0 0 6px; }
+body.map-first .encounter-tools { display:flex; flex-direction:column; gap:6px; max-width:300px; pointer-events:auto; }
+body.map-first .delve-tools { position:fixed; bottom:calc(8px + env(safe-area-inset-bottom)); left:8px; right:8px; justify-content:center; z-index:35; flex-wrap:nowrap; }
+body.map-first .delve-tools .btn { min-height:38px; }
+body.map-first .log-preview { display:block; position:fixed; top:8px; left:100px; right:160px; max-height:26px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; border:0; background:transparent; color:var(--muted); text-align:left; font:inherit; font-size:12px; cursor:pointer; }
+body.map-first .map-wrap.view-2d .minimap-container { height:100%; display:flex; flex-direction:column; }
+body.map-first .map-wrap.view-2d .minimap-body { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; }
+body.map-first .map-wrap.view-2d #mapCanvas { width:auto; height:auto; max-width:100%; max-height:100%; }
+body.map-first .map-wrap.view-2d .map-top-hud { top:40px; }
+.modal-back { z-index:100; }
+@media (max-width:900px) {
+  .delve-panel { top:auto; bottom:calc(var(--drawer-bottom, 56px) + env(safe-area-inset-bottom)); left:8px; right:8px; width:auto; max-height:min(var(--drawer-height, 78dvh), calc(100dvh - 100px)); }
+  body.map-first .delve-tools { gap:4px; }
+  body.map-first .delve-tools .btn { flex:1; padding:6px 2px; font-size:11px; white-space:normal; }
+  body.map-first .core-hud { width:calc(100% - 24px); bottom:12px; }
+  body.map-first .map-wrap.view-3d .minimap-container { bottom:155px; width:130px; }
+  body.map-first .minimap-title { display:none; }
+  body.map-first .map-wrap.view-3d .minimap-container.minimap-expanded { width:230px; max-height:45%; overflow:auto; }
+  body.map-first .guidance-objective-pill { max-width:100%; white-space:normal; max-height:54px; overflow:hidden; }
+  body.map-first #delveInventoryModal { align-items:flex-end; padding:8px; }
+  body.map-first #delveInventoryModal > .modal { max-width:100%; width:100%; max-height:calc(100dvh - 80px); overflow:auto; }
 }
-#questTrackerHost .quest-objective-card { margin: 0 0 8px; background: rgba(10, 8, 6, .84); backdrop-filter: blur(2px); }
-body.immersive #questTrackerHost { display: block; }
-body.immersive .side-panel { top: 42px; bottom: auto; max-height: calc(100vh - 200px); }
-body.immersive .map-wrap.view-3d .minimap-container { bottom: 12px; }
+@media (max-height:500px) and (max-width:900px) {
+  body.map-first .map-top-hud { display:grid; grid-template-columns:minmax(0, 1fr) 230px; align-items:start; }
+  body.map-first .hero-hud { grid-column:1; grid-row:1; }
+  body.map-first .delve-guidance-hud { grid-column:1; grid-row:2; gap:2px; }
+  body.map-first .guidance-status-group { flex-wrap:nowrap; gap:6px; width:100%; }
+  body.map-first .guidance-mode-pill, body.map-first .guidance-movement-pill { flex-shrink:0; }
+  body.map-first .guidance-objective-pill { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  body.map-first .guidance-hover-bar { display:none; }
+  body.map-first .initiative-ribbon-container { grid-column:2; grid-row:1; width:230px; }
+  body.map-first .core-hud { width:calc(100% - 180px); padding:5px; }
+  body.map-first .core-hud .action-grid { grid-template-columns:repeat(6, minmax(0,1fr)); }
+  body.map-first .core-hud .target-line { margin:0 0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11px; }
+  body.map-first .core-hud .action-grid .btn { white-space:nowrap; padding:4px 2px; overflow:hidden; text-overflow:ellipsis; }
+  body.map-first .core-hud .action-cost-badge { font-size:8px; padding:1px 3px; }
+  body.map-first .map-wrap.view-3d .minimap-container { bottom:12px; width:150px; }
+  body.map-first .encounter-tools { grid-column:1; grid-row:3; }
+}
 
 /* ==========================================================================
    T4 guidance: server-driven next steps (home cards, region map, summary, combat)
@@ -2483,3 +2591,149 @@ body.immersive .map-wrap.view-3d .minimap-container { bottom: 12px; }
   .quick-start-bar { flex-direction: column; }
 }
 /* =================== end T5 quick start & first-delve tutorial =================== */
+body.map-first .delve-tutorial-card { position:static; max-width:min(300px, 100%); pointer-events:auto; }
+body.map-first .map-top-hud:has(.delve-tutorial-card) .guidance-hover-bar { display:none; }
+@media (max-height:500px) and (max-width:900px) {
+  body.map-first .delve-tutorial-card { grid-column:2; grid-row:2 / span 2; max-width:230px; padding:6px; }
+  body.map-first .delve-tutorial-card .tutorial-text { font-size:11px; max-height:32px; overflow:auto; }
+  body.map-first .delve-tutorial-card .tutorial-head { font-size:10px; }
+  body.map-first .delve-tutorial-card .tutorial-head > span { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  body.map-first .delve-tutorial-card .tutorial-dots { margin-top:4px; }
+}
+/* V1b: desktop authoring workspace; the existing mobile baseline remains separate. */
+.visual-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.visual-heading h2 { margin-bottom:6px; }
+.visual-workspace { display:grid; grid-template-columns:minmax(210px, .8fr) minmax(340px,1.5fr) minmax(220px,.9fr); gap:14px; align-items:start; }
+.visual-workspace .card { min-width:0; }
+.visual-library { max-height:70vh; overflow:auto; }
+.visual-pack { padding:10px 0; border-bottom:1px solid var(--border); }
+.visual-pack label { display:block; margin:8px 0; }
+.visual-model { display:block; width:100%; text-align:left; margin:8px 0; white-space:normal; }
+.visual-model small { display:block; margin-top:5px; }
+.visual-bindings select { width:100%; margin:8px 0; }
+.visual-bindings button { width:100%; }
+.visual-actions { display:flex; gap:6px; flex-wrap:wrap; }
+.visual-diagnostics { margin-top:10px; color:#edafa0; }
+.visual-diagnostics pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
+#visualCanvas { height:360px; width:100%; position:relative; border-radius:8px; overflow:hidden; }
+
+/* ==================== T15b Grid Map Editor ==================== */
+.map-grid-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.map-grid-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.map-grid-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.map-grid-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.map-grid-tool-btn.active {
+  background: linear-gradient(180deg, #7c3aed, #5b21b6);
+  border-color: #a78bfa;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(124, 58, 237, 0.4);
+}
+.map-grid-entities-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.map-entity-chip.selected {
+  outline: 2px solid #3b82f6;
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #60a5fa;
+  color: #93c5fd;
+}
+.map-grid-scroll-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  padding-bottom: 8px;
+}
+.map-grid-container {
+  display: inline-grid;
+  grid-template-columns: repeat(25, 28px);
+  grid-template-rows: repeat(15, 28px);
+  gap: 1px;
+  background: #14110e;
+  border: 2px solid #3d352b;
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+  user-select: none;
+}
+.map-grid-cell {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 2px;
+  background: #1e1914;
+  color: #96897a;
+  transition: filter 0.1s, transform 0.05s;
+}
+.map-grid-cell:hover {
+  filter: brightness(1.3);
+  transform: scale(1.05);
+  z-index: 5;
+  box-shadow: 0 0 4px var(--gold);
+}
+.map-grid-cell.cell-wall {
+  background: #2b241c;
+  color: #5c4e3e;
+}
+.map-grid-cell.cell-floor {
+  background: #181410;
+  color: #786b5c;
+}
+.map-grid-cell.cell-door {
+  background: #3b2816;
+  color: #d4a359;
+}
+.map-grid-cell.cell-campfire {
+  background: #3b1812;
+  box-shadow: inset 0 0 6px rgba(239, 68, 68, 0.4);
+}
+.map-grid-cell.cell-start {
+  background: #12283b;
+  box-shadow: inset 0 0 6px rgba(59, 130, 246, 0.4);
+}
+.map-grid-cell.cell-entity {
+  background: #281a38;
+  box-shadow: inset 0 0 6px rgba(168, 85, 247, 0.4);
+}
+.map-grid-cell.cell-selected {
+  outline: 2px solid #3b82f6;
+  z-index: 6;
+  background: #1e3a5f;
+}
+.map-grid-cell.cell-unreachable {
+  border: 1px dashed rgba(239, 68, 68, 0.6);
+}

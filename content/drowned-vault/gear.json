@@ -6,7 +6,17 @@
       "type": "shield",
       "acBonus": 3,
       "cost": 150,
-      "desc": "+3 AC — a tower shield etched with warding runes."
+      "desc": "+3 AC — a tower shield etched with warding runes.",
+      "localized": {
+        "en": {
+          "name": "Warden's Shield",
+          "desc": "+3 AC — a tower shield etched with warding runes."
+        },
+        "zh-CN": {
+          "name": "守墓者之盾",
+          "desc": "护甲 +3，刻着守护符文的塔盾。"
+        }
+      }
     }
   ]
 }

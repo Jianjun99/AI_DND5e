@@ -2,6 +2,16 @@
 
 这份指南给项目拥有者。你无需转述整段聊天或自己解释代码；让下一位 agent 打开仓库，按入口与单项任务工作即可。
 
+当前更新（2026-10-11）：T14/T13a/T15a/T15b 的**独立复核补修 R1–R9 已实现，待独立复核**。逐项闭环、改动清单、
+新增回归计数与真人试玩步骤见 [复核补修记录](REVIEW_T14_T15_FIXES_2026-10-11.md)；复核原始失败点与定向探针证据在
+`G:\ai_DND_handoffs\release-1.11-20261010\REVIEW_T14_T15_2026-10-11.md` 与同目录 `review-20261011\`。
+套件注册数现为 65（11 unit / 31 integration / 23 browser，复核基线 57）。交接下一位 agent 时请说明两件仍未关闭的事：
+一次独立复核（读记录 + 跑 `npm run verify` 核对真实计数），以及两次真人体验（新玩家走双章 / 从克隆改故事与地图后
+导出导入通关）。本轮不改规则数值、不 commit/push/改版本/tag/发版；动手前整仓快照在
+`G:\ai_DND_backups\20261011T051416Z-review-fix-111\`。历史更新（2026-10-04）：[T9a–T11 三项补修](T9_T11_REVIEW_2026-10-03.md) **done，全部 closed**。最终 `npm run verify -- --timeout=1200 --balance-runs=50` 退出 0，37 套件（12 CDP）/eslint/tsc/smoke/balance 全绿，HP 10/0、新增 CDP 107/0，12 组 PNG/DOM 已实际查看，容器已移除；证据 `artifacts/verify/2026-10-04T04-22-56-094Z-bc96d5aa/`。报告保留所有失败、实际画面、胜率对比和范围外首页徽标观察；历史污染 HP 未批改，真人/真实 AI 试玩仍待反馈。保留五项全部未提交成果，不自动续 T12/T13 或提交/发布。下方 T11 全绿是主体开发历史。
+
+**新的执行模块和提示词（2026-10-03）见 [NEXT_ROUND_HANDOFF.md](NEXT_ROUND_HANDOFF.md)。** T9a/T9b/T10/T9c 和随后授权的 T11 均已完成。T11 单图、两 NPC、三处选择、三种结局、失败推进与持久记忆已交付；最终专用 Docker `npm run verify -- --timeout=1200` 退出 0，35 套件（11 CDP）/smoke 全绿，集成 11 场景/350 断言、浏览器 134 项通过，24 组 PNG/DOM 中英文桌面/手机已核对，容器已清理。证据 `artifacts/verify/2026-10-04T01-42-52-785Z-343bdb5a/`。完整范围、兼容、历史失败、加速计时条件、真人节奏反馈与试玩见 [T11 交接](../tasks/t11-branching-short-adventure.md)。此前 T9c 退出 0 的历史证据 `artifacts/verify/2026-10-03T23-51-30-615Z-1d5334a6/` 和 [T9c 结果](../tasks/t9c-content-log-ai-localization.md) 保留。保留 T9a/T9b/T10/T9c/T11 全部未提交成果；当前没有新的执行任务，不自动续 T12/T13 或 commit/push/改版本/发布。下面 T1–T8 提示保留为历史。
+
 ## 当前自动验证规则（优先于下方历史提示）
 
 在仓库根目录执行 `npm run verify`。入口自动构建独立 `Dockerfile.test`，完整验证、服务端和 Chromium
@@ -14,8 +24,8 @@
 回放与数值模拟在完整 verify 后按需追加，命令参数见测试指南。
 完整说明见 [Docker 测试指南](DOCKER_TESTING.md)。下方历史 DATA_DIR/本机 Edge 操作不再用于自动验证。
 
-**当前进度（2026-10-03）：T5a/T7a 已关闭；T8 与用户授权续做的 T6 均完成，最终 Docker 验证 27 套件、smoke/balance 全绿，容器清理完成。**
-环境与证据见 [环境任务](../tasks/docker-test-environment.md)、[T8 结果](../tasks/t8-content-validation.md)和[T6 结果与试玩步骤](../tasks/t6-remembered-encounter.md)。山谷哨门两路线各 50 次模拟，和平完成 100% / 战斗 96%。本轮队列无未完成项；下一位 agent 先读取上述结果和 MODDING 的 scene 协议，再按玩家试玩反馈领取新任务，不从零重写 T6/T8，也不把旧提示词当作待执行任务。
+**上一轮进度（2026-10-03，历史）：T5a/T7a 已关闭；T8 与用户授权续做的 T6 均完成，最终 Docker 验证 27 套件、smoke/balance 全绿，容器清理完成。**
+环境与证据见 [环境任务](../tasks/docker-test-environment.md)、[T8 结果](../tasks/t8-content-validation.md)和[T6 结果与试玩步骤](../tasks/t6-remembered-encounter.md)。山谷哨门两路线各 50 次模拟，和平完成 100% / 战斗 96%。上一轮队列已完成；当前新任务见顶部链接。不要从零重写 T6/T8，也不把旧提示词当作待执行任务。
 [独立复核报告](T5A_T7A_REVIEW_2026-10-02.md) 和下方 T7a 提示保留为历史，不重开已完成任务。
 
 ## 此前交给同一位 agent 的 T7a 提示词（历史）

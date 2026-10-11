@@ -193,16 +193,20 @@ async function waitHealthy() {
   if (!freeform.state.log.some(l => l.text.includes('listen'))) throw new Error('Freeform action produced no log');
   console.log('✔ freeform actions work');
 
-  // Easy difficulty: 4 starting potions (2 base + 2 bonus) and lower monster HP
-  const easy = await req('POST', '/api/game/start', { characterId: char.id, bringAlly: true, difficulty: 'easy' });
-  if (easy.state.difficulty !== 'easy') throw new Error('Difficulty not stored');
+  // Easy difficulty: 4 starting potions (2 base + 2 bonus) and lower monster HP.
+  // The scaling probe needs a plain goblin; elite champions legitimately carry
+  // +15-40% HP. Spawns draw from the unseeded delve RNG, so the fixture resamples
+  // the delve (bounded) until a plain goblin exists — the assertion itself stays strict.
+  let easy = null, goblin = null;
+  for (let attempt = 0; attempt < 3 && !goblin; attempt++) {
+    easy = await req('POST', '/api/game/start', { characterId: char.id, bringAlly: true, difficulty: 'easy' });
+    goblin = easy.state.entities.find(e => e.monsterId === 'goblin' && !e.isElite && !e.affix);
+  }
+  if (!easy || easy.state.difficulty !== 'easy') throw new Error('Difficulty not stored');
   const easyPotions = easy.state.character.inventory.find(i => i.itemId === 'potion_healing').qty;
   if (easyPotions !== 4) throw new Error(`Expected 4 potions on easy, got ${easyPotions}`);
   if (!easy.state.entities.some(e => e.kind === 'ally')) throw new Error('Ally missing on easy delve');
-  // elite champions legitimately carry +15-40% HP — the check targets a plain goblin,
-  // otherwise a high-rolled elite flakes this probe (seen once in CI)
-  const goblin = easy.state.entities.find(e => e.monsterId === 'goblin' && !e.isElite && !e.affix);
-  if (!goblin) throw new Error('No plain goblin on the easy delve to check scaling against');
+  if (!goblin) throw new Error('No plain goblin on the easy delve to check scaling against (3 resampled starts)');
   if (goblin.hp > Math.round(14 * 0.75)) throw new Error(`Easy difficulty did not reduce goblin HP (got ${goblin.hp})`);
   console.log(`✔ easy difficulty: 4 potions, ally present, goblin HP ${goblin.hp}/14 max`);
 

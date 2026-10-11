@@ -22,12 +22,30 @@
           "bonus": 4,
           "range": 5,
           "damage": "1d4+2",
-          "damageType": "piercing"
+          "damageType": "piercing",
+          "localized": {
+            "en": {
+              "name": "Bite"
+            },
+            "zh-CN": {
+              "name": "啮咬"
+            }
+          }
         }
       ],
       "blurb": "A dog-sized rodent with diseased yellow fangs.",
       "loot": {
         "gold": "1d4"
+      },
+      "localized": {
+        "en": {
+          "name": "Giant Rat",
+          "blurb": "A dog-sized rodent with diseased yellow fangs."
+        },
+        "zh-CN": {
+          "name": "巨鼠",
+          "blurb": "犬一般大的啮齿兽，病黄的獠牙令人不安。"
+        }
       }
     },
     {
@@ -52,7 +70,15 @@
           "bonus": 4,
           "range": 5,
           "damage": "1d6+2",
-          "damageType": "piercing"
+          "damageType": "piercing",
+          "localized": {
+            "en": {
+              "name": "Shortsword"
+            },
+            "zh-CN": {
+              "name": "短剑"
+            }
+          }
         }
       ],
       "vulnerabilities": [
@@ -61,6 +87,16 @@
       "blurb": "Rattling bones animated by dark magic; brittle but merciless.",
       "loot": {
         "gold": "1d6"
+      },
+      "localized": {
+        "en": {
+          "name": "Skeleton",
+          "blurb": "Rattling bones animated by dark magic; brittle but merciless."
+        },
+        "zh-CN": {
+          "name": "骷髅",
+          "blurb": "黑暗魔法驱动的骨架，脆弱却毫不留情。"
+        }
       }
     },
     {
@@ -85,7 +121,15 @@
           "bonus": 4,
           "range": 5,
           "damage": "1d6+2",
-          "damageType": "slashing"
+          "damageType": "slashing",
+          "localized": {
+            "en": {
+              "name": "Scimitar"
+            },
+            "zh-CN": {
+              "name": "弯刀"
+            }
+          }
         },
         {
           "name": "Shortbow",
@@ -93,7 +137,15 @@
           "range": 25,
           "damage": "1d6+2",
           "damageType": "piercing",
-          "ranged": true
+          "ranged": true,
+          "localized": {
+            "en": {
+              "name": "Shortbow"
+            },
+            "zh-CN": {
+              "name": "短弓"
+            }
+          }
         }
       ],
       "traits": [
@@ -108,6 +160,22 @@
             "chance": 0.2
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Goblin Warrior",
+          "blurb": "A wiry goblin in scavenged leather, blade and bow close at hand.",
+          "traits": [
+            "Nimble Escape: can Disengage as a bonus action."
+          ]
+        },
+        "zh-CN": {
+          "name": "地精战士",
+          "blurb": "瘦硬的地精穿着捡来的皮甲，刀弓随时可取。",
+          "traits": [
+            "灵巧逃脱：可用附赠动作撤离。"
+          ]
+        }
       }
     },
     {
@@ -132,7 +200,15 @@
           "bonus": 4,
           "range": 5,
           "damage": "1d6+2",
-          "damageType": "bludgeoning"
+          "damageType": "bludgeoning",
+          "localized": {
+            "en": {
+              "name": "Slam"
+            },
+            "zh-CN": {
+              "name": "重击"
+            }
+          }
         }
       ],
       "traits": [
@@ -147,6 +223,22 @@
             "chance": 0.1
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Zombie",
+          "blurb": "A shambling corpse, grave-dirt clinging to its rotting frame.",
+          "traits": [
+            "Undead Fortitude: when reduced to 0 HP, a CON save DC 5 + damage lets it survive with 1 HP."
+          ]
+        },
+        "zh-CN": {
+          "name": "僵尸",
+          "blurb": "摇晃前行的尸体，腐烂身躯上沾满坟土。",
+          "traits": [
+            "不死坚韧：生命降至 0 时，通过难度为 5 + 所受伤害的体质豁免，即可保留 1 点生命。"
+          ]
+        }
       }
     },
     {
@@ -171,7 +263,15 @@
           "bonus": 3,
           "range": 5,
           "damage": "1d4+1",
-          "damageType": "piercing"
+          "damageType": "piercing",
+          "localized": {
+            "en": {
+              "name": "Ritual Dagger"
+            },
+            "zh-CN": {
+              "name": "仪式匕首"
+            }
+          }
         }
       ],
       "blurb": "A hooded zealot murmuring prayers to something buried below.",
@@ -183,6 +283,16 @@
             "chance": 0.35
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Crypt Cultist",
+          "blurb": "A hooded zealot murmuring prayers to something buried below."
+        },
+        "zh-CN": {
+          "name": "墓穴邪教徒",
+          "blurb": "兜帽下的狂信者，向地底埋藏之物低声祈祷。"
+        }
       }
     },
     {
@@ -207,7 +317,15 @@
           "bonus": 6,
           "range": 5,
           "damage": "2d8+4",
-          "damageType": "bludgeoning"
+          "damageType": "bludgeoning",
+          "localized": {
+            "en": {
+              "name": "Greatclub"
+            },
+            "zh-CN": {
+              "name": "巨棒"
+            }
+          }
         }
       ],
       "traits": [
@@ -224,6 +342,22 @@
             "chance": 1
           }
         ]
+      },
+      "localized": {
+        "en": {
+          "name": "Grubnik the Crypt Ogre",
+          "blurb": "A hulking brute festooned with bones, swinging a tree-trunk club.",
+          "traits": [
+            "Bound to the Relic: Grubnik cannot stray far from the altar."
+          ]
+        },
+        "zh-CN": {
+          "name": "墓穴食人魔格鲁布尼克",
+          "blurb": "骨饰缠身的巨兽，挥舞树干般的巨棒。",
+          "traits": [
+            "圣物束缚：格鲁布尼克无法远离祭坛。"
+          ]
+        }
       }
     },
     {
@@ -234,15 +368,55 @@
       "hp": "5d8",
       "speed": 30,
       "darkvision": 60,
-      "abilities": { "str": 13, "dex": 15, "con": 10, "int": 7, "wis": 10, "cha": 6 },
+      "abilities": {
+        "str": 13,
+        "dex": 15,
+        "con": 10,
+        "int": 7,
+        "wis": 10,
+        "cha": 6
+      },
       "attacks": [
-        { "name": "Paralyzing Claws", "bonus": 4, "range": 5, "damage": "2d4+2", "damageType": "slashing" }
+        {
+          "name": "Paralyzing Claws",
+          "bonus": 4,
+          "range": 5,
+          "damage": "2d4+2",
+          "damageType": "slashing",
+          "localized": {
+            "en": {
+              "name": "Paralyzing Claws"
+            },
+            "zh-CN": {
+              "name": "麻痹爪击"
+            }
+          }
+        }
       ],
       "traits": [
         "Undead Fortitude: when reduced to 0 HP, a CON save DC 5 + damage lets it survive with 1 HP."
       ],
       "blurb": "A gaunt corpse-eater with too many teeth, dragging itself toward the warm and living.",
-      "loot": { "gold": "2d6", "items": [] }
+      "loot": {
+        "gold": "2d6",
+        "items": []
+      },
+      "localized": {
+        "en": {
+          "name": "Ghoul",
+          "blurb": "A gaunt corpse-eater with too many teeth, dragging itself toward the warm and living.",
+          "traits": [
+            "Undead Fortitude: when reduced to 0 HP, a CON save DC 5 + damage lets it survive with 1 HP."
+          ]
+        },
+        "zh-CN": {
+          "name": "食尸鬼",
+          "blurb": "瘦骨嶙峋的食腐尸怪，露着密牙爬向温暖的活物。",
+          "traits": [
+            "不死坚韧：生命降至 0 时，通过难度为 5 + 所受伤害的体质豁免，即可保留 1 点生命。"
+          ]
+        }
+      }
     },
     {
       "id": "dire_wolf",
@@ -252,15 +426,55 @@
       "hp": "3d10+6",
       "speed": 40,
       "darkvision": 0,
-      "abilities": { "str": 17, "dex": 15, "con": 15, "int": 3, "wis": 12, "cha": 7 },
+      "abilities": {
+        "str": 17,
+        "dex": 15,
+        "con": 15,
+        "int": 3,
+        "wis": 12,
+        "cha": 7
+      },
       "attacks": [
-        { "name": "Bite", "bonus": 5, "range": 5, "damage": "2d6+3", "damageType": "piercing" }
+        {
+          "name": "Bite",
+          "bonus": 5,
+          "range": 5,
+          "damage": "2d6+3",
+          "damageType": "piercing",
+          "localized": {
+            "en": {
+              "name": "Bite"
+            },
+            "zh-CN": {
+              "name": "啮咬"
+            }
+          }
+        }
       ],
       "traits": [
         "Pack Tactics: the wolf has advantage when an ally stands beside its prey."
       ],
       "blurb": "A horse-sized wolf with winter-gray fur and a patience that makes it worse.",
-      "loot": { "gold": "1d6", "items": [] }
+      "loot": {
+        "gold": "1d6",
+        "items": []
+      },
+      "localized": {
+        "en": {
+          "name": "Dire Wolf",
+          "blurb": "A horse-sized wolf with winter-gray fur and a patience that makes it worse.",
+          "traits": [
+            "Pack Tactics: the wolf has advantage when an ally stands beside its prey."
+          ]
+        },
+        "zh-CN": {
+          "name": "恐狼",
+          "blurb": "马一般大的灰毛巨狼，其耐心更令人恐惧。",
+          "traits": [
+            "集群战术：盟友站在猎物身旁时，狼的攻击获得优势。"
+          ]
+        }
+      }
     },
     {
       "id": "wight",
@@ -270,16 +484,60 @@
       "hp": "4d8+8",
       "speed": 30,
       "darkvision": 60,
-      "abilities": { "str": 15, "dex": 14, "con": 16, "int": 10, "wis": 13, "cha": 15 },
+      "abilities": {
+        "str": 15,
+        "dex": 14,
+        "con": 16,
+        "int": 10,
+        "wis": 13,
+        "cha": 15
+      },
       "attacks": [
-        { "name": "Life Drain", "bonus": 5, "range": 5, "damage": "2d6+3", "damageType": "necrotic" }
+        {
+          "name": "Life Drain",
+          "bonus": 5,
+          "range": 5,
+          "damage": "2d6+3",
+          "damageType": "necrotic",
+          "localized": {
+            "en": {
+              "name": "Life Drain"
+            },
+            "zh-CN": {
+              "name": "生命吸取"
+            }
+          }
+        }
       ],
-      "resistances": ["necrotic", "piercing", "slashing"],
+      "resistances": [
+        "necrotic",
+        "piercing",
+        "slashing"
+      ],
       "traits": [
         "Sunless Hatred: sunlight sears it — it fights wilder under the torchlight of the deep."
       ],
       "blurb": "A barrow-king's resentment given form, crowned in grave-iron and hungry for the living.",
-      "loot": { "gold": "3d6", "items": [] }
+      "loot": {
+        "gold": "3d6",
+        "items": []
+      },
+      "localized": {
+        "en": {
+          "name": "Barrow Wight",
+          "blurb": "A barrow-king's resentment given form, crowned in grave-iron and hungry for the living.",
+          "traits": [
+            "Sunless Hatred: sunlight sears it — it fights wilder under the torchlight of the deep."
+          ]
+        },
+        "zh-CN": {
+          "name": "古墓尸妖",
+          "blurb": "古墓国王的怨恨化身，头戴墓铁王冠，渴求生者。",
+          "traits": [
+            "无光憎恨：阳光灼痛它，在深处的火炬光下战斗时更加狂暴。"
+          ]
+        }
+      }
     }
   ],
   "allies": [
@@ -292,12 +550,60 @@
       "hp": 16,
       "speed": 30,
       "darkvision": 60,
-      "abilities": { "str": 10, "dex": 16, "con": 12, "int": 10, "wis": 14, "cha": 10 },
+      "abilities": {
+        "str": 10,
+        "dex": 16,
+        "con": 12,
+        "int": 10,
+        "wis": 14,
+        "cha": 10
+      },
       "attacks": [
-        { "name": "Longbow", "bonus": 5, "range": 25, "damage": "1d8+3", "damageType": "piercing", "ranged": true },
-        { "name": "Shortsword", "bonus": 5, "range": 5, "damage": "1d6+3", "damageType": "piercing" }
+        {
+          "name": "Longbow",
+          "bonus": 5,
+          "range": 25,
+          "damage": "1d8+3",
+          "damageType": "piercing",
+          "ranged": true,
+          "localized": {
+            "en": {
+              "name": "Longbow"
+            },
+            "zh-CN": {
+              "name": "长弓"
+            }
+          }
+        },
+        {
+          "name": "Shortsword",
+          "bonus": 5,
+          "range": 5,
+          "damage": "1d6+3",
+          "damageType": "piercing",
+          "localized": {
+            "en": {
+              "name": "Shortsword"
+            },
+            "zh-CN": {
+              "name": "短剑"
+            }
+          }
+        }
       ],
-      "blurb": "A wiry hunter who strikes from the dark with a longbow."
+      "blurb": "A wiry hunter who strikes from the dark with a longbow.",
+      "localized": {
+        "en": {
+          "name": "Bram the Scout",
+          "role": "Ranger / Archer",
+          "blurb": "A wiry hunter who strikes from the dark with a longbow."
+        },
+        "zh-CN": {
+          "name": "斥候布拉姆",
+          "role": "游侠 / 弓手",
+          "blurb": "精瘦的猎人，以长弓从暗处出击。"
+        }
+      }
     },
     {
       "id": "valeria",
@@ -308,12 +614,60 @@
       "hp": 22,
       "speed": 30,
       "darkvision": 60,
-      "abilities": { "str": 16, "dex": 10, "con": 14, "int": 10, "wis": 12, "cha": 12 },
+      "abilities": {
+        "str": 16,
+        "dex": 10,
+        "con": 14,
+        "int": 10,
+        "wis": 12,
+        "cha": 12
+      },
       "attacks": [
-        { "name": "Warhammer", "bonus": 5, "range": 5, "damage": "1d8+3", "damageType": "bludgeoning" },
-        { "name": "Javelin", "bonus": 5, "range": 15, "damage": "1d6+3", "damageType": "piercing", "ranged": true }
+        {
+          "name": "Warhammer",
+          "bonus": 5,
+          "range": 5,
+          "damage": "1d8+3",
+          "damageType": "bludgeoning",
+          "localized": {
+            "en": {
+              "name": "Warhammer"
+            },
+            "zh-CN": {
+              "name": "战锤"
+            }
+          }
+        },
+        {
+          "name": "Javelin",
+          "bonus": 5,
+          "range": 15,
+          "damage": "1d6+3",
+          "damageType": "piercing",
+          "ranged": true,
+          "localized": {
+            "en": {
+              "name": "Javelin"
+            },
+            "zh-CN": {
+              "name": "标枪"
+            }
+          }
+        }
       ],
-      "blurb": "A stern veteran in chain mail and steel shield who holds the frontline."
+      "blurb": "A stern veteran in chain mail and steel shield who holds the frontline.",
+      "localized": {
+        "en": {
+          "name": "Valeria Ironheart",
+          "role": "Fighter / Tank",
+          "blurb": "A stern veteran in chain mail and steel shield who holds the frontline."
+        },
+        "zh-CN": {
+          "name": "铁心瓦莱莉娅",
+          "role": "战士 / 坦克",
+          "blurb": "身披链甲、手持钢盾的严肃老兵，坚守前线。"
+        }
+      }
     },
     {
       "id": "aldous",
@@ -324,13 +678,63 @@
       "hp": 15,
       "speed": 30,
       "darkvision": 60,
-      "abilities": { "str": 12, "dex": 10, "con": 12, "int": 10, "wis": 16, "cha": 12 },
-      "spells": ["cure_wounds"],
-      "attacks": [
-        { "name": "Sacred Flame", "bonus": 5, "range": 20, "damage": "1d8", "damageType": "radiant", "ranged": true },
-        { "name": "Mace", "bonus": 3, "range": 5, "damage": "1d6+1", "damageType": "bludgeoning" }
+      "abilities": {
+        "str": 12,
+        "dex": 10,
+        "con": 12,
+        "int": 10,
+        "wis": 16,
+        "cha": 12
+      },
+      "spells": [
+        "cure_wounds"
       ],
-      "blurb": "A traveling priest who channels radiant light and heals wounds in battle."
+      "attacks": [
+        {
+          "name": "Sacred Flame",
+          "bonus": 5,
+          "range": 20,
+          "damage": "1d8",
+          "damageType": "radiant",
+          "ranged": true,
+          "localized": {
+            "en": {
+              "name": "Sacred Flame"
+            },
+            "zh-CN": {
+              "name": "圣火术"
+            }
+          }
+        },
+        {
+          "name": "Mace",
+          "bonus": 3,
+          "range": 5,
+          "damage": "1d6+1",
+          "damageType": "bludgeoning",
+          "localized": {
+            "en": {
+              "name": "Mace"
+            },
+            "zh-CN": {
+              "name": "硬头锤"
+            }
+          }
+        }
+      ],
+      "blurb": "A traveling priest who channels radiant light and heals wounds in battle.",
+      "localized": {
+        "en": {
+          "name": "Brother Aldous",
+          "role": "Cleric / Healer",
+          "blurb": "A traveling priest who channels radiant light and heals wounds in battle."
+        },
+        "zh-CN": {
+          "name": "奥尔多斯修士",
+          "role": "牧师 / 治疗者",
+          "blurb": "四处行旅的祭司，在战斗中引导光耀之力、治愈伤口。"
+        }
+      }
     }
   ],
   "ally": {
@@ -357,16 +761,44 @@
         "range": 25,
         "damage": "1d8+3",
         "damageType": "piercing",
-        "ranged": true
+        "ranged": true,
+        "localized": {
+          "en": {
+            "name": "Longbow"
+          },
+          "zh-CN": {
+            "name": "长弓"
+          }
+        }
       },
       {
         "name": "Shortsword",
         "bonus": 5,
         "range": 5,
         "damage": "1d6+3",
-        "damageType": "piercing"
+        "damageType": "piercing",
+        "localized": {
+          "en": {
+            "name": "Shortsword"
+          },
+          "zh-CN": {
+            "name": "短剑"
+          }
+        }
       }
     ],
-    "blurb": "A wiry hunter who knows these crypts better than anyone alive — for now."
+    "blurb": "A wiry hunter who knows these crypts better than anyone alive — for now.",
+    "localized": {
+      "en": {
+        "name": "Bram the Scout",
+        "role": "Ranger / Archer",
+        "blurb": "A wiry hunter who knows these crypts better than anyone alive — for now."
+      },
+      "zh-CN": {
+        "name": "斥候布拉姆",
+        "role": "游侠 / 弓手",
+        "blurb": "精瘦的猎人，比任何活人都了解这些墓穴——至少目前如此。"
+      }
+    }
   }
 }

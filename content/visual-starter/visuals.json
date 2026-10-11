@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "models": [
+    {
+      "id": "starter-hero",
+      "name": "Golden Warden",
+      "role": "hero",
+      "file": "assets/hero.glb",
+      "scale": 1,
+      "yaw": 0,
+      "clips": {
+        "idle": "Idle",
+        "walk": "Walk",
+        "attack": "Attack",
+        "hit": "Hit",
+        "death": "Death",
+        "cast": "Cast"
+      }
+    },
+    {
+      "id": "starter-skeleton",
+      "name": "Jade Skeleton",
+      "role": "monster",
+      "file": "assets/skeleton.glb",
+      "scale": 1,
+      "yaw": 0,
+      "clips": {
+        "idle": "Idle",
+        "walk": "Walk",
+        "attack": "Attack",
+        "hit": "Hit",
+        "death": "Death"
+      }
+    }
+  ],
+  "bindings": {
+    "monsters": {}
+  }
+}

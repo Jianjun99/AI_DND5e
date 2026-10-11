@@ -76,7 +76,13 @@ const PRESETS = [
 // Client-facing metadata — everything the quick-start card renders. No rules tables leak here.
 function listPresets() {
   return PRESETS.map(p => ({
-    id: p.id, label: p.label, tagline: p.tagline, blurb: p.blurb, tips: p.tips, defaultName: p.defaultName
+    id: p.id, label: p.label, tagline: p.tagline, blurb: p.blurb, tips: p.tips, defaultName: p.defaultName,
+    display: {
+      label: { key: 'preset.' + p.id + '.label' },
+      tagline: { key: 'preset.' + p.id + '.tagline' },
+      blurb: { key: 'preset.' + p.id + '.blurb' },
+      tips: p.tips.map((text, index) => ({ key: 'preset.' + p.id + '.tip' + index }))
+    }
   }));
 }
 

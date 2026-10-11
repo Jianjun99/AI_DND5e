@@ -1,0 +1,36 @@
+{
+  "gear": [
+    {
+      "id": "trail_ration",
+      "type": "provision",
+      "name": "行路干粮",
+      "desc": "油纸包好的硬面饼和肉干。猎犬抵不住肉干的气味——也可以拿来引开它们。",
+      "localized": {
+        "en": {
+          "name": "Trail Ration",
+          "desc": "Hardtack and dried meat wrapped in oilpaper. Hounds cannot resist the smell — and it can lure them away."
+        },
+        "zh-CN": {
+          "name": "行路干粮",
+          "desc": "油纸包好的硬面饼和肉干。猎犬抵不住肉干的气味——也可以拿来引开它们。"
+        }
+      }
+    },
+    {
+      "id": "brams_pack",
+      "type": "quest",
+      "name": "兄弟的行囊",
+      "desc": "布拉姆兄弟的旧行囊。角落烙着一枚刻名的木哨记号。绷带和口粮已被用去大半，不可购买。",
+      "localized": {
+        "en": {
+          "name": "His Brother’s Pack",
+          "desc": "Bram’s brother’s old pack. A carved wooden whistle is branded into the corner. Most of the bandages and rations are already used. It cannot be purchased."
+        },
+        "zh-CN": {
+          "name": "兄弟的行囊",
+          "desc": "布拉姆兄弟的旧行囊。角落烙着一枚刻名的木哨记号。绷带和口粮已被用去大半，不可购买。"
+        }
+      }
+    }
+  ]
+}

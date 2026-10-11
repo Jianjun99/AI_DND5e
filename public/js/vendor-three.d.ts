@@ -34,3 +34,8 @@ export const TorusGeometry: any;
 export const Vector2: any;
 export const Vector3: any;
 export const WebGLRenderer: any;
+export const AnimationMixer: any;
+export const LoopOnce: any;
+export const LoopRepeat: any;
+export const LoadingManager: any;
+export const Box3: any;

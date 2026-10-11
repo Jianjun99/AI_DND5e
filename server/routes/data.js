@@ -22,7 +22,7 @@ router.get('/export', (req, res) => {
 router.post('/import', (req, res) => {
   const data = req.body || {};
   if (data.format !== 'ai-dnd-backup' || !Array.isArray(data.characters)) {
-    return res.status(400).json({ error: 'Not a valid AI Dungeon backup file.' });
+    return res.status(400).json({ error: 'Not a valid AI Dungeon backup file.', errorDisplay: { key: "api.backupInvalid" } });
   }
   store.saveCharacters(data.characters);
   (data.saves || []).forEach(s => {

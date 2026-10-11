@@ -1,0 +1,12 @@
+{
+  "id": "visual-starter",
+  "name": "Visual Starter",
+  "author": "AI Dungeon",
+  "blurb": "Original CC0 skinned hero and skeleton examples; cosmetic only.",
+  "localized": {
+    "zh-CN": {
+      "name": "外观入门样例",
+      "blurb": "原创 CC0 英雄与骷髅骨架模型，仅改变外观。"
+    }
+  }
+}

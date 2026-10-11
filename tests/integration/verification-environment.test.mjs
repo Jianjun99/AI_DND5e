@@ -61,6 +61,15 @@ await test('a second verify inside the current container is refused with exit 73
   assert.match(child.stderr, /already running in this test container/);
 });
 
+await test('browser cleanup honors process exit and still protects a live profile', () => {
+  const child = spawnSync(process.execPath, ['tests/unit/browser-cleanup.test.mjs'], {
+    env: { ...process.env }, encoding: 'utf8', timeout: 5000
+  });
+  process.stdout.write(child.stdout || '');
+  process.stderr.write(child.stderr || '');
+  assert.equal(child.status, 0, 'browser cleanup ordering probe must pass');
+});
+
 await test('disabled WebGL fails on a real browser and retains PNG + page diagnostics', async () => {
   const port = 9230;
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-dnd-webgl-negative-'));

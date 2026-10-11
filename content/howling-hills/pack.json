@@ -2,5 +2,15 @@
   "id": "howling-hills",
   "name": "The Howling Hills",
   "author": "Jianjun99",
-  "blurb": "An outdoor bandit stronghold in the wind-scoured hills. A tougher delve for heroes of level 5-10, with a warboss on a war-drum."
+  "blurb": "An outdoor bandit stronghold in the wind-scoured hills. A tougher delve for heroes of level 5-10, with a warboss on a war-drum.",
+  "localized": {
+    "en": {
+      "name": "The Howling Hills",
+      "blurb": "An outdoor bandit stronghold in the wind-scoured hills. A tougher delve for heroes of level 5-10, with a warboss on a war-drum."
+    },
+    "zh-CN": {
+      "name": "嚎叫丘陵",
+      "blurb": "风蚀丘陵中的露天匪徒堡垒，战酋守在战鼓旁，适合 5–10 级英雄。"
+    }
+  }
 }

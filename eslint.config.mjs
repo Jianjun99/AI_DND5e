@@ -49,7 +49,7 @@ export default [
     }
   },
   {
-    files: ['public/**/*.js'],
+    files: ['public/**/*.js', 'public/**/*.mjs'],
     languageOptions: {
       globals: { ...globals.browser },
       sourceType: 'module'

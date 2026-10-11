@@ -1,4 +1,5 @@
 // map.js — canvas renderer for the dungeon grid (walls, fog of war, tokens)
+import { t } from './i18n.js';
 const TILE = 34; // base tile px; canvas scales
 
 // deterministic per-tile pseudo-random for texture
@@ -245,7 +246,7 @@ export function createMapRenderer(canvas, opts = {}) {
         ctx.fillStyle = '#fef08a';
         ctx.font = 'bold 9px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('EXIT', px(camp.x) + TILE / 2, px(camp.y) - 3);
+        ctx.fillText(t('ui.map.exit'), px(camp.x) + TILE / 2, px(camp.y) - 3);
         ctx.restore();
       }
     }
